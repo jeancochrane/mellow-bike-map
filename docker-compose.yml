@@ -1,0 +1,35 @@
+version: '2.4'
+
+services:
+  make:
+    container_name: mellow-bike-map-make
+    image: mellow-bike-map-make
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+    working_dir: /app
+    entrypoint: make
+
+  postgres:
+    container_name: mellow-bike-map-postgres
+    image: mellow-bike-map-postgres
+    build: .
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_DB: mellow_bike_map
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - mellow-bike-map-db-data:/var/lib/postgresql/data
+      - ./create-extensions.sql:/docker-entrypoint-initdb.d/create-extensions.sql
+    ports:
+      - 32001:5432
+
+volumes:
+  mellow-bike-map-db-data:
