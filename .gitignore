@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 # Data
-raw/*.osm
-db/*.table
+db/raw/*.osm
+db/import/*.table
