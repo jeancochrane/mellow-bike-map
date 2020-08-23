@@ -58,32 +58,10 @@
           </a>
         {% endblock %}
       </div>
-      <div class="justify-content-right">
-        <button
-          class="navbar-toggler"
-          type="button"
-          data-toggle="collapse"
-          data-target="#navbar-supported-content"
-          aria-controls="navbar-supported-content"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span class="navbar-toggler-icon"></span>
-        </button>
-      </div>
-      <div class="collapse navbar-collapse" id="navbar-supported-content">
-        <ul class="navbar-nav ml-auto">
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'home' %}">Home</a>
-          </li>
-        </ul>
-      </div>
     </nav>
 
     <div id="main-body">
-      <div class="mt-3 mt-lg-5 mb-5">
-        {% block body %}{% endblock %}
-      </div>
+      % block body %}{% endblock %}
     </div>
 
     <footer class="footer bg-dark text-light pt-5 pb-3">
@@ -93,17 +71,6 @@
         </h3>
         <p>
           <a href="{% url 'home' %}">Home</a>
-        </p>
-
-        <p class="mt-3">
-          Website by <br/>
-          <a href="https://datamade.us">
-            <img
-              class="mb-4 mt-2" style="height:20px"
-              src="{% static 'images/datamade-logo.png' %}"
-              alt="DataMade"
-            />
-          </a>
         </p>
       </div>
     </footer>

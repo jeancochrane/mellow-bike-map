@@ -1,30 +1,63 @@
 {% extends "mellow_bike_map/base.html" %}
 {% load static %}
+{% load compress %}
 
-{% block title %}Home{% endblock %}
+{% block title %}{{ view.title }}{% endblock %}
+
+{% block extra_css %}
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+    integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+    crossorigin=""
+  />
+{% endblock %}
 
 {% block body %}
-<div class="container-fluid mb-1 jumbotron">
-  <div class="row">
-    <div class="col-sm-10 offset-sm-1">
-      <h1 class="mb-3">Mellow Bike Map</h1>
-    </div>
+  <div class="container-fluid my-2">
+    <input id="source" name="source" placeholder="Source"></input>
+    <input id="target" name="target" placeholder="Target"></input>
+    <button id="submit" class="btn btn-primary">Search</input>
   </div>
-</div>
-<div class="container">
-  <div class="row pt-5 pb-4 text-center">
-    <p>Welcome to your app!</p>
-  </div>
-</div>
+  <div id="map"></div>
 {% endblock %}
 
 {% block extra_js %}
-{% load compress %}
-<!-- Example of how to use Django Compressor -->
-{% compress js %}
-  <script type="module" src="{% static 'js/base.js' %}"></script>
-  <script type="module">
-    console.log('Hello, inline world!')
+  <script
+    src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+    integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+    crossorigin=""
+  >
   </script>
-{% endcompress %}
+  <script type="text/javascript">
+    $(document).ready(function() {
+      const map = L.map('map').setView([41.87, -87.62], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map)
+      var routeLayer;  // Init empty route
+
+      $('#submit').click(function(e) {
+        var source = $('#source').val()
+        var target = $('#target').val()
+        if (source === '') {
+          alert('Source is required for search')
+        } else if (target == '') {
+          alert('Target is required for search')
+        } else {
+          $.getJSON('{% url "route" %}' + '?' + $.param({source, target})).done(function(data) {
+            var geom = JSON.parse(data.geom)
+            if (routeLayer) {
+              map.removeLayer(routeLayer)
+            }
+            routeLayer = L.geoJSON(geom).addTo(map)
+            map.fitBounds(routeLayer.getBounds())
+          }).fail(function(jqxhr, textStatus, error) {
+            var err = textStatus + ': ' + error
+            alert('Request failed: ' + err)
+          })
+        }
+      })
+    });
+  </script>
 {% endblock %}
