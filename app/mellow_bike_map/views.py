@@ -15,23 +15,49 @@ class Route(APIView):
     renderer_classes = [JSONRenderer]
 
     def get(self, request):
-        source, target = self.get_source(request), self.get_target(request)
-        route = self.get_route(source, target)
+        source_osm_id = self.get_value_from_request(request, 'source')
+        source_vertex_id = self.get_nearest_vertex_id(source_osm_id)
+
+        target_osm_id = self.get_value_from_request(request, 'target')
+        target_vertex_id = self.get_nearest_vertex_id(target_osm_id)
+
+        route = self.get_route(source_vertex_id, target_vertex_id)
         data = {
-            'source': source,
-            'target': target,
+            'source': source_osm_id,
+            'target': target_osm_id,
+            'source_vertex_id': source_vertex_id,
+            'target_vertex_id': target_vertex_id,
             'geom': route['geom'],
             'cost': route['cost']
         }
         return Response(data)
 
-    def get_source(self, request):
-        return int(request.GET.get('source'))
+    def get_value_from_request(self, request, key):
+        try:
+            return request.GET[key]
+        except KeyError:
+            raise KeyError('Request is missing required key: %s' % key)
 
-    def get_target(self, request):
-        return int(request.GET.get('target'))
+    def get_nearest_vertex_id(self, osm_id):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT (
+                    SELECT vert.id
+                    FROM chicago_ways_vertices_pgr AS vert
+                    ORDER BY osm_nodes.the_geom <-> vert.the_geom
+                    LIMIT 1
+                )
+                FROM osm_nodes
+                WHERE osm_id = %s
+            """, [osm_id])
+            rows = self.fetchall(cursor)
+        return rows[0]['id']
 
-    def get_route(self, source, target):
+    def fetchall(self, cursor):
+        columns = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    def get_route(self, source_vertex_id, target_vertex_id):
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT ST_AsGeoJSON(ST_Union(nodes, ways)) AS geom, cost
@@ -50,13 +76,9 @@ class Route(APIView):
                     JOIN chicago_ways_vertices_pgr AS node
                     on path.node = node.id
                 ) AS route
-            """, [source, target])
+            """, [source_vertex_id, target_vertex_id])
             rows = self.fetchall(cursor)
         return rows[0]
-
-    def fetchall(self, cursor):
-        columns = [col[0] for col in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
 
 def page_not_found(request, exception, template_name='mellow_bike_map/404.html'):
