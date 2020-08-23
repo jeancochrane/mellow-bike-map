@@ -4,4 +4,7 @@ db/raw/chicago.osm:
 db/import/chicago.table: db/raw/chicago.osm
 	osm2pgrouting -f $< -c /usr/local/share/osm2pgrouting/mapconfig_for_bicycles.xml --prefix chicago_ --addnodes --tags --clean \
 	              -d mellow_bike_map -U postgres -h postgres -W postgres && \
+	PGPASSWORD=postgres psql -U postgres -h postgres -c " \
+		update chicago_ways set one_way = 3, oneway = 'REVERSIBLE' \
+		where osm_id in (select osm_id from osm_ways where tags @> 'oneway:bicycle => no')" && \
 	touch $@
