@@ -1,9 +1,14 @@
 from django.db import connection
+from django.urls import reverse_lazy
 from django.shortcuts import render
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, CreateView, UpdateView, ListView
+from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
+
+from mellow_bike_map.models import MellowWay, fetchall
+from mellow_bike_map.forms import MellowWayForm
 
 
 class Home(TemplateView):
@@ -50,12 +55,8 @@ class Route(APIView):
                 FROM osm_nodes
                 WHERE osm_id = %s
             """, [osm_id])
-            rows = self.fetchall(cursor)
+            rows = fetchall(cursor)
         return rows[0]['id']
-
-    def fetchall(self, cursor):
-        columns = [col[0] for col in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     def get_route(self, source_vertex_id, target_vertex_id):
         with connection.cursor() as cursor:
@@ -77,8 +78,30 @@ class Route(APIView):
                     on path.node = node.id
                 ) AS route
             """, [source_vertex_id, target_vertex_id])
-            rows = self.fetchall(cursor)
+            rows = fetchall(cursor)
         return rows[0]
+
+
+class MellowWayList(LoginRequiredMixin, ListView):
+    title = 'Mellow Ways'
+    model = MellowWay
+    template_name = 'mellow_bike_map/mellow_way_list.html'
+
+
+class MellowWayCreate(LoginRequiredMixin, CreateView):
+    title = 'Create Mellow Way'
+    template_name = 'mellow_bike_map/mellow_way_create.html'
+    form_class = MellowWayForm
+    model = MellowWay
+    success_url = reverse_lazy('mellow-way-list')
+
+
+class MellowWayEdit(LoginRequiredMixin, UpdateView):
+    title = 'Edit Mellow Way'
+    template_name = 'mellow_bike_map/mellow_way_edit.html'
+    form_class = MellowWayForm
+    model = MellowWay
+    success_url = reverse_lazy('mellow-way-list')
 
 
 def page_not_found(request, exception, template_name='mellow_bike_map/404.html'):

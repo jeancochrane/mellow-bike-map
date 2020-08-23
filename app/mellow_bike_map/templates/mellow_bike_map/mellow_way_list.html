@@ -1,0 +1,46 @@
+{% extends "mellow_bike_map/base.html" %}
+{% load static %}
+
+{% block title %}{{ view.title }}{% endblock %}
+
+{% block body %}
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12">
+      <h3 class="pt-4">
+        {{ view.title }}
+        <a
+          class="btn btn-primary float-right"
+          href="{% url 'mellow-way-create' %}"
+        >
+          <i class="fa fa-fw fa-plus"></i>
+          Create new mellow way
+        </a>
+      </h3>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <th>Name</th>
+            <th>Slug</th>
+            <th></th>
+          </thead>
+          <tbody>
+            {% for object in object_list %}
+              <tr>
+                <td>{{ object.name }}</td>
+                <td>{{ object.slug }}</td>
+                <td>
+                  <a href="{% url 'mellow-way-edit' object.slug %}">
+                    <i class="fa fa-fw fa-edit"></i>
+                    Edit
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

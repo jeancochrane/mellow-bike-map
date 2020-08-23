@@ -49,7 +49,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
     'compressor',
+    'django_geomultiplechoice',
+    'leaflet',
     'mellow_bike_map'
 ]
 
@@ -124,6 +127,8 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+LOGIN_URL = 'admin:login'
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/

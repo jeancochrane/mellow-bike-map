@@ -20,7 +20,10 @@ from mellow_bike_map import views
 
 urlpatterns = [
     path('', views.Home.as_view(), name='home'),
-    path('api/route', views.Route.as_view(), name='route'),
+    path('api/route/', views.Route.as_view(), name='route'),
+    path('ways/', views.MellowWayList.as_view(), name='mellow-way-list'),
+    path('ways/create/', views.MellowWayCreate.as_view(), name='mellow-way-create'),
+    path('ways/edit/<slug:slug>/', views.MellowWayEdit.as_view(), name='mellow-way-edit'),
     path('admin/', admin.site.urls),
 ]
 

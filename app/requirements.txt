@@ -8,3 +8,5 @@ pytest-mock==3.3.0
 sentry-sdk==0.16.5
 whitenoise==5.2.0
 djangorestframework==3.11.1
+django-geomultiplechoice==0.0.5
+django-leaflet==0.27.1
