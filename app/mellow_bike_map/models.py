@@ -52,13 +52,15 @@ class Way(models.Model):
 class MellowWay(models.Model):
     slug = models.SlugField(max_length=50, primary_key=True)
     name = models.CharField(max_length=150)
+    bounding_box = gis_models.PolygonField(null=True, blank=True)
     ways = pg_models.ArrayField(
         models.BigIntegerField(),
         help_text=(
             'Select one or more streets on the map to mark them as mellow. '
             'Add or remove a street by clicking on it, or remove all streets '
             'by clicking the "Clear all" button.'
-        )
+        ),
+        default=list
     )
 
 

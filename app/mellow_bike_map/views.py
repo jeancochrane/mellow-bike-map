@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
 
 from mellow_bike_map.models import MellowWay, fetchall
-from mellow_bike_map.forms import MellowWayForm
+from mellow_bike_map.forms import MellowWayCreateForm, MellowWayEditForm
 
 
 class Home(TemplateView):
@@ -61,22 +61,37 @@ class Route(APIView):
     def get_route(self, source_vertex_id, target_vertex_id):
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT ST_AsGeoJSON(ST_Union(nodes, ways)) AS geom, cost
-                FROM (
+                SELECT
+                    ST_AsGeoJSON(ST_Union(way.the_geom)) AS geom,
+                    MAX(path.agg_cost) AS cost
+                FROM pgr_dijkstra(
+                    'WITH mellow AS (
+                        SELECT DISTINCT(UNNEST(ways)) AS osm_id, slug
+                        FROM mellow_bike_map_mellowway
+                    )
                     SELECT
-                        ST_Union(node.the_geom) AS nodes,
-                        ST_Union(way.the_geom) AS ways,
-                        MAX(path.agg_cost) AS cost
-                    FROM pgr_dijkstra(
-                        'SELECT gid AS id, source, target, cost, reverse_cost FROM chicago_ways',
-                        %s,
-                        %s
-                    ) AS path
-                    JOIN chicago_ways AS way
-                    ON path.edge = way.gid
-                    JOIN chicago_ways_vertices_pgr AS node
-                    on path.node = node.id
-                ) AS route
+                        way.gid AS id,
+                        way.source,
+                        way.target,
+                        CASE
+                            WHEN mellow.slug IS NOT NULL
+                            THEN way.cost * 0.1
+                            ELSE way.cost
+                        END AS cost,
+                        CASE
+                            WHEN mellow.slug IS NOT NULL
+                            THEN way.reverse_cost * 0.1
+                            ELSE way.reverse_cost
+                        END AS reverse_cost
+                    FROM chicago_ways AS way
+                    LEFT JOIN mellow
+                    USING(osm_id)
+                    ',
+                    %s,
+                    %s
+                ) AS path
+                JOIN chicago_ways AS way
+                ON path.edge = way.gid
             """, [source_vertex_id, target_vertex_id])
             rows = fetchall(cursor)
         return rows[0]
@@ -91,7 +106,7 @@ class MellowWayList(LoginRequiredMixin, ListView):
 class MellowWayCreate(LoginRequiredMixin, CreateView):
     title = 'Create Mellow Way'
     template_name = 'mellow_bike_map/mellow_way_create.html'
-    form_class = MellowWayForm
+    form_class = MellowWayCreateForm
     model = MellowWay
     success_url = reverse_lazy('mellow-way-list')
 
@@ -99,7 +114,7 @@ class MellowWayCreate(LoginRequiredMixin, CreateView):
 class MellowWayEdit(LoginRequiredMixin, UpdateView):
     title = 'Edit Mellow Way'
     template_name = 'mellow_bike_map/mellow_way_edit.html'
-    form_class = MellowWayForm
+    form_class = MellowWayEditForm
     model = MellowWay
     success_url = reverse_lazy('mellow-way-list')
 
