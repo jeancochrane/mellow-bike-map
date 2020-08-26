@@ -24,6 +24,7 @@ urlpatterns = [
     path('ways/', views.MellowWayList.as_view(), name='mellow-way-list'),
     path('ways/create/', views.MellowWayCreate.as_view(), name='mellow-way-create'),
     path('ways/edit/<slug:slug>/', views.MellowWayEdit.as_view(), name='mellow-way-edit'),
+    path('ways/delete/<slug:slug>/', views.MellowWayDelete.as_view(), name='mellow-way-delete'),
     path('admin/', admin.site.urls),
 ]
 

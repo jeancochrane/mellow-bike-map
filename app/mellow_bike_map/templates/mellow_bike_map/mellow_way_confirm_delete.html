@@ -1,0 +1,18 @@
+{% extends "mellow_bike_map/base.html" %}
+
+{% block title %}{{ view.title }}{% endblock %}
+
+{% block body %}
+<div class="container">
+  <div class="row">
+    <div class="col-12">
+      <h3 class="pt-4">{{ view.title }}</h3>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <p>Are you sure you want to delete {{ object.name }}?
+        <input type="submit" value="Confirm" class="btn btn-primary float-right my-3"/>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

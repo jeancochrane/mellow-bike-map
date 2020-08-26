@@ -1,7 +1,9 @@
+import json
+
 from django.db import connection
 from django.urls import reverse_lazy
 from django.shortcuts import render
-from django.views.generic import TemplateView, CreateView, UpdateView, ListView
+from django.views.generic import TemplateView, CreateView, UpdateView, ListView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -102,6 +104,23 @@ class MellowWayList(LoginRequiredMixin, ListView):
     model = MellowWay
     template_name = 'mellow_bike_map/mellow_way_list.html'
 
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context['regions'] = json.dumps({
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'geometry': json.loads(way.bounding_box.json),
+                    'properties': {
+                        'name': way.name
+                    }
+                }
+                for way in self.model.objects.all()
+            ]
+        })
+        return context
+
 
 class MellowWayCreate(LoginRequiredMixin, CreateView):
     title = 'Create Mellow Way'
@@ -115,6 +134,13 @@ class MellowWayEdit(LoginRequiredMixin, UpdateView):
     title = 'Edit Mellow Way'
     template_name = 'mellow_bike_map/mellow_way_edit.html'
     form_class = MellowWayEditForm
+    model = MellowWay
+    success_url = reverse_lazy('mellow-way-list')
+
+
+class MellowWayDelete(LoginRequiredMixin, DeleteView):
+    title = 'Delete Mellow Way'
+    template_name = 'mellow_bike_map/mellow_way_confirm_delete.html'
     model = MellowWay
     success_url = reverse_lazy('mellow-way-list')
 

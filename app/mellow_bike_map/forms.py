@@ -52,15 +52,40 @@ class MellowWayEditForm(forms.ModelForm):
 
         bounding_box = self.instance.bounding_box
         if bounding_box is not None:
-            bounding_box_centroid = bounding_box.centroid.coords
-            bounding_box_coords = bounding_box.coords[0]
-            top_left, bottom_right = bounding_box_coords[0], bounding_box_coords[2]
-            x1, y1 = top_left[0], top_left[1]
-            x2, y2 = bottom_right[0], bottom_right[1]
-            bounding_box_extent = (x1, y1, x2, y2)
+            # These coords are flipped for some reason (lng, lat)
+            bounding_box_centroid = (
+                bounding_box.centroid.coords[1],
+                bounding_box.centroid.coords[0],
+            )
+            # Retrieve ways with raw query for speed
+            way_query = """
+                SELECT
+                    osm_id::varchar AS id,
+                    ST_AsGeoJSON(ST_Union(the_geom)) AS geom
+                FROM chicago_ways
+                WHERE the_geom && (
+                    SELECT bounding_box
+                    FROM mellow_bike_map_mellowway
+                    WHERE slug = %s
+                )
+                GROUP BY osm_id
+            """
+            way_query_params = [self.instance.slug]
         else:
             bounding_box_centroid = DEFAULT_CENTER
-            bounding_box_extent = SPATIAL_EXTENT
+            way_query = """
+                SELECT
+                    osm_id::varchar AS id,
+                    ST_AsGeoJSON(ST_Union(the_geom)) AS geom
+                FROM chicago_ways
+                WHERE the_geom && ST_MakeEnvelope(%s, %s, %s, %s)
+                GROUP BY osm_id
+            """
+            way_query_params = SPATIAL_EXTENT
+
+        with connection.cursor() as cursor:
+            cursor.execute(way_query, way_query_params)
+            choices = fetchall(cursor)
 
         self.fields['bounding_box'].widget = LeafletWidget(attrs={
             'settings_overrides': {
@@ -68,28 +93,14 @@ class MellowWayEditForm(forms.ModelForm):
                 'MAP_WIDTH': '100%',
                 'DEFAULT_ZOOM': 13,
                 'DEFAULT_CENTER': bounding_box_centroid,
-                'SPATIAL_EXTENT': bounding_box_extent,
             }
         })
-
-        with connection.cursor() as cursor:
-            # Use raw query for speed
-            cursor.execute("""
-                SELECT
-                    osm_id::varchar AS id,
-                    ST_AsGeoJSON(ST_Union(the_geom)) AS geom
-                FROM chicago_ways
-                WHERE the_geom && ST_MakeEnvelope(%s, %s, %s, %s)
-                GROUP BY osm_id
-            """, bounding_box_extent)
-            choices = fetchall(cursor)
 
         self.fields['ways'].widget = MellowWayMultipleChoiceWidget(
             choices=[(choice['id'], choice) for choice in choices],
             settings_overrides={
                 'DEFAULT_ZOOM': 13,
                 'DEFAULT_CENTER': bounding_box_centroid,
-                'SPATIAL_EXTENT': bounding_box_extent,
                 'MAP_HEIGHT': '500px',
                 'MAP_WIDTH': '100%',
                 'MAP_LAYER_STYLE': {

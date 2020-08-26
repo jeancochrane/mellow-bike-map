@@ -1,7 +1,17 @@
 {% extends "mellow_bike_map/base.html" %}
 {% load static %}
+{% load leaflet_tags %}
 
 {% block title %}{{ view.title }}{% endblock %}
+
+{% block extra_css %}
+  {% leaflet_css %}
+  <style>
+    .leaflet-container {
+      height: 500px;
+    }
+  </style>
+{% endblock %}
 
 {% block body %}
 <div class="container">
@@ -17,11 +27,13 @@
           Create new mellow way
         </a>
       </h3>
+      {% leaflet_map "regions" %}
       <div class="table-responsive">
         <table class="table">
           <thead>
             <th>Name</th>
             <th>Slug</th>
+            <th></th>
             <th></th>
           </thead>
           <tbody>
@@ -35,6 +47,12 @@
                     Edit
                   </a>
                 </td>
+                <td>
+                  <a href="{% url 'mellow-way-delete' object.slug %}">
+                    <i class="fa fa-fw fa-trash-alt"></i>
+                    Delete
+                  </a>
+                </td>
               </tr>
             {% endfor %}
           </tbody>
@@ -43,4 +61,23 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+  {% leaflet_js %}
+  <script type="text/javascript">
+    window.addEventListener('map:init', function(e) {
+      let detail = e.detail;
+      const geojson = JSON.parse('{{ regions|escapejs }}')
+      console.log(geojson)
+      L.geoJSON(geojson, {
+        onEachFeature: function(feature, layer) {
+          if (feature.properties && feature.properties.name) {
+            layer.bindPopup(feature.properties.name)
+          }
+        }
+      }).addTo(detail.map)
+      detail.map.setView([41.88, -87.7], 10)
+    })
+  </script>
 {% endblock %}
