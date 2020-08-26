@@ -25,3 +25,13 @@ docker-compose up
 ```
 
 The app will be available on http://localhost:8000.
+
+## Mapping
+
+Load the region fixtures:
+
+```
+docker-compose run --rm app ./manage.py loaddata mellowway
+```
+
+Navigate to http://localhost:8000/ways and use the "Edit" buttons to start mapping.
