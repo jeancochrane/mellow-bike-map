@@ -16,17 +16,17 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from mellow_bike_map import views
+from mbm import views
 
 urlpatterns = [
     path('', views.Home.as_view(), name='home'),
     path('api/route/', views.Route.as_view(), name='route'),
-    path('ways/', views.MellowWayList.as_view(), name='mellow-way-list'),
-    path('ways/create/', views.MellowWayCreate.as_view(), name='mellow-way-create'),
-    path('ways/edit/<slug:slug>/', views.MellowWayEdit.as_view(), name='mellow-way-edit'),
-    path('ways/delete/<slug:slug>/', views.MellowWayDelete.as_view(), name='mellow-way-delete'),
+    path('routes/', views.MellowRouteList.as_view(), name='mellow-route-list'),
+    path('routes/create/', views.MellowRouteCreate.as_view(), name='mellow-route-create'),
+    path('routes/edit/<slug:slug>/', views.MellowRouteEdit.as_view(), name='mellow-route-edit'),
+    path('routes/delete/<slug:slug>/', views.MellowRouteDelete.as_view(), name='mellow-route-delete'),
     path('admin/', admin.site.urls),
 ]
 
-handler404 = 'mellow_bike_map.views.page_not_found'
-handler500 = 'mellow_bike_map.views.server_error'
+handler404 = 'mbm.views.page_not_found'
+handler500 = 'mbm.views.server_error'

@@ -9,13 +9,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
 
-from mellow_bike_map.models import MellowWay, fetchall
-from mellow_bike_map.forms import MellowWayCreateForm, MellowWayEditForm
+from mbm.models import MellowRoute, fetchall
+from mbm.forms import MellowRouteCreateForm, MellowRouteEditForm
 
 
 class Home(TemplateView):
     title = 'Home'
-    template_name = 'mellow_bike_map/index.html'
+    template_name = 'mbm/index.html'
 
 
 class Route(APIView):
@@ -69,7 +69,7 @@ class Route(APIView):
                 FROM pgr_dijkstra(
                     'WITH mellow AS (
                         SELECT DISTINCT(UNNEST(ways)) AS osm_id, slug
-                        FROM mellow_bike_map_mellowway
+                        FROM mbm_mellowroute
                     )
                     SELECT
                         way.gid AS id,
@@ -99,10 +99,10 @@ class Route(APIView):
         return rows[0]
 
 
-class MellowWayList(LoginRequiredMixin, ListView):
+class MellowRouteList(LoginRequiredMixin, ListView):
     title = 'Mellow Ways'
-    model = MellowWay
-    template_name = 'mellow_bike_map/mellow_way_list.html'
+    model = MellowRoute
+    template_name = 'mbm/mellow_route_list.html'
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
@@ -122,32 +122,32 @@ class MellowWayList(LoginRequiredMixin, ListView):
         return context
 
 
-class MellowWayCreate(LoginRequiredMixin, CreateView):
+class MellowRouteCreate(LoginRequiredMixin, CreateView):
     title = 'Create Mellow Way'
-    template_name = 'mellow_bike_map/mellow_way_create.html'
-    form_class = MellowWayCreateForm
-    model = MellowWay
-    success_url = reverse_lazy('mellow-way-list')
+    template_name = 'mbm/mellow_route_create.html'
+    form_class = MellowRouteCreateForm
+    model = MellowRoute
+    success_url = reverse_lazy('mellow-route-list')
 
 
-class MellowWayEdit(LoginRequiredMixin, UpdateView):
+class MellowRouteEdit(LoginRequiredMixin, UpdateView):
     title = 'Edit Mellow Way'
-    template_name = 'mellow_bike_map/mellow_way_edit.html'
-    form_class = MellowWayEditForm
-    model = MellowWay
-    success_url = reverse_lazy('mellow-way-list')
+    template_name = 'mbm/mellow_route_edit.html'
+    form_class = MellowRouteEditForm
+    model = MellowRoute
+    success_url = reverse_lazy('mellow-route-list')
 
 
-class MellowWayDelete(LoginRequiredMixin, DeleteView):
+class MellowRouteDelete(LoginRequiredMixin, DeleteView):
     title = 'Delete Mellow Way'
-    template_name = 'mellow_bike_map/mellow_way_confirm_delete.html'
-    model = MellowWay
-    success_url = reverse_lazy('mellow-way-list')
+    template_name = 'mbm/mellow_route_confirm_delete.html'
+    model = MellowRoute
+    success_url = reverse_lazy('mellow-route-list')
 
 
-def page_not_found(request, exception, template_name='mellow_bike_map/404.html'):
+def page_not_found(request, exception, template_name='mbm/404.html'):
     return render(request, template_name, status=404)
 
 
-def server_error(request, template_name='mellow_bike_map/500.html'):
+def server_error(request, template_name='mbm/500.html'):
     return render(request, template_name, status=500)

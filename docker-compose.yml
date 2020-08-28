@@ -31,7 +31,7 @@ services:
       timeout: 5s
       retries: 5
     environment:
-      POSTGRES_DB: mellow_bike_map
+      POSTGRES_DB: mbm
       POSTGRES_PASSWORD: postgres
     volumes:
       - mellow-bike-map-db-data:/var/lib/postgresql/data

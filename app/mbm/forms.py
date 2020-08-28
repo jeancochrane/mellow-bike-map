@@ -5,13 +5,13 @@ from django.db import connection
 from django_geomultiplechoice.widgets import GeoMultipleChoiceWidget
 from leaflet.forms.widgets import LeafletWidget
 
-from mellow_bike_map.models import MellowWay, fetchall
+from mbm.models import MellowRoute, fetchall
 
 DEFAULT_CENTER = (41.88, -87.7)
 SPATIAL_EXTENT = (-87.3, 41.5, -88, 42.15)
 
 
-class MellowWayMultipleChoiceWidget(GeoMultipleChoiceWidget):
+class MellowRouteMultipleChoiceWidget(GeoMultipleChoiceWidget):
     def get_features(self):
         return [
             {
@@ -25,9 +25,9 @@ class MellowWayMultipleChoiceWidget(GeoMultipleChoiceWidget):
         ]
 
 
-class MellowWayCreateForm(forms.ModelForm):
+class MellowRouteCreateForm(forms.ModelForm):
     class Meta:
-        model = MellowWay
+        model = MellowRoute
         fields = ['name', 'slug', 'bounding_box']
         widgets = {
             'bounding_box': LeafletWidget(attrs={
@@ -42,9 +42,9 @@ class MellowWayCreateForm(forms.ModelForm):
         }
 
 
-class MellowWayEditForm(forms.ModelForm):
+class MellowRouteEditForm(forms.ModelForm):
     class Meta:
-        model = MellowWay
+        model = MellowRoute
         fields = ['name', 'slug', 'bounding_box', 'ways']
 
     def __init__(self, *args, **kwargs):
@@ -65,7 +65,7 @@ class MellowWayEditForm(forms.ModelForm):
                 FROM chicago_ways
                 WHERE the_geom && (
                     SELECT bounding_box
-                    FROM mellow_bike_map_mellowway
+                    FROM mbm_mellowroute
                     WHERE slug = %s
                 )
                 GROUP BY osm_id
@@ -96,7 +96,7 @@ class MellowWayEditForm(forms.ModelForm):
             }
         })
 
-        self.fields['ways'].widget = MellowWayMultipleChoiceWidget(
+        self.fields['ways'].widget = MellowRouteMultipleChoiceWidget(
             choices=[(choice['id'], choice) for choice in choices],
             settings_overrides={
                 'DEFAULT_ZOOM': 13,

@@ -1,4 +1,4 @@
-{% extends "mellow_bike_map/base.html" %}
+{% extends "mbm/base.html" %}
 {% load static %}
 {% load leaflet_tags %}
 
@@ -21,7 +21,7 @@
         {{ view.title }}
         <a
           class="btn btn-primary float-right"
-          href="{% url 'mellow-way-create' %}"
+          href="{% url 'mellow-route-create' %}"
         >
           <i class="fa fa-fw fa-plus"></i>
           Create new mellow way
@@ -42,13 +42,13 @@
                 <td>{{ object.name }}</td>
                 <td>{{ object.slug }}</td>
                 <td>
-                  <a href="{% url 'mellow-way-edit' object.slug %}">
+                  <a href="{% url 'mellow-route-edit' object.slug %}">
                     <i class="fa fa-fw fa-edit"></i>
                     Edit
                   </a>
                 </td>
                 <td>
-                  <a href="{% url 'mellow-way-delete' object.slug %}">
+                  <a href="{% url 'mellow-route-delete' object.slug %}">
                     <i class="fa fa-fw fa-trash-alt"></i>
                     Delete
                   </a>

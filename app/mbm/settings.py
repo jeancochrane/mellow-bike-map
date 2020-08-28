@@ -15,7 +15,7 @@ import dj_database_url
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
-from mellow_bike_map.logging import before_send
+from mbm.logging import before_send
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'compressor',
     'django_geomultiplechoice',
     'leaflet',
-    'mellow_bike_map'
+    'mbm'
 ]
 
 MIDDLEWARE = [
@@ -68,7 +68,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'mellow_bike_map.urls'
+ROOT_URLCONF = 'mbm.urls'
 
 TEMPLATES = [
     {
@@ -86,7 +86,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'mellow_bike_map.wsgi.application'
+WSGI_APPLICATION = 'mbm.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
@@ -94,7 +94,7 @@ WSGI_APPLICATION = 'mellow_bike_map.wsgi.application'
 DATABASES = {}
 
 DATABASES['default'] = dj_database_url.parse(
-    os.getenv('DATABASE_URL', 'postgres://postgres:postgres@postgres:5432/mellow_bike_map'),
+    os.getenv('DATABASE_URL', 'postgres://postgres:postgres@postgres:5432/mbm'),
     conn_max_age=600,
     ssl_require=True if os.getenv('POSTGRES_REQUIRE_SSL') else False,
     engine='django.contrib.gis.db.backends.postgis'
