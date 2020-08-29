@@ -1,6 +1,6 @@
 # mellow-bike-map
 
-Experimenting with an improved routing algorithm for biking in Chicago.
+🚲 Web app and routing API for finding safe, chill bike routes. Like Google Maps if it took you through cozy side streets.
 
 ## Developing
 
