@@ -31,13 +31,45 @@ class MellowRouteCreateForm(forms.ModelForm):
         fields = ['name', 'slug', 'bounding_box']
         widgets = {
             'bounding_box': LeafletWidget(attrs={
+                'map_height': '500px',
+                'map_width': '100%',
+                'display_raw': True,
                 'settings_overrides': {
-                    'MAP_HEIGHT': '500px',
-                    'MAP_WIDTH': '100%',
                     'DEFAULT_ZOOM': 13,
                     'DEFAULT_CENTER': DEFAULT_CENTER,
                     'SPATIAL_EXTENT': SPATIAL_EXTENT,
-                }
+                },
+            })
+        }
+
+    def save(self):
+        # Create instances for all three route types
+        street_instance = super().save()
+
+        # Copy the instance by setting its pk to None
+        # See: https://docs.djangoproject.com/en/3.1/topics/db/queries/#copying-model-instances
+        route_instance = street_instance
+        route_instance.pk = None
+        route_instance.type = MellowRoute.Type.ROUTE
+        route_instance.save()
+
+        path_instance = route_instance
+        path_instance.pk = None
+        path_instance.type = MellowRoute.Type.PATH
+        path_instance.save()
+
+        return path_instance
+
+
+class MellowRouteNeighborhoodEditForm(forms.ModelForm):
+    class Meta:
+        model = MellowRoute
+        fields = ['name', 'slug', 'bounding_box']
+        widgets = {
+            'bounding_box': LeafletWidget(attrs={
+                'map_height': '500px',
+                'map_width': '100%',
+                'display_raw': True,
             })
         }
 
@@ -45,7 +77,12 @@ class MellowRouteCreateForm(forms.ModelForm):
 class MellowRouteEditForm(forms.ModelForm):
     class Meta:
         model = MellowRoute
-        fields = ['name', 'slug', 'bounding_box', 'ways']
+        fields = ['name', 'slug', 'type', 'ways']
+        widgets = {
+            'name': forms.TextInput(attrs={'readonly': True}),
+            'slug': forms.TextInput(attrs={'readonly': True}),
+            'type': forms.TextInput(attrs={'readonly': True})
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -67,10 +104,11 @@ class MellowRouteEditForm(forms.ModelForm):
                     SELECT bounding_box
                     FROM mbm_mellowroute
                     WHERE slug = %s
+                    AND type = %s
                 )
                 GROUP BY osm_id
             """
-            way_query_params = [self.instance.slug]
+            way_query_params = [self.instance.slug, self.instance.type]
         else:
             bounding_box_centroid = DEFAULT_CENTER
             way_query = """
@@ -86,15 +124,6 @@ class MellowRouteEditForm(forms.ModelForm):
         with connection.cursor() as cursor:
             cursor.execute(way_query, way_query_params)
             choices = fetchall(cursor)
-
-        self.fields['bounding_box'].widget = LeafletWidget(attrs={
-            'settings_overrides': {
-                'MAP_HEIGHT': '500px',
-                'MAP_WIDTH': '100%',
-                'DEFAULT_ZOOM': 13,
-                'DEFAULT_CENTER': bounding_box_centroid,
-            }
-        })
 
         self.fields['ways'].widget = MellowRouteMultipleChoiceWidget(
             choices=[(choice['id'], choice) for choice in choices],

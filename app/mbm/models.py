@@ -69,7 +69,7 @@ class MellowRoute(models.Model):
         STREET = ('street', 'Mellow street')
         PATH = ('path', 'Off-street bike path')
 
-    slug = models.SlugField(max_length=50, primary_key=True)
+    slug = models.SlugField(max_length=50)
     name = models.CharField(max_length=150)
     bounding_box = gis_models.PolygonField(null=True, blank=True)
     type = models.CharField(max_length=6, choices=Type.choices, default=Type.STREET)
@@ -82,6 +82,9 @@ class MellowRoute(models.Model):
         ),
         default=list
     )
+
+    class Meta:
+        unique_together = ('slug', 'type')
 
 
 def fetchall(cursor):

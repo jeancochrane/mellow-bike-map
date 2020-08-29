@@ -10,11 +10,14 @@
 <div class="container">
   <div class="row">
     <div class="col-12">
-      <h3 class="pt-4">{{ view.title }}</h3>
+      <h3 class="py-3">{{ view.title }}</h3>
       <form method="post" action="{{ request.path }}" novalidate>
         {% csrf_token %}
         {{ form }}
-        <input type="submit" value="Submit" class="btn btn-primary float-right my-3"/>
+        <div class="float-right my-3">
+          <a href="{% url 'mellow-route-list' %}" class="btn btn-link">Cancel</a>
+          <input type="submit" value="Submit" class="btn btn-primary"/>
+        </div>
       </form>
     </div>
   </div>

@@ -21,10 +21,11 @@ from mbm import views
 urlpatterns = [
     path('', views.Home.as_view(), name='home'),
     path('api/route/', views.Route.as_view(), name='route'),
-    path('routes/', views.MellowRouteList.as_view(), name='mellow-route-list'),
-    path('routes/create/', views.MellowRouteCreate.as_view(), name='mellow-route-create'),
-    path('routes/edit/<slug:slug>/', views.MellowRouteEdit.as_view(), name='mellow-route-edit'),
-    path('routes/delete/<slug:slug>/', views.MellowRouteDelete.as_view(), name='mellow-route-delete'),
+    path('neighborhoods/', views.MellowRouteList.as_view(), name='mellow-route-list'),
+    path('neighborhoods/create/', views.MellowRouteCreate.as_view(), name='mellow-route-create'),
+    path('neighborhoods/edit/<slug:slug>/', views.MellowRouteNeighborhoodEdit.as_view(), name='mellow-route-neighborhood-edit'),
+    path('neighborhoods/edit/<slug:slug>/<str:type>/', views.MellowRouteEdit.as_view(), name='mellow-route-edit'),
+    path('neighborhoods/delete/<slug:slug>/', views.MellowRouteDelete.as_view(), name='mellow-route-delete'),
     path('admin/', admin.site.urls),
 ]
 

@@ -9,8 +9,11 @@
       <h3 class="pt-4">{{ view.title }}</h3>
       <form method="post" novalidate>
         {% csrf_token %}
-        <p>Are you sure you want to delete {{ object.name }}?
-        <input type="submit" value="Confirm" class="btn btn-primary float-right my-3"/>
+        <p>Are you sure you want to delete the neighborhood "{{ object.name }}"?
+        <div class="float-right my-3">
+          <a href="{% url 'mellow-route-list' %}" class="btn btn-link">Cancel</a>
+          <input type="submit" value="Confirm" class="btn btn-primary"/>
+        </div>
       </form>
     </div>
   </div>

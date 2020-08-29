@@ -8,7 +8,7 @@
   {% leaflet_css %}
   <style>
     .leaflet-container {
-      height: 500px;
+      height: 400px;
     }
   </style>
 {% endblock %}
@@ -17,22 +17,34 @@
 <div class="container">
   <div class="row justify-content-center">
     <div class="col-12">
-      <h3 class="pt-4">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-primary alert-dismissible fade show mt-3" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      <h3 class="py-3">
         {{ view.title }}
         <a
           class="btn btn-primary float-right"
           href="{% url 'mellow-route-create' %}"
         >
           <i class="fa fa-fw fa-plus"></i>
-          Create new mellow way
+          Create new neighborhood
         </a>
       </h3>
-      {% leaflet_map "regions" %}
-      <div class="table-responsive">
+      {% leaflet_map "neighborhoods" %}
+      <div class="table-responsive mt-3">
         <table class="table">
           <thead>
             <th>Name</th>
-            <th>Slug</th>
+            <th></th>
+            <th></th>
+            <th></th>
             <th></th>
             <th></th>
           </thead>
@@ -40,11 +52,28 @@
             {% for object in object_list %}
               <tr>
                 <td>{{ object.name }}</td>
-                <td>{{ object.slug }}</td>
                 <td>
-                  <a href="{% url 'mellow-route-edit' object.slug %}">
+                  <a href="{% url 'mellow-route-neighborhood-edit' object.slug %}">
                     <i class="fa fa-fw fa-edit"></i>
-                    Edit
+                    Edit neighborhood
+                  </a>
+                </td>
+                <td>
+                  <a href="{% url 'mellow-route-edit' object.slug view.model.Type.ROUTE %}">
+                    <i class="fa fa-fw fa-edit"></i>
+                    Edit routes
+                  </a>
+                </td>
+                <td>
+                  <a href="{% url 'mellow-route-edit' object.slug view.model.Type.STREET %}">
+                    <i class="fa fa-fw fa-edit"></i>
+                    Edit streets
+                  </a>
+                </td>
+                <td>
+                  <a href="{% url 'mellow-route-edit' object.slug view.model.Type.PATH %}">
+                    <i class="fa fa-fw fa-edit"></i>
+                    Edit paths
                   </a>
                 </td>
                 <td>
@@ -52,6 +81,12 @@
                     <i class="fa fa-fw fa-trash-alt"></i>
                     Delete
                   </a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6">
+                  <i>No mellow routes found.</i>
                 </td>
               </tr>
             {% endfor %}
@@ -67,17 +102,37 @@
   {% leaflet_js %}
   <script type="text/javascript">
     window.addEventListener('map:init', function(e) {
-      let detail = e.detail;
-      const geojson = JSON.parse('{{ regions|escapejs }}')
-      console.log(geojson)
-      L.geoJSON(geojson, {
+      let map = e.detail.map;
+      map.setView([41.88, -87.7], 10)
+
+      // Add neighborhoods
+      const neighborhoods = JSON.parse('{{ geojson.neighborhoods|escapejs }}')
+      L.geoJSON(neighborhoods, {
+        style: {color: 'blue', weight: 2, fillColor: '#c7c4ff', fillOpacity: 0.1},
         onEachFeature: function(feature, layer) {
           if (feature.properties && feature.properties.name) {
             layer.bindPopup(feature.properties.name)
           }
         }
-      }).addTo(detail.map)
-      detail.map.setView([41.88, -87.7], 10)
+      }).addTo(map)
+
+      // Add routes
+      const routes = JSON.parse('{{ geojson.route|escapejs }}')
+      L.geoJSON(routes, {
+        style: {color: 'orange'},
+      }).addTo(map)
+
+      // Add streets
+      const streets = JSON.parse('{{ geojson.street|escapejs }}')
+      L.geoJSON(streets, {
+        style: {color: 'green'},
+      }).addTo(map)
+
+      // Add paths
+      const paths = JSON.parse('{{ geojson.path|escapejs }}')
+      L.geoJSON(paths, {
+        style: {color: 'pink'},
+      }).addTo(map)
     })
   </script>
 {% endblock %}

@@ -3,14 +3,16 @@ import json
 from django.db import connection
 from django.urls import reverse_lazy
 from django.shortcuts import render
+from django.http import HttpResponseRedirect
 from django.views.generic import TemplateView, CreateView, UpdateView, ListView, DeleteView
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
 
+from mbm import forms
 from mbm.models import MellowRoute, fetchall
-from mbm.forms import MellowRouteCreateForm, MellowRouteEditForm
 
 
 class Home(TemplateView):
@@ -100,13 +102,16 @@ class Route(APIView):
 
 
 class MellowRouteList(LoginRequiredMixin, ListView):
-    title = 'Mellow Ways'
+    title = 'Neighborhoods'
     model = MellowRoute
+    queryset = MellowRoute.objects.values('name', 'slug').distinct('name', 'slug')
     template_name = 'mbm/mellow_route_list.html'
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
-        context['regions'] = json.dumps({
+        # Get neighborhood boundaries
+        context['geojson'] = {}
+        context['geojson']['neighborhoods'] = json.dumps({
             'type': 'FeatureCollection',
             'features': [
                 {
@@ -119,30 +124,93 @@ class MellowRouteList(LoginRequiredMixin, ListView):
                 for way in self.model.objects.all()
             ]
         })
+        # Get geometries for routes, streets, and paths
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    routes.type,
+                    ST_AsGeoJSON(ST_Union(chicago_ways.the_geom)) AS geojson
+                FROM chicago_ways
+                JOIN (
+                    SELECT UNNEST(ways) AS osm_id, type
+                    FROM mbm_mellowroute
+                ) as routes
+                USING(osm_id)
+                GROUP BY routes.type
+            """)
+            rows = fetchall(cursor)
+        for row in rows:
+            context['geojson'][row['type']] = row['geojson']
         return context
 
 
 class MellowRouteCreate(LoginRequiredMixin, CreateView):
-    title = 'Create Mellow Way'
+    title = 'Create Neighborhood'
     template_name = 'mbm/mellow_route_create.html'
-    form_class = MellowRouteCreateForm
+    form_class = forms.MellowRouteCreateForm
     model = MellowRoute
     success_url = reverse_lazy('mellow-route-list')
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Neighborhood created.')
+        return super().form_valid(form)
 
 
 class MellowRouteEdit(LoginRequiredMixin, UpdateView):
-    title = 'Edit Mellow Way'
+    title = 'Edit Neighborhood'
     template_name = 'mbm/mellow_route_edit.html'
-    form_class = MellowRouteEditForm
+    form_class = forms.MellowRouteEditForm
     model = MellowRoute
     success_url = reverse_lazy('mellow-route-list')
+
+    def get_object(self):
+        return self.model.objects.get(
+            slug=self.kwargs['slug'],
+            type=self.kwargs['type']
+        )
+
+    def form_valid(self, form):
+        messages.success(self.request, 'Neighborhood updated.')
+        return super().form_valid(form)
+
+
+class MellowRouteNeighborhoodEdit(LoginRequiredMixin, UpdateView):
+    title = 'Edit Neighborhood'
+    template_name = 'mbm/mellow_route_edit.html'
+    form_class = forms.MellowRouteNeighborhoodEditForm
+    model = MellowRoute
+    success_url = reverse_lazy('mellow-route-list')
+
+    def get_object(self):
+        # Get first object, since we don't care about the type
+        return self.model.objects.filter(slug=self.kwargs['slug']).first()
+
+    def form_valid(self, form):
+        # Save the data for all MellowRoute types
+        self.model.objects.filter(slug=self.kwargs['slug']).update(
+            name=form.instance.name,
+            slug=form.instance.slug,
+            bounding_box=form.instance.bounding_box
+        )
+        return HttpResponseRedirect(self.success_url)
 
 
 class MellowRouteDelete(LoginRequiredMixin, DeleteView):
-    title = 'Delete Mellow Way'
+    title = 'Delete Neighborhood'
     template_name = 'mbm/mellow_route_confirm_delete.html'
     model = MellowRoute
     success_url = reverse_lazy('mellow-route-list')
+
+    def get_object(self):
+        # We don't use the object type in the view, so just return the first
+        # match on the slug
+        return self.model.objects.filter(slug=self.kwargs['slug']).first()
+
+    def delete(self, request, *args, **kwargs):
+        # Delete all MellowRoutes with this slug, no matter the type
+        self.model.objects.filter(slug=self.kwargs['slug']).delete()
+        messages.success(self.request, 'Neighborhood deleted.')
+        return HttpResponseRedirect(self.success_url)
 
 
 def page_not_found(request, exception, template_name='mbm/404.html'):
