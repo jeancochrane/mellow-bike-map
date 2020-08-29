@@ -1,0 +1,5 @@
+/* Add custom style overrides here. */
+#map {
+    height: 500px;
+    width: 100%;
+}

@@ -1,0 +1,51 @@
+{% extends "mbm/base.html" %}
+{% load leaflet_tags %}
+{% load static %}
+
+{% block title %}{{ view.title }}{% endblock %}
+
+{% block extra_css %}{% leaflet_css %}{% endblock %}
+
+{% block body %}
+  <div class="container-fluid my-2">
+    <input id="source" name="source" placeholder="Source OSM ID"></input>
+    <input id="target" name="target" placeholder="Target OSM ID"></input>
+    <button id="submit" class="btn btn-primary">Search</input>
+  </div>
+  <div id="map"></div>
+{% endblock %}
+
+{% block extra_js %}
+  {% leaflet_js %}
+  <script type="text/javascript">
+    $(document).ready(function() {
+      const map = L.map('map').setView([41.87, -87.62], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map)
+      var routeLayer;  // Init empty route
+
+      $('#submit').click(function(e) {
+        var source = $('#source').val()
+        var target = $('#target').val()
+        if (source === '') {
+          alert('Source is required for search')
+        } else if (target == '') {
+          alert('Target is required for search')
+        } else {
+          $.getJSON('{% url "route" %}' + '?' + $.param({source, target})).done(function(data) {
+            var geom = JSON.parse(data.geom)
+            if (routeLayer) {
+              map.removeLayer(routeLayer)
+            }
+            routeLayer = L.geoJSON(geom).addTo(map)
+            map.fitBounds(routeLayer.getBounds())
+          }).fail(function(jqxhr, textStatus, error) {
+            var err = textStatus + ': ' + error
+            alert('Request failed: ' + err)
+          })
+        }
+      })
+    });
+  </script>
+{% endblock %}
