@@ -106,7 +106,7 @@
       map.setView([41.88, -87.7], 10)
 
       // Add neighborhoods
-      const neighborhoods = JSON.parse('{{ geojson.neighborhoods|escapejs }}')
+      const neighborhoods = JSON.parse('{{ neighborhoods|escapejs }}')
       L.geoJSON(neighborhoods, {
         style: {color: 'blue', weight: 2, fillColor: '#c7c4ff', fillOpacity: 0.1},
         onEachFeature: function(feature, layer) {
@@ -117,22 +117,19 @@
       }).addTo(map)
 
       // Add routes
-      const routes = JSON.parse('{{ geojson.route|escapejs }}')
-      L.geoJSON(routes, {
-        style: {color: 'orange'},
-      }).addTo(map)
-
-      // Add streets
-      const streets = JSON.parse('{{ geojson.street|escapejs }}')
-      L.geoJSON(streets, {
-        style: {color: 'green'},
-      }).addTo(map)
-
-      // Add paths
-      const paths = JSON.parse('{{ geojson.path|escapejs }}')
-      L.geoJSON(paths, {
-        style: {color: 'pink'},
-      }).addTo(map)
+      $.getJSON('{% url "route-list" %}').done(function(data) {
+        allRoutesLayer = L.geoJSON(data, {
+          style: function(feature) {
+            switch (feature.properties.type) {
+              case 'street': return {color: 'green'}
+              case 'route': return {color: 'orange'}
+              case 'path': return {color: 'pink'}
+            }
+          }
+        }).addTo(map)
+      }).fail(function(jqxhr, textStatus, error) {
+        console.log(textStatus + ': ' + error)
+      })
     })
   </script>
 {% endblock %}

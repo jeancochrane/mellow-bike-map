@@ -1,4 +1,6 @@
-from django.db import models
+import json
+
+from django.db import models, connection
 from django.contrib.postgres import fields as pg_models
 from django.contrib.gis.db import models as gis_models
 
@@ -85,6 +87,39 @@ class MellowRoute(models.Model):
 
     class Meta:
         unique_together = ('slug', 'type')
+
+    @classmethod
+    def all(cls):
+        """
+        Retrieve all mellow routes and return their unioned geometries as a
+        dictionary grouped by route type.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT
+                    routes.type,
+                    ST_AsGeoJSON(ST_Union(chicago_ways.the_geom)) AS geometry
+                FROM chicago_ways
+                JOIN (
+                    SELECT UNNEST(ways) AS osm_id, type
+                    FROM mbm_mellowroute
+                ) as routes
+                USING(osm_id)
+                GROUP BY routes.type
+            """)
+            rows = fetchall(cursor)
+
+        return {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'geometry': json.loads(row['geometry']),
+                    'properties': {'type': row['type']}
+                }
+                for row in rows
+            ]
+        }
 
 
 def fetchall(cursor):

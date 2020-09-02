@@ -20,6 +20,13 @@ class Home(TemplateView):
     template_name = 'mbm/index.html'
 
 
+class RouteList(APIView):
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        return Response(MellowRoute.all())
+
+
 class Route(APIView):
     renderer_classes = [JSONRenderer]
 
@@ -109,9 +116,7 @@ class MellowRouteList(LoginRequiredMixin, ListView):
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
-        # Get neighborhood boundaries
-        context['geojson'] = {}
-        context['geojson']['neighborhoods'] = json.dumps({
+        context['neighborhoods'] = json.dumps({
             'type': 'FeatureCollection',
             'features': [
                 {
@@ -124,23 +129,6 @@ class MellowRouteList(LoginRequiredMixin, ListView):
                 for way in self.model.objects.all()
             ]
         })
-        # Get geometries for routes, streets, and paths
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT
-                    routes.type,
-                    ST_AsGeoJSON(ST_Union(chicago_ways.the_geom)) AS geojson
-                FROM chicago_ways
-                JOIN (
-                    SELECT UNNEST(ways) AS osm_id, type
-                    FROM mbm_mellowroute
-                ) as routes
-                USING(osm_id)
-                GROUP BY routes.type
-            """)
-            rows = fetchall(cursor)
-        for row in rows:
-            context['geojson'][row['type']] = row['geojson']
         return context
 
 

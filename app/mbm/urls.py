@@ -21,6 +21,7 @@ from mbm import views
 urlpatterns = [
     path('', views.Home.as_view(), name='home'),
     path('api/route/', views.Route.as_view(), name='route'),
+    path('api/routes/', views.RouteList.as_view(), name='route-list'),
     path('neighborhoods/', views.MellowRouteList.as_view(), name='mellow-route-list'),
     path('neighborhoods/create/', views.MellowRouteCreate.as_view(), name='mellow-route-create'),
     path('neighborhoods/edit/<slug:slug>/', views.MellowRouteNeighborhoodEdit.as_view(), name='mellow-route-neighborhood-edit'),

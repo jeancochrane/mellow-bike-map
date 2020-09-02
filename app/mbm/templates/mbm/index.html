@@ -23,7 +23,21 @@
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: 'Map data &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map)
-      var routeLayer;  // Init empty route
+      var routeLayer, allRoutesLayer;  // Init empty layers
+
+      $.getJSON('{% url "route-list" %}').done(function(data) {
+        allRoutesLayer = L.geoJSON(data, {
+          style: function(feature) {
+            switch (feature.properties.type) {
+              case 'street': return {color: 'green'}
+              case 'route': return {color: 'orange'}
+              case 'path': return {color: 'pink'}
+            }
+          }
+        }).addTo(map)
+      }).fail(function(jqxhr, textStatus, error) {
+        console.log(textStatus + ': ' + error)
+      })
 
       $('#submit').click(function(e) {
         var source = $('#source').val()
