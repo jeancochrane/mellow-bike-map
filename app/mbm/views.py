@@ -10,6 +10,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
+from rest_framework.exceptions import ParseError
 
 from mbm import forms
 from mbm.models import MellowRoute, fetchall
@@ -37,22 +38,19 @@ class Route(APIView):
         target_osm_id = self.get_value_from_request(request, 'target')
         target_vertex_id = self.get_nearest_vertex_id(target_osm_id)
 
-        route = self.get_route(source_vertex_id, target_vertex_id)
-        data = {
+        return Response({
             'source': source_osm_id,
             'target': target_osm_id,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'geom': route['geom'],
-            'cost': route['cost']
-        }
-        return Response(data)
+            'route': self.get_route(source_vertex_id, target_vertex_id)
+        })
 
     def get_value_from_request(self, request, key):
         try:
             return request.GET[key]
         except KeyError:
-            raise KeyError('Request is missing required key: %s' % key)
+            raise ParseError('Request is missing required key: %s' % key)
 
     def get_nearest_vertex_id(self, osm_id):
         with connection.cursor() as cursor:
@@ -67,17 +65,19 @@ class Route(APIView):
                 WHERE osm_id = %s
             """, [osm_id])
             rows = fetchall(cursor)
-        return rows[0]['id']
+        if rows:
+            return rows[0]['id']
+        else:
+            raise ParseError('No vertex found for OSM ID %s' % osm_id)
 
     def get_route(self, source_vertex_id, target_vertex_id):
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT
-                    ST_AsGeoJSON(ST_Union(way.the_geom)) AS geom,
-                    MAX(path.agg_cost) AS cost
+                    way.name, ST_AsGeoJSON(way.the_geom) AS geometry, mellow.type
                 FROM pgr_dijkstra(
                     'WITH mellow AS (
-                        SELECT DISTINCT(UNNEST(ways)) AS osm_id, slug
+                        SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
                         FROM mbm_mellowroute
                     )
                     SELECT
@@ -85,13 +85,17 @@ class Route(APIView):
                         way.source,
                         way.target,
                         CASE
-                            WHEN mellow.slug IS NOT NULL
-                            THEN way.cost * 0.1
+                            WHEN mellow.type = ''path'' THEN way.cost * 0.1
+                            WHEN mellow.type = ''street'' THEN way.cost * 0.25
+                            WHEN way.oneway = ''YES'' THEN way.cost * 0.5
+                            WHEN mellow.type = ''route'' THEN way.cost * 0.75
                             ELSE way.cost
                         END AS cost,
                         CASE
-                            WHEN mellow.slug IS NOT NULL
-                            THEN way.reverse_cost * 0.1
+                            WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
+                            WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
+                            WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
+                            WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
                             ELSE way.reverse_cost
                         END AS reverse_cost
                     FROM chicago_ways AS way
@@ -103,9 +107,28 @@ class Route(APIView):
                 ) AS path
                 JOIN chicago_ways AS way
                 ON path.edge = way.gid
+                LEFT JOIN (
+                    SELECT UNNEST(ways) AS osm_id, type
+                    FROM mbm_mellowroute
+                ) as mellow
+                USING(osm_id)
             """, [source_vertex_id, target_vertex_id])
             rows = fetchall(cursor)
-        return rows[0]
+
+        return {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'geometry': json.loads(row['geometry']),
+                    'properties': {
+                        'name': row['name'],
+                        'type': row['type']
+                    }
+                }
+                for row in rows
+            ]
+        }
 
 
 class MellowRouteList(LoginRequiredMixin, ListView):

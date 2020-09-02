@@ -18,6 +18,15 @@
 {% block extra_js %}
   {% leaflet_js %}
   <script type="text/javascript">
+    function getLineColor(type) {
+      switch (type) {
+        case 'street': return 'green'
+        case 'route': return 'orange'
+        case 'path': return 'pink'
+        default: return 'blue'
+      }
+    }
+
     $(document).ready(function() {
       const map = L.map('map').setView([41.87, -87.62], 11);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -28,11 +37,7 @@
       $.getJSON('{% url "route-list" %}').done(function(data) {
         allRoutesLayer = L.geoJSON(data, {
           style: function(feature) {
-            switch (feature.properties.type) {
-              case 'street': return {color: 'green'}
-              case 'route': return {color: 'orange'}
-              case 'path': return {color: 'pink'}
-            }
+            return {color: getLineColor(feature.properties.type), opacity: 0.8}
           }
         }).addTo(map)
       }).fail(function(jqxhr, textStatus, error) {
@@ -48,11 +53,20 @@
           alert('Target is required for search')
         } else {
           $.getJSON('{% url "route" %}' + '?' + $.param({source, target})).done(function(data) {
-            var geom = JSON.parse(data.geom)
             if (routeLayer) {
               map.removeLayer(routeLayer)
             }
-            routeLayer = L.geoJSON(geom).addTo(map)
+            routeLayer = L.geoJSON(data.route, {
+              style: function(feature) {
+                return {weight: 5, color: getLineColor(feature.properties.type)}
+              },
+              onEachFeature: function(feature, layer) {
+                layer.bindPopup(
+                  '<strong>Name:</strong> ' + feature.properties.name + '<br>' +
+                  '<strong>Type:</strong> ' + feature.properties.type
+                )
+              }
+            }).addTo(map)
             map.fitBounds(routeLayer.getBounds())
           }).fail(function(jqxhr, textStatus, error) {
             var err = textStatus + ': ' + error
