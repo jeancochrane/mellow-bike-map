@@ -32,43 +32,54 @@ class Route(APIView):
     renderer_classes = [JSONRenderer]
 
     def get(self, request):
-        source_osm_id = self.get_value_from_request(request, 'source')
-        source_vertex_id = self.get_nearest_vertex_id(source_osm_id)
+        source_coord = self.get_coord_from_request(request, 'source')
+        source_vertex_id = self.get_nearest_vertex_id(source_coord)
 
-        target_osm_id = self.get_value_from_request(request, 'target')
-        target_vertex_id = self.get_nearest_vertex_id(target_osm_id)
+        target_coord = self.get_coord_from_request(request, 'target')
+        target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
         return Response({
-            'source': source_osm_id,
-            'target': target_osm_id,
+            'source': source_coord,
+            'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
             'route': self.get_route(source_vertex_id, target_vertex_id)
         })
 
-    def get_value_from_request(self, request, key):
+    def get_coord_from_request(self, request, key):
         try:
-            return request.GET[key]
+            coord = request.GET[key]
         except KeyError:
             raise ParseError('Request is missing required key: %s' % key)
 
-    def get_nearest_vertex_id(self, osm_id):
+        coord_parts = coord.split(',')
+
+        try:
+            assert len(coord_parts) == 2
+            float(coord_parts[0]), float(coord_parts[1])
+        except (AssertionError, TypeError):
+            raise ParseError(
+                "Request argument '%s' must be a coordinate of the form lng,lat" % key
+            )
+
+        return coord_parts
+
+    def get_nearest_vertex_id(self, coord):
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT (
-                    SELECT vert.id
-                    FROM chicago_ways_vertices_pgr AS vert
-                    ORDER BY osm_nodes.the_geom <-> vert.the_geom
-                    LIMIT 1
+                SELECT vert.id
+                FROM chicago_ways_vertices_pgr AS vert
+                ORDER BY vert.the_geom <-> ST_SetSRID(
+                    ST_MakePoint(%s, %s),
+                    4326
                 )
-                FROM osm_nodes
-                WHERE osm_id = %s
-            """, [osm_id])
+                LIMIT 1
+            """, [coord[1], coord[0]])  # ST_MakePoint() expects lng,lat
             rows = fetchall(cursor)
         if rows:
             return rows[0]['id']
         else:
-            raise ParseError('No vertex found for OSM ID %s' % osm_id)
+            raise ParseError('No vertex found near point %s' % ','.join(coord))
 
     def get_route(self, source_vertex_id, target_vertex_id):
         with connection.cursor() as cursor:
