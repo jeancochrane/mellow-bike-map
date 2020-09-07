@@ -6,7 +6,7 @@ db/import/mellowroute.table: app/mbm/fixtures/mellowroute.json
 
 db/import/chicago.table: db/raw/chicago.osm
 	osm2pgrouting -f $< -c /usr/local/share/osm2pgrouting/mapconfig_for_bicycles.xml --prefix chicago_ --addnodes --tags --clean \
-	              -d mbm -U postgres -h postgres -W postgres &&
+	              -d mbm -U postgres -h postgres -W postgres && \
 	PGPASSWORD=postgres psql -U postgres -h postgres -d mbm -c " \
 		UPDATE chicago_ways SET one_way = 2, oneway = 'NO', reverse_cost = cost \
 		FROM osm_ways \
