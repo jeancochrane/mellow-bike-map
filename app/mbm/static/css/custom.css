@@ -1,5 +1,53 @@
 /* Add custom style overrides here. */
+:root {
+  --green-color: #77b7a2;
+  --dark-green-color: #548172;
+}
+
+body {
+  background-color: #fefefe;
+  /* variation on Github's system font strategy https://css-tricks.com/snippets/css/system-font-stack/ */
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";;
+}
+
+footer {
+  background-color: black;
+  color: white;
+}
+
+a {
+  color: var(--green-color);
+}
+
+#navbar-title {
+  font-weight: 700;
+}
+
+#navbar-tagline {
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
 #map {
-    height: 500px;
+    height: 90vh;
     width: 100%;
+}
+
+.btn-primary {
+  background-color: var(--green-color);
+  border: var(--dark-green-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--dark-green-color);
+  border: var(--dark-green-color);
+}
+
+@media screen and (max-width: 600px) {
+  #navbar-title {
+    padding: 1rem 1.5rem 0 1.5rem;
+  }
+  #navbar-tagline {
+    padding: 0 1.5rem;
+  }
 }
