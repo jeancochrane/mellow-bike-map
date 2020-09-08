@@ -131,3 +131,4 @@ dmypy.json
 # Data
 db/raw/*.osm
 db/import/*.table
+db/import/*.fixture
