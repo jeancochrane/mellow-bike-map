@@ -8,14 +8,20 @@
 {% block extra_css %}{% leaflet_css %}{% endblock %}
 
 {% block body %}
-  <div class="container-fluid my-2">
-    <input id="source_text" name="source_text" placeholder="Start address" style="width:300px"></input>
-    <input id="source" name="source_text" hidden="true"></input>
-    <input id="target_text" name="target_text" placeholder="End address" style="width:300px"></input>
-    <input id="target" name="target" hidden="true"></input>
-    <button id="submit" class="btn btn-primary">Search</input>
+  <div class="row">
+    <div class="col-12 col-md-3 pr-0">
+      <div class="container-fluid m-auto form-group">
+        <input id="source_text" class="form-control my-2" name="source_text" placeholder="Start address"></input>
+        <input id="source" name="source_text" hidden="true"></input>
+        <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
+        <input id="target" name="target" hidden="true"></input>
+        <button id="submit" class="btn btn-primary btn-block mt-1 mb-3 float-right">Search</input>
+      </div>
+    </div>
+    <div class="col-12 col-md-9">
+      <div id="map"></div>
+    </div>
   </div>
-  <div id="map"></div>
 {% endblock %}
 
 {% block extra_js %}
@@ -31,16 +37,16 @@
 
     const getLineColor = (type) => {
       switch (type) {
-        case 'street': return 'green'
-        case 'route': return 'orange'
-        case 'path': return 'pink'
-        default: return 'blue'
+        case 'street': return '#77b7a2'
+        case 'route': return '#e18a7e'
+        case 'path': return '#e17fa8'
+        default: return '#7ea4e1'
       }
     }
 
     document.addEventListener('DOMContentLoaded', (event) => {
       const map = L.map('map').setView([41.87, -87.62], 11);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
         attribution: 'Map data &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map)
       let routeLayer, allRoutesLayer;  // Init empty layers
@@ -48,7 +54,7 @@
       $.getJSON(routeListUrl).done(function(data) {
         allRoutesLayer = L.geoJSON(data, {
           style: function(feature) {
-            return {color: getLineColor(feature.properties.type), opacity: 0.8}
+            return {color: getLineColor(feature.properties.type), opacity: 0.6}
           }
         }).addTo(map)
       }).fail(function(jqxhr, textStatus, error) {
