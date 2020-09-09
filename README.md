@@ -9,13 +9,21 @@ Development requires Docker and Docker Compose.
 Build containers:
 
 ```
-docker-compose build
+docker-compose -f docker-compose.yml -f docker-compose.db.yml build
 ```
 
-Import the data:
+Run migrations:
 
 ```
-docker-compose -f docker-compose.yml -f db/docker-compose.yml run --rm make
+docker-compose run --rm app ./manage.py migrate
+```
+
+Import the data (note that the full data import can take quite a bit of memory,
+so make sure to adjust your Docker preferences to allow Docker at least 6GB of
+RAM):
+
+```
+docker-compose -f docker-compose.yml -f docker-compose.db.yml run --rm make
 ```
 
 Start the app service:
