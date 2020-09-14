@@ -1,4 +1,4 @@
-{% raw %}# Nginx requires that this upstream is named something unique. So, if
+# Nginx requires that this upstream is named something unique. So, if
 # you're using this deployment approach for more than one app on the same
 # server, they will each need to have a different upstream name.
 
@@ -84,4 +84,3 @@ server {
     }
 
 }
-{% endraw %}
