@@ -11,10 +11,10 @@ if __name__ == "__main__":
 
     deployment_id, deployment_group, domain, app_name = sys.argv[1:]
 
-    nginx_template_path = '/home/datamade/{0}-{1}/configs/{0}-{2}.conf.nginx'.format(
+    nginx_template_path = '/home/mbm/{0}-{1}/configs/{0}-{2}.conf.nginx'.format(
         app_name, deployment_id, deployment_group)
     nginx_outpath = '/etc/nginx/conf.d/{}.conf'.format(app_name)
-    supervisor_template_path = '/home/datamade/{0}-{1}/configs/{0}-{2}.conf.supervisor'.format(
+    supervisor_template_path = '/home/mbm/{0}-{1}/configs/{0}-{2}.conf.supervisor'.format(
         app_name, deployment_id, deployment_group)
     supervisor_outpath = '/etc/supervisor/conf.d/{}.conf'.format(app_name)
 

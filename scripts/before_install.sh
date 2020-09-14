@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Make directory for project
-mkdir -p /home/datamade/mellow-bike-map
+mkdir -p /home/mbm/mellow-bike-map
 
 # Decrypt files encrypted with blackbox.
-cd /opt/codedeploy-agent/deployment-root/$DEPLOYMENT_GROUP_ID/$DEPLOYMENT_ID/deployment-archive/ && chown -R datamade.datamade . && sudo -H -u datamade blackbox_postdeploy
+cd /opt/codedeploy-agent/deployment-root/$DEPLOYMENT_GROUP_ID/$DEPLOYMENT_ID/deployment-archive/ && chown -R mbm.mbm . && sudo -H -u mbm blackbox_postdeploy
