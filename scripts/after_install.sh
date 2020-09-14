@@ -42,9 +42,11 @@ psql -U postgres -d mbm -f $PROJECT_DIR/db/create-extensions.sql
 
 # OPTIONAL Run migrations and other management commands that should be run with
 # every deployment
+export DJANGO_SECRET_KEY=temporarykey
 sudo -H -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py migrate
 sudo -H -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py createcachetable
 sudo -H -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py collectstatic --no-input
+unset DJANGO_SECRET_KEY
 
 # Echo a simple nginx configuration into the correct place, and tell
 # certbot to request a cert if one does not already exist.
