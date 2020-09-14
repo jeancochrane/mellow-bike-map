@@ -26,7 +26,7 @@ chown -R mbm.www-data $VENV_DIR
 # understood by the versions of pip and setuptools that ship with the operating
 # system packages.
 sudo -H -u mbm $VENV_DIR/bin/pip install --upgrade pip
-sudo -H -u mbm $VENV_DIR/bin/pip install --upgrade setuptools<50.0
+sudo -H -u mbm $VENV_DIR/bin/pip install --upgrade "setuptools<50.0"
 
 # Install the project requirements into the deployment specific virtual
 # environment.
