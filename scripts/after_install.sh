@@ -32,9 +32,6 @@ sudo -H -u mbm $VENV_DIR/bin/pip install --upgrade "setuptools<50.0"
 # environment.
 sudo -H -u mbm $VENV_DIR/bin/pip install -r $PROJECT_DIR/app/requirements.txt --upgrade
 
-# Move project configuration files into the appropriate locations within the project.
-mv $PROJECT_DIR/configs/local_settings.$DEPLOYMENT_GROUP_NAME.py $PROJECT_DIR/app/mbm/local_settings.py
-
 # OPTIONAL If you're using PostgreSQL, check to see if the database that you
 # need is present and, if not, create it setting the mbm user as it's
 # owner.
