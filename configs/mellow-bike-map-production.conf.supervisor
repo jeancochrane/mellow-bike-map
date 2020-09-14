@@ -1,9 +1,0 @@
-{% raw %}[program:{{ app_name }}-{{ deployment_id }}]
-user=mbm
-process_name={{ app_name }}
-stdout_logfile=/var/log/{{ app_name }}-{{ deployment_id }}-out.log
-stdout_logfile_maxbytes=10MB
-stderr_logfile=/var/log/{{ app_name }}-{{ deployment_id }}-err.log
-stderr_logfile_maxbytes=10MB
-directory=/home/datamade/{{ app_name }}-{{ deployment_id }}/app
-command=/home/mbm/.virtualenvs/{{ app_name }}-{{ deployment_id }}/bin/gunicorn -t 180 --log-level debug -b unix:/tmp/{{ app_name }}-{{ deployment_id }}.sock mbm.wsgi:application{% endraw %}
