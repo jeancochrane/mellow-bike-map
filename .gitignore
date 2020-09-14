@@ -132,3 +132,8 @@ dmypy.json
 db/raw/*.osm
 db/import/*.table
 db/import/*.fixture
+
+# Blackbox
+/.blackbox/pubring.gpg~
+/.blackbox/pubring.kbx~
+/.blackbox/secring.gpg
