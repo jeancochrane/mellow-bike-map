@@ -28,6 +28,7 @@ urlpatterns = [
     path('neighborhoods/edit/<slug:slug>/<str:type>/', views.MellowRouteEdit.as_view(), name='mellow-route-edit'),
     path('neighborhoods/delete/<slug:slug>/', views.MellowRouteDelete.as_view(), name='mellow-route-delete'),
     path('admin/', admin.site.urls),
+    path('pong/', views.pong),
 ]
 
 handler404 = 'mbm.views.page_not_found'

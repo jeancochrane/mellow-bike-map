@@ -51,7 +51,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'django.contrib.gis',
-    'compressor',
     'django_geomultiplechoice',
     'leaflet',
     'mbm'
@@ -59,7 +58,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -148,26 +146,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = '/static'
-STATICFILES_STORAGE = os.getenv(
-    'DJANGO_STATICFILES_STORAGE',
-    'whitenoise.storage.CompressedManifestStaticFilesStorage'
-)
-STATICFILES_FINDERS = (
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    'compressor.finders.CompressorFinder',
-)
-
-# Django Compressor configs
-COMPRESS_PRECOMPILERS = (
-    ('module', 'npx browserify {infile} -t [ babelify --presets [ @babel/preset-env ] ] > {outfile}'),
-    ('text/jsx', 'npx browserify {infile} -t [ babelify --presets [ @babel/preset-env @babel/preset-react ] ] > {outfile}'),
-)
-
-COMPRESS_OUTPUT_DIR = 'compressor'
-
-# Enforce SSL in production
-if DEBUG is False:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = True
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')

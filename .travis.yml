@@ -1,0 +1,22 @@
+branches:
+  only:
+  - master
+language: python
+python:
+- '3.6'
+install:
+- pip install --upgrade pip
+- pip install --upgrade -r app/requirements.txt
+addons:
+  postgresql: '11'
+script: echo "No tests -- skipping"
+deploy:
+  provider: codedeploy
+  access_key_id: AKIAXHI2VYRZ56DCFMU6
+  secret_access_key:
+    secure: PjY9X3/5NTqfVPVFTJgg4tn3q3Usbym01v4k/DOcnkuamq6GUk56bmNW83XbTtf9qt403MABwdCxEab4fLMlrKRZhmLbzCgalChC57+L20qTypklaSgcHnU19epXURHL7g7lsChi7miuYKm1G53BgmLz6fBz5WQfJdqiG9T6a/aIJVOVj0mlezEHL+y2sRAuU2gxG4WUFaaER0GNhnzjHL7jEkzI07RoubZFyOdIxgtgmy/SpxFHd8XwNjbF+yLvshgIs4ILDWYBUIivpnp8c6T0HNfimfki07g/TpTGHaJqyU/O9pN6NCN47uhrrV3wJEckIE/NaZH6HmoG0ZaIUFO+d6alLTqK/UMXPJBRjdA4RBsmvxPPIF/MicSFrQNxvdcR1jfUScjYlEZXsRAqP+2R1az9WIjnSP+kdrhtw6yi2q+KTTaXhOZI2KVsDtHnUPwd+Rh7MI1i1xSuBMTcG7mWBoXhTaTWfvuaw19N3+8hfkPlXNGw9lR+7G947nFm1XG7rqdsKPxG/6nKRQea5Jm4GswZmfIT3CKqYuHt0mDmIN+dqo2GSwzQiPXZYjriqhd6Za7bYKukxzM7Gy+Uuw5MaWlHHOTC3NsyiFHd9pwPgX5dYmEqYU3vdXvMNO4a2++4BYqEuTVqOMFoKQ8HNFoGAMD0Rcfq37KPCXPjqvI=
+  application: mellow-bike-map
+  deployment_group: production
+  on:
+    repo: jeancochrane/mellow-bike-map
+    branch: master
