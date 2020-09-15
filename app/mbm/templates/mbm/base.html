@@ -7,32 +7,30 @@
 
     <title>{% block title %}{% endblock %} | Mellow Bike Map</title>
 
-    <meta content="Description TK" name="description" />
-    <meta content="Author TK" name="author" />
+    <meta content="Find safe, chill Chicago bike routes. Like Google Maps if it took you through cozy side streets." name="description" />
+    <meta content="Jean Cochrane, Bea Malsky, and Kalil Smith-Nuevelle" name="author" />
 
     <!-- Facebook metadata -->
     <meta property="og:site_name" content="Mellow Bike Map">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Title TK">
-    <meta property="og:description" content="Description TK">
-    <meta property="og:url" content="URL TK">
+    <meta property="og:description" content="Find safe, chill Chicago bike routes. Like Google Maps if it took you through cozy side streets.">
+    <meta property="og:url" content="https://mellowbikemap.com">
+    <meta property="og:title" content="Mellow Bike Map">
     <meta property="og:image" content="Image TK">
 
     <!-- Twitter metadata -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="Mellow Bike Map">
-    <meta name="twitter:creator" content="Creator TK">
-    <meta name="twitter:title" content="Title TK">
-    <meta name="twitter:url" content="URL TK">
-    <meta name="twitter:description" content="Description TK">
+    <meta name="twitter:creator" content="@jean_cochrane">
+    <meta name="twitter:title" content="Mellow Bike Map">
+    <meta name="twitter:url" content="https://mellowbikemap.com">
+    <meta name="twitter:description" content="Find safe, chill Chicago bike routes. Like Google Maps if it took you through cozy side streets.">
     <meta name="twitter:image" content="Image TK">
 
     <!-- Override this block to add extra meta tags -->
     {% block extra_meta %}{% endblock %}
 
-    <link rel="shortcut icon" type="image/ico" href="{% static 'images/favicon.ico' %}"/>
-    <link rel="shortcut icon" type="image/ico" href="{% static 'images/favicon-16x16.png' %}" sizes="16x16" />
-    <link rel="shortcut icon" type="image/ico" href="{% static 'images/favicon-32x32.png' %}" sizes="32x32" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚲</text></svg>">
 
     <!-- Bootstrap core CSS -->
     <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
@@ -90,15 +88,6 @@
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/fontawesome.min.js' %}"></script>
     <script src="{% static 'js/solid.min.js' %}"></script>
-
-    <!-- Load Google Tag Manager for analytics (no-op until APIKEY is set) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=APIKEY"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'APIKEY');
-    </script>
 
     <!-- Load extra external scripts -->
     {% block extra_js %}{% endblock %}
