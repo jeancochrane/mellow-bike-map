@@ -45,7 +45,7 @@
 
     document.addEventListener('DOMContentLoaded', (event) => {
       const map = L.map('map').setView([41.87, -87.62], 11);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: 'Map data &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map)
       let routeLayer, allRoutesLayer;  // Init empty layers
