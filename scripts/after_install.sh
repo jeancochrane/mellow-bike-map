@@ -45,6 +45,7 @@ psql -U postgres -d mbm -f $PROJECT_DIR/db/create-extensions.sql
 export DJANGO_SECRET_KEY=temporarykey DATABASE_URL=postgres:///mbm
 sudo -H -E -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py migrate
 sudo -H -E -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py createcachetable
+sudo -H -E -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py clear_cache 
 sudo -H -E -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py collectstatic --no-input
 unset DJANGO_SECRET_KEY
 

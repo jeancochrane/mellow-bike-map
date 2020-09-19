@@ -15,13 +15,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.views.decorators.cache import cache_page
 
 from mbm import views
 
 urlpatterns = [
     path('', views.Home.as_view(), name='home'),
     path('api/route/', views.Route.as_view(), name='route'),
-    path('api/routes/', views.RouteList.as_view(), name='route-list'),
+    path('api/routes/', cache_page(60 * 60 * 24)(views.RouteList.as_view()), name='route-list'),
     path('neighborhoods/', views.MellowRouteList.as_view(), name='mellow-route-list'),
     path('neighborhoods/create/', views.MellowRouteCreate.as_view(), name='mellow-route-create'),
     path('neighborhoods/edit/<slug:slug>/', views.MellowRouteNeighborhoodEdit.as_view(), name='mellow-route-neighborhood-edit'),
