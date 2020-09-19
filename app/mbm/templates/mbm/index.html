@@ -8,13 +8,28 @@
 
 {% block body %}
   <div class="row">
-    <div class="col-12 col-md-3">
+    <div id="controls-container" class="col-12 col-md-3">
       <div class="container-fluid m-auto form-group">
-        <input id="source_text" class="form-control my-2" name="source_text" placeholder="Start address"></input>
-        <input id="source" name="source_text" hidden="true"></input>
-        <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
-        <input id="target" name="target" hidden="true"></input>
-        <button id="submit" class="btn btn-primary btn-block mt-1 mb-3 float-right">Search</input>
+        <div id="input-elements" class="hideable collapse multi-collapse show">
+          <input id="source_text" class="form-control my-2" name="source_text" placeholder="Start address"></input>
+          <input id="source" name="source_text" hidden="true"></input>
+          <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
+          <input id="target" name="target" hidden="true"></input>
+          <button id="submit" class="btn btn-primary btn-block mt-1 mb-2 float-right">Search</button>
+        </div>
+        <button
+          id="hide"
+          class="d-md-none btn btn-outline-secondary mb-2"
+          type="button"
+          data-toggle="collapse"
+          href=".hideable"
+          role="button"
+          aria-expanded="true"
+          aria-controls="input-elements navbar-tagline"
+          data-state="shown"
+        >
+          &and; Hide controls
+        </button>
       </div>
     </div>
     <div class="col-12 col-md-9">
@@ -49,6 +64,22 @@
         attribution: 'Map data &copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map)
       let routeLayer, allRoutesLayer;  // Init empty layers
+
+      // Make sure the map fits the full height of the screen
+      $(window).resize(function () {
+        var windowHeight = $(window).innerHeight()
+        var offsetTop = $('.navbar')[0].offsetHeight
+        // Add controls to the top offset on mobile screens, where they merge
+        // with the navbar
+        if ($(window).outerWidth() <= 768) { offsetTop += $('#controls-container')[0].offsetHeight }
+        var mapHeight = windowHeight - offsetTop
+        $('#map').css('height', mapHeight)
+      }).resize();
+
+      // Manually trigger map resize when controls are toggled
+      $('#input-elements').on('shown.bs.collapse hidden.bs.collapse', function(e) {
+        $(window).resize()
+      })
 
       $.getJSON(routeListUrl).done(function(data) {
         allRoutesLayer = L.geoJSON(data, {
@@ -89,6 +120,22 @@
             alert('Request failed: ' + err)
           })
         }
+      })
+
+      // Toggle text on Show/Hide button
+      $('#hide').click(function(e) {
+        $(window).resize()
+        let innerHTML
+        let state
+        if ($(this).data('state') === 'hidden') {
+          innerHTML = '&and; Hide controls'
+          state = 'shown'
+        } else {
+          innerHTML = '&or; Show controls'
+          state = 'hidden'
+        }
+        $(this).html(innerHTML)
+        $(this).data('state', state)
       })
 
       // Address components for autocomplete

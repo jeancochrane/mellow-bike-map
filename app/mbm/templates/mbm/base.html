@@ -61,7 +61,7 @@
           </a>
         {% endblock %}
       </div>
-      <div id="navbar-tagline" class="d-inline-block">
+      <div id="navbar-tagline" class="hideable collapse multi-collapse show">
         <span class="d-md-none navbar-tagline-text">
           Find safe, chill Chicago bike routes. Like Google Maps if it took you through cozy side streets.
         </span>
@@ -71,17 +71,6 @@
     <div id="main-body">
       {% block body %}{% endblock %}
     </div>
-
-    <footer class="footer pt-5 pb-3">
-      <div class="container-fluid text-center">
-        <h3 class="mb-21">
-          Mellow Bike Map
-        </h3>
-        <p>
-          <a href="{% url 'home' %}">Home</a>
-        </p>
-      </div>
-    </footer>
 
     <!-- Load external scripts -->
     <script src="{% static 'js/jquery.min.js' %}"></script>
