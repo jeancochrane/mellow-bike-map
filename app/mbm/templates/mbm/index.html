@@ -4,7 +4,10 @@
 
 {% block title %}{{ view.title }}{% endblock %}
 
-{% block extra_css %}{% leaflet_css %}{% endblock %}
+{% block extra_css %}
+  {% leaflet_css %}
+  <link rel="stylesheet" href="{% static 'css/spin.css' %}" />
+{% endblock %}
 
 {% block body %}
   <div class="row">
@@ -40,6 +43,8 @@
 
 {% block extra_js %}
   {% leaflet_js %}
+  <script type="text/javascript" src="{% static 'js/spin.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'js/leaflet.spin.min.js' %}"></script>
   <script
     type="text/javascript"
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvdUtVFRDt4QG1AcU7Vt3N1SULbxri44M&libraries=places"
@@ -81,12 +86,15 @@
         $(window).resize()
       })
 
+      // Start spinner while we retrieve initial route map
+      map.spin(true)
       $.getJSON(routeListUrl).done(function(data) {
         allRoutesLayer = L.geoJSON(data, {
           style: function(feature) {
             return {color: getLineColor(feature.properties.type), opacity: 0.6}
           }
         }).addTo(map)
+        map.spin(false)
       }).fail(function(jqxhr, textStatus, error) {
         console.log(textStatus + ': ' + error)
       })
@@ -99,6 +107,7 @@
         } else if (target == '') {
           alert('Target is required for search')
         } else {
+          map.spin(true)
           $.getJSON(routeUrl + '?' + $.param({source, target})).done(function(data) {
             if (routeLayer) {
               map.removeLayer(routeLayer)
@@ -118,6 +127,8 @@
           }).fail(function(jqxhr, textStatus, error) {
             const err = textStatus + ': ' + error
             alert('Request failed: ' + err)
+          }).always(function() {
+            map.spin(false)
           })
         }
       })
