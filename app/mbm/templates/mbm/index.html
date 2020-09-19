@@ -118,8 +118,8 @@
               },
               onEachFeature: function(feature, layer) {
                 layer.bindPopup(
-                  '<strong>Name:</strong> ' + feature.properties.name + '<br>' +
-                  '<strong>Type:</strong> ' + feature.properties.type
+                  `<strong>Name:</strong> ${feature.properties.name}<br>` +
+                  `<strong>Type:</strong> ${feature.properties.type ? feature.properties.type : 'non-mellow street'}`
                 )
               }
             }).addTo(map)
