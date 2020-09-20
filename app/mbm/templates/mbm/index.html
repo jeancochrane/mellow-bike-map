@@ -33,6 +33,17 @@
         >
           &and; Hide controls
         </button>
+        <button
+          id="hide-legend"
+          class="d-md-none btn btn-outline-secondary mb-2"
+          type="button"
+          role="button"
+          aria-expanded="true"
+          aria-controls="hideable-legend"
+          data-state="shown"
+        >
+          &and; Hide legend
+        </button>
       </div>
     </div>
     <div class="col-12 col-md-9">
@@ -89,8 +100,7 @@
       // Create a legend
       const legend = L.control({position: 'bottomright'})
       legend.onAdd = (map) => {
-        let div = L.DomUtil.create('div', 'info legend')
-        let innerHTML = '<div class="hideable-legend">'
+        let div = L.DomUtil.create('div', 'info legend hideable-legend')
         const routeTypes = [
           ['path', 'Off-street bike paths (very calm)'],
           ['street', 'Mellow streets (calm)'],
@@ -99,29 +109,11 @@
         for (const routeType of routeTypes) {
           const color = getLineColor(routeType[0])
           const description = routeType[1]
-          innerHTML += `<i style="background:${color}"></i>${description}`
+          div.innerHTML += `<i style="background:${color}"></i>${description}`
           if (routeType !== routeTypes[routeTypes.length-1]) {
-            innerHTML += '<br>'
-          } else {
-            innerHTML += '</div>'
+            div.innerHTML += '<br>'
           }
         }
-        innerHTML += `
-          <button
-            id="hide-legend"
-            class="btn btn-link mt-1 p-0 float-right"
-            style="font-size:12px;"
-            type="button"
-            data-toggle="collapse"
-            data-target=".hideable-legend"
-            role="button"
-            data-state="shown"
-          >
-            &or; Hide legend
-          </button>
-          <br>
-        `
-        div.innerHTML = innerHTML
         return div
       }
       legend.addTo(map)
@@ -173,10 +165,12 @@
         }
       })
 
+      const isHidden = (elem) => { return $(elem).data('state') === 'hidden' }
+
       const toggleControlText = (elem, controlName) => {
         let innerHTML
         let state
-        if ($(elem).data('state') === 'hidden') {
+        if (isHidden(elem)) {
           innerHTML = `&and; Hide ${controlName}`
           state = 'shown'
         } else {
@@ -187,13 +181,21 @@
         $(elem).data('state', state)
       }
 
+      const toggleControlElement = (elem, controlSelector) => {
+        if (isHidden(elem)) {
+          $(controlSelector).show()
+        } else {
+          $(controlSelector).hide()
+        }
+      }
+
       // Toggle text on Show/Hide button
       $('#hide').click(function(e) {
         $(window).resize()
         toggleControlText(this, 'controls')
       })
       $('#hide-legend').click(function(e) {
-        // TODO: This toggle doesn't work great, maybe lose bootstrap?
+        toggleControlElement(this, '.hideable-legend')
         toggleControlText(this, 'legend')
       })
 
