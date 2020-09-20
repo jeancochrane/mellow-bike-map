@@ -42,7 +42,7 @@ psql -U postgres -d mbm -f $PROJECT_DIR/db/create-extensions.sql
 
 # OPTIONAL Run migrations and other management commands that should be run with
 # every deployment
-export DJANGO_SECRET_KEY=temporarykey DATABASE_URL=postgres:///mbm
+export DJANGO_SECRET_KEY=temporarykey DATABASE_URL=postgres:///mbm DJANGO_DEBUG=False
 sudo -H -E -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py migrate
 sudo -H -E -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py createcachetable
 sudo -H -E -u mbm $VENV_DIR/bin/python $PROJECT_DIR/app/manage.py clear_cache 
