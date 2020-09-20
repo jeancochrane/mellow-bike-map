@@ -33,6 +33,27 @@ a {
     width: 100%;
 }
 
+.info {
+  padding: 6px 8px;
+  background: white;
+  background: rgba(255,255,255,0.8);
+  box-shadow: 0 0 15px rgba(0,0,0,0.2);
+  border-radius: 5px;
+}
+
+.legend {
+  line-height: 18px;
+  color: #555;
+}
+
+.legend i {
+  width: 18px;
+  height: 18px;
+  float: left;
+  margin-right: 8px;
+  opacity: 0.7;
+}
+
 .btn-primary {
   background-color: var(--green-color);
   border: var(--dark-green-color);
@@ -41,13 +62,4 @@ a {
 .btn-primary:hover {
   background-color: var(--dark-green-color);
   border: var(--dark-green-color);
-}
-
-@media screen and (max-width: 600px) {
-  #navbar-title {
-    padding: 1rem 1.5rem 0 1.5rem;
-  }
-  #navbar-tagline {
-    padding: 0 1.5rem;
-  }
 }

@@ -86,6 +86,46 @@
         $(window).resize()
       })
 
+      // Create a legend
+      const legend = L.control({position: 'bottomright'})
+      legend.onAdd = (map) => {
+        let div = L.DomUtil.create('div', 'info legend')
+        let innerHTML = '<div class="hideable-legend">'
+        const routeTypes = [
+          ['path', 'Off-street bike paths (very calm)'],
+          ['street', 'Mellow streets (calm)'],
+          ['route', 'Big streets with bike lanes (less calm)']
+        ]
+        for (const routeType of routeTypes) {
+          const color = getLineColor(routeType[0])
+          const description = routeType[1]
+          innerHTML += `<i style="background:${color}"></i>${description}`
+          if (routeType !== routeTypes[routeTypes.length-1]) {
+            innerHTML += '<br>'
+          } else {
+            innerHTML += '</div>'
+          }
+        }
+        innerHTML += `
+          <button
+            id="hide-legend"
+            class="btn btn-link mt-1 p-0 float-right"
+            style="font-size:12px;"
+            type="button"
+            data-toggle="collapse"
+            data-target=".hideable-legend"
+            role="button"
+            data-state="shown"
+          >
+            &or; Hide legend
+          </button>
+          <br>
+        `
+        div.innerHTML = innerHTML
+        return div
+      }
+      legend.addTo(map)
+
       // Start spinner while we retrieve initial route map
       map.spin(true)
       $.getJSON(routeListUrl).done(function(data) {
@@ -133,20 +173,28 @@
         }
       })
 
+      const toggleControlText = (elem, controlName) => {
+        let innerHTML
+        let state
+        if ($(elem).data('state') === 'hidden') {
+          innerHTML = `&and; Hide ${controlName}`
+          state = 'shown'
+        } else {
+          innerHTML = `&or; Show ${controlName}`
+          state = 'hidden'
+        }
+        $(elem).html(innerHTML)
+        $(elem).data('state', state)
+      }
+
       // Toggle text on Show/Hide button
       $('#hide').click(function(e) {
         $(window).resize()
-        let innerHTML
-        let state
-        if ($(this).data('state') === 'hidden') {
-          innerHTML = '&and; Hide controls'
-          state = 'shown'
-        } else {
-          innerHTML = '&or; Show controls'
-          state = 'hidden'
-        }
-        $(this).html(innerHTML)
-        $(this).data('state', state)
+        toggleControlText(this, 'controls')
+      })
+      $('#hide-legend').click(function(e) {
+        // TODO: This toggle doesn't work great, maybe lose bootstrap?
+        toggleControlText(this, 'legend')
       })
 
       // Address components for autocomplete
