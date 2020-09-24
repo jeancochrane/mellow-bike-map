@@ -21,6 +21,11 @@ class Home(TemplateView):
     template_name = 'mbm/index.html'
 
 
+class About(TemplateView):
+    title = 'About'
+    template_name = 'mbm/about.html'
+
+
 class RouteList(APIView):
     renderer_classes = [JSONRenderer]
 
