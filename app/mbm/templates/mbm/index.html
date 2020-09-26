@@ -18,7 +18,8 @@
           <input id="source" name="source_text" hidden="true"></input>
           <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
           <input id="target" name="target" hidden="true"></input>
-          <button id="submit" class="btn btn-primary btn-block mt-1 mb-2 float-right">Search</button>
+          <button id="submit" class="btn btn-primary btn-block mt-1">Search</button>
+          <button id="reset-search" class="btn btn-secondary btn-block mb-2">Reset search</button>
         </div>
         <button
           id="hide"
@@ -129,7 +130,8 @@
       const streets = new L.Google('ROADMAP', {mapOptions: {styles: googleStyles}})
       map.addLayer(streets).setView([41.87, -87.62], 11);
 
-      let routeLayer, allRoutesLayer;  // Init empty layers
+      let routeLayer, allRoutesLayer  // Init empty layers
+      let markers = {'source': undefined, 'target': undefined}  // Init marker
 
       // Create a legend
       const legend = L.control({position: 'bottomright'})
@@ -165,6 +167,7 @@
         console.log(textStatus + ': ' + error)
       })
 
+      // Define behavior for the search button
       $('#submit').click(function(e) {
         const source = $('#source').val()
         const target = $('#target').val()
@@ -189,6 +192,8 @@
                 )
               }
             }).addTo(map)
+            // Lower opacity on non-route street colors
+            allRoutesLayer.setStyle({opacity: 0.3})
             map.fitBounds(routeLayer.getBounds())
           }).fail(function(jqxhr, textStatus, error) {
             const err = textStatus + ': ' + error
@@ -197,6 +202,15 @@
             map.spin(false)
           })
         }
+      })
+
+      // Define behavior for the "Reset search" button
+      $('#reset-search').click(function(e) {
+        if (routeLayer) { map.removeLayer(routeLayer) }
+        if (markers['source']) { map.removeLayer(markers['source']) }
+        if (markers['target']) { map.removeLayer(markers['target']) }
+        allRoutesLayer.setStyle({opacity: 0.6})
+        $('#source, #source_text, #target, #target_text').val('')
       })
 
       const isHidden = (elem) => { return $(elem).data('state') === 'hidden' }
@@ -279,8 +293,8 @@
           }
           document.getElementById(textElementId).value = addressString
 
-          if (marker) {map.removeLayer(marker)}
-          marker = L.marker([lat, lng]).bindPopup(addressString).addTo(map)
+          if (markers[marker]) {map.removeLayer(markers[marker])}
+          markers[marker] = L.marker([lat, lng]).bindPopup(addressString).addTo(map)
           map.setView([lat, lng])
         });
 
@@ -305,9 +319,8 @@
       }
 
       let hasZoomedToUser = false
-      let sourceMarker, targetMarker
-      initAutocomplete('source_text', 'source', sourceMarker)
-      initAutocomplete('target_text', 'target', targetMarker)
+      initAutocomplete('source_text', 'source', 'source')
+      initAutocomplete('target_text', 'target', 'target')
     })
   </script>
 {% endblock %}
