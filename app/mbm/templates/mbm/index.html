@@ -307,7 +307,14 @@
               lng: position.coords.longitude
             }
             if (!hasZoomedToUser) {
+              document.getElementById('source').value = `${geolocation['lat']},${geolocation['lng']}`
+              document.getElementById('source_text').value =  'My position'
+              if (markers['source']) {map.removeLayer(markers['source'])}
+              markers['source'] = L.marker(
+                [geolocation['lat'], geolocation['lng']]
+              ).bindPopup('My position').addTo(map)
               map.setView([geolocation.lat, geolocation.lng], 14)
+              hasZoomedtoUser = true
             }
             const circle = new google.maps.Circle({
               center: geolocation,
