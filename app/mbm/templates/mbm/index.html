@@ -160,7 +160,8 @@
         allRoutesLayer = L.geoJSON(data, {
           style: function(feature) {
             return {color: getLineColor(feature.properties.type), opacity: 0.6}
-          }
+          },
+          interactive: false,
         }).addTo(map)
         map.spin(false)
       }).fail(function(jqxhr, textStatus, error) {
