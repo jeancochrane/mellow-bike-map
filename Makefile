@@ -4,7 +4,7 @@ all: db/import/mellowroute.fixture db/import/chicago.table
 db/import/%.fixture: app/mbm/fixtures/%.json
 	(cd app && python manage.py loaddata $*) && touch $@
 
-db/import/chicago.table: db/raw/chicago.osm
+db/import/chicago.table: db/raw/chicago-filtered.osm
 	osm2pgrouting -f $< -c /usr/local/share/osm2pgrouting/mapconfig_for_bicycles.xml --prefix chicago_ --addnodes --tags --clean \
 	              -d mbm -U postgres -h postgres -W postgres && \
 	PGPASSWORD=postgres psql -U postgres -h postgres -d mbm -c " \
@@ -14,5 +14,10 @@ db/import/chicago.table: db/raw/chicago.osm
 		AND osm_ways.tags @> 'oneway:bicycle => no'" && \
 	touch $@
 
+
+db/raw/chicago-filtered.osm: db/raw/chicago.osm
+	osmconvert $< --drop-author --drop-version --out-osm -o="$@"
+
+
 db/raw/chicago.osm:
-	wget --no-use-server-timestamps -O $@ https://overpass-api.de/api/map?bbox=-87.7488,41.7170,-87.5157,42.0003
+	wget --no-use-server-timestamps -O $@ https://overpass-api.de/api/map?bbox=-87.8558,41.6229,-87.5085,42.0488

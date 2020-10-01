@@ -3,7 +3,7 @@ FROM python:3.8
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc make cmake gdal-bin postgresql-server-dev-11 postgresql-11-postgis-2.5 \
     expat libexpat1-dev libboost-dev libboost-graph-dev libboost-program-options-dev libpqxx-dev \
-    wget ca-certificates
+    osmctools wget ca-certificates
 
 RUN wget -O pgrouting-3.1.0.tar.gz https://github.com/pgRouting/pgrouting/archive/v3.1.0.tar.gz && \
     tar xvfz pgrouting-3.1.0.tar.gz && \
