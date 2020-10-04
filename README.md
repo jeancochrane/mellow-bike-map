@@ -1,6 +1,8 @@
-# mellow-bike-map
+# Mellow Bike Map
 
 🚲 Web app and routing API for finding safe, chill bike routes. Like Google Maps if it took you through cozy side streets.
+
+![Example image of the web app](app/mbm/static/images/social.png)
 
 ## Developing
 
