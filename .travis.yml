@@ -9,7 +9,8 @@ install:
 - pip install --upgrade -r app/requirements.txt
 addons:
   postgresql: '11'
-script: echo "No tests -- skipping"
+script:
+- cd app && DJANGO_SECRET_KEY=reallysupersecret DJANGO_SETTINGS_MODULE=mbm.settings pytest
 deploy:
   provider: codedeploy
   access_key_id: AKIAXHI2VYRZ56DCFMU6
