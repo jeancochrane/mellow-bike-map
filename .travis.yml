@@ -14,9 +14,8 @@ env:
   - DJANGO_SECRET_KEY=reallysupersecret
   - DJANGO_SETTINGS_MODULE=mbm.settings
 script:
-  - cd app
-  - ls -lah
-  - pytest tests
+  - cp -R tests app/tests
+  - cd app && pytest
 deploy:
   provider: codedeploy
   access_key_id: AKIAXHI2VYRZ56DCFMU6
