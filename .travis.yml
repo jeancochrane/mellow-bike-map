@@ -5,9 +5,10 @@ language: python
 services:
   - docker
 install:
-  - docker-compose build app
+  - docker-compose build
+  - docker-compose up -d postgres
 script:
-  - docker-compose -f docker-compose.yml -f tests/docker-compose.yml run --rm --no-deps app
+  - docker-compose -f docker-compose.yml -f tests/docker-compose.yml run --rm app
 deploy:
   provider: codedeploy
   access_key_id: AKIAXHI2VYRZ56DCFMU6
