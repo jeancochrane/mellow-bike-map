@@ -2,15 +2,12 @@ branches:
   only:
   - master
 language: python
-python:
-- '3.6'
+services:
+  - docker
 install:
-- pip install --upgrade pip
-- pip install --upgrade -r app/requirements.txt
-addons:
-  postgresql: '11'
+  - docker-compose build
 script:
-- cd app && DJANGO_SECRET_KEY=reallysupersecret DJANGO_SETTINGS_MODULE=mbm.settings pytest
+  - docker-compose -f docker-compose.yml -f tests/docker-compose.yml run --rm app
 deploy:
   provider: codedeploy
   access_key_id: AKIAXHI2VYRZ56DCFMU6
