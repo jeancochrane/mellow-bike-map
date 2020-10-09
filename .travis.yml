@@ -11,8 +11,7 @@ install:
 addons:
   postgresql: '11'
 env:
-  - DJANGO_SECRET_KEY=reallysupersecret
-  - DJANGO_SETTINGS_MODULE=mbm.settings
+  - DJANGO_SECRET_KEY=reallysupersecret DJANGO_SETTINGS_MODULE=mbm.settings
 script:
   - cp -R tests app/tests
   - cd app && pytest
