@@ -5,7 +5,7 @@ language: python
 python:
   - '3.6'
 install:
-  - apt-get install -y --no-install-recommends gdal-bin
+  - sudo apt-get update && sudo apt-get install -y --no-install-recommends gdal-bin
   - pip install --upgrade pip
   - pip install --upgrade -r app/requirements.txt
 addons:
