@@ -90,7 +90,10 @@ class Route(APIView):
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT
-                    way.name, ST_AsGeoJSON(way.the_geom) AS geometry, mellow.type
+                    way.name,
+                    way.length_m,
+                    ST_AsGeoJSON(way.the_geom) AS geometry,
+                    mellow.type
                 FROM pgr_dijkstra(
                     'WITH mellow AS (
                         SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
@@ -131,8 +134,17 @@ class Route(APIView):
             """, [source_vertex_id, target_vertex_id])
             rows = fetchall(cursor)
 
+        # Calculate total distance in miles and time in minutes based on
+        # the total length of the route in meters
+        dist_in_meters = sum(row['length_m'] for row in rows)
+        distance, time = self.format_distance(dist_in_meters)
+
         return {
             'type': 'FeatureCollection',
+            'properties': {
+                'distance': distance,
+                'time': time,
+            },
             'features': [
                 {
                     'type': 'Feature',
@@ -145,6 +157,29 @@ class Route(APIView):
                 for row in rows
             ]
         }
+
+    def format_distance(self, dist_in_meters):
+        """
+        Given a distance in meters, return a tuple (distance, time)
+        where `distance` is a string representing a distance in miles and
+        `time` is a string representing an estimated travelime in minutes.
+        """
+        meters_per_mi = 1609.344
+        dist_in_mi = dist_in_meters / meters_per_mi
+        formatted_dist = round(dist_in_mi, 1)
+        # Don't worry about single-mile case since we always report at least
+        # one decimal (i.e. "1.0 miles")
+        dist_unit_str = 'miles'
+        distance = f'{formatted_dist} {dist_unit_str}'
+
+        # Assume 8mph as a naive guess of speed
+        mi_per_min = 8 / 60
+        time_in_min = dist_in_mi / mi_per_min
+        formatted_time = '<1' if time_in_min < 1 else str(round(time_in_min))
+        time_unit_str = 'minute' if formatted_time in ['<1', '1'] else 'minutes'
+        time = f'{formatted_time} {time_unit_str}'
+
+        return distance, time
 
 
 class MellowRouteList(LoginRequiredMixin, ListView):

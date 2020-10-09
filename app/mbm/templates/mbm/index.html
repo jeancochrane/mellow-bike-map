@@ -20,6 +20,7 @@
           <input id="target" name="target" hidden="true"></input>
           <button id="submit" class="btn btn-primary btn-block mt-1">Search</button>
           <button id="reset-search" class="btn btn-secondary btn-block mb-2">Reset search</button>
+          <span id="route-estimate" class="text-muted"></span>
         </div>
         <button
           id="hide"
@@ -74,6 +75,18 @@
         case 'path': return '#e17fa8'
         default: return '#7ea4e1'
       }
+    }
+
+    const showRouteEstimate = (distance, time) => {
+      $('#route-estimate').html(`<strong>${time}</strong> (${distance})`)
+      $('#route-estimate').show()
+      $('#hide, #hide-legend').addClass('mt-1')
+    }
+
+    const hideRouteEstimate = () => {
+      $('#route-estimate').hide()
+      $('#route-estimate').html('')
+      $('#hide, #hide-legend').removeClass('mt-1')
     }
 
     const googleStyles = [
@@ -196,6 +209,7 @@
             // Lower opacity on non-route street colors
             allRoutesLayer.setStyle({opacity: 0.3})
             map.fitBounds(routeLayer.getBounds())
+            showRouteEstimate(data.route.properties.distance, data.route.properties.time)
           }).fail(function(jqxhr, textStatus, error) {
             const err = textStatus + ': ' + error
             alert('Request failed: ' + err)
@@ -212,6 +226,7 @@
         if (markers['target']) { map.removeLayer(markers['target']) }
         allRoutesLayer.setStyle({opacity: 0.6})
         $('#source, #source_text, #target, #target_text').val('')
+        hideRouteEstimate()
       })
 
       const isHidden = (elem) => { return $(elem).data('state') === 'hidden' }
