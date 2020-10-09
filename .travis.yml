@@ -5,9 +5,9 @@ language: python
 services:
   - docker
 install:
-  - docker-compose build
+  - docker-compose build app
 script:
-  - docker-compose -f docker-compose.yml -f tests/docker-compose.yml run --rm app
+  - docker-compose -f docker-compose.yml -f tests/docker-compose.yml run --rm --no-deps app
 deploy:
   provider: codedeploy
   access_key_id: AKIAXHI2VYRZ56DCFMU6
