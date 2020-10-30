@@ -127,7 +127,7 @@ class Route(APIView):
                 JOIN chicago_ways AS way
                 ON path.edge = way.gid
                 LEFT JOIN (
-                    SELECT UNNEST(ways) AS osm_id, type
+                    SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
                     FROM mbm_mellowroute
                 ) as mellow
                 USING(osm_id)
