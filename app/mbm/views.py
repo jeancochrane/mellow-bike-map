@@ -173,7 +173,7 @@ class Route(APIView):
         distance = f'{formatted_dist} {dist_unit_str}'
 
         # Assume 8mph as a naive guess of speed
-        mi_per_min = 8 / 60
+        mi_per_min = 10 / 60
         time_in_min = dist_in_mi / mi_per_min
         formatted_time = '<1' if time_in_min < 1 else str(round(time_in_min))
         time_unit_str = 'minute' if formatted_time in ['<1', '1'] else 'minutes'
