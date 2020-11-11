@@ -1,0 +1,10 @@
+version: '2.4'
+
+services:
+  app:
+    volumes:
+      - ./tests:/app/tests
+    environment:
+      DJANGO_SECRET_KEY: reallysupersecret
+      DJANGO_SETTINGS_MODULE: mbm.settings
+    command: pytest -sxv
