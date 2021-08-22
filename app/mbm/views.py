@@ -43,12 +43,14 @@ class Route(APIView):
         target_coord = self.get_coord_from_request(request, 'target')
         target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
+        enable_v2 = request.GET.get("enable_v2", False) == "true"
+
         return Response({
             'source': source_coord,
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id)
+            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2)
         })
 
     def get_coord_from_request(self, request, key):
@@ -86,9 +88,12 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def get_route(self, source_vertex_id, target_vertex_id):
+    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
+        """See documentation of tag_id:
+
+        https://github.com/pgRouting/osm2pgrouting/blob/8491929fc4037d308f271e84d59bb96da3c28aa2/mapconfig_for_bicycles.xml"""
         with connection.cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT
                     way.name,
                     way.length_m,
@@ -106,6 +111,7 @@ class Route(APIView):
                         CASE
                             WHEN mellow.type = ''path'' THEN way.cost * 0.1
                             WHEN mellow.type = ''street'' THEN way.cost * 0.25
+                            {"WHEN way.tag_id in (507, 508, 509) THEN way.cost * 0.25" if enable_v2 is True else ""}
                             WHEN way.oneway = ''YES'' THEN way.cost * 0.5
                             WHEN mellow.type = ''route'' THEN way.cost * 0.75
                             ELSE way.cost
@@ -113,6 +119,7 @@ class Route(APIView):
                         CASE
                             WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
                             WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
+                            {"WHEN way.tag_id in (507, 508, 509) THEN way.cost * 0.25" if enable_v2 is True else ""}
                             WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
                             WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
                             ELSE way.reverse_cost

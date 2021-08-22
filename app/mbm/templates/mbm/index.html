@@ -20,6 +20,10 @@
           <input id="target" name="target" hidden="true"></input>
           <button id="submit" class="btn btn-primary btn-block mt-1">Search</button>
           <button id="reset-search" class="btn btn-secondary btn-block mb-2">Reset search</button>
+          <div>
+              <input type="checkbox" id="enable-v2" name="enable-v2" />
+              <label for="enable-v2" style="padding-left: 5px">Enable v2 routing</label>
+          </div>
           <span id="route-estimate" class="text-muted"></span>
         </div>
         <button
@@ -185,13 +189,14 @@
       $('#submit').click(function(e) {
         const source = $('#source').val()
         const target = $('#target').val()
+        const enableV2 = $('#enable-v2').is(':checked')
         if (source === '') {
           alert('Source is required for search')
         } else if (target == '') {
           alert('Target is required for search')
         } else {
           map.spin(true)
-          $.getJSON(routeUrl + '?' + $.param({source, target})).done(function(data) {
+          $.getJSON(routeUrl + '?' + $.param({source, target, enable_v2: enableV2})).done(function(data) {
             if (routeLayer) {
               map.removeLayer(routeLayer)
             }
