@@ -22,7 +22,15 @@
           <button id="reset-search" class="btn btn-secondary btn-block mb-2">Reset search</button>
           <div>
               <input type="checkbox" id="enable-v2" name="enable-v2" />
-              <label for="enable-v2" style="padding-left: 5px">Enable v2 routing</label>
+              <label for="enable-v2" style="padding-left: 5px">Use v2 routing</label>
+              <i
+                data-toggle="tooltip"
+                data-placement="top"
+                title="V2 routing uses a new experimental algorithm that considers all residential streets to be mellow streets."
+                style="cursor: pointer"
+              >
+                <i class="fa fa-fw fa-info-circle text-muted"></i>
+              </i>
           </div>
           <span id="route-estimate" class="text-muted"></span>
         </div>
@@ -123,6 +131,8 @@
     ]
 
     document.addEventListener('DOMContentLoaded', (event) => {
+      $('[data-toggle="tooltip"]').tooltip()
+
       const map = L.map('map')
 
       const isMobileScreen = $(window).outerWidth() <= 768
