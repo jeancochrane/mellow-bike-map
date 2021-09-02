@@ -104,56 +104,109 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
+    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, restrict_turns=True):
         with connection.cursor() as cursor:
-            cursor.execute(f"""
-                SELECT
-                    way.name,
-                    way.length_m,
-                    ST_AsGeoJSON(way.the_geom) AS geometry,
-                    mellow.type
-                FROM pgr_dijkstra(
-                    'WITH mellow AS (
+            if restrict_turns:
+                cursor.execute(f"""
+                    SELECT
+                        way.name,
+                        way.length_m,
+                        ST_AsGeoJSON(way.the_geom) AS geometry,
+                        mellow.type
+                    FROM pgr_trsp(
+                        'WITH mellow AS (
+                            SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
+                            FROM mbm_mellowroute
+                        )
+                        SELECT
+                            way.gid::integer AS id,
+                            way.source::integer,
+                            way.target::integer,
+                            CASE
+                                WHEN mellow.type = ''path'' THEN way.cost * 0.1
+                                {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
+                                WHEN mellow.type = ''street'' THEN way.cost * 0.25
+                                {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
+                                WHEN way.oneway = ''YES'' THEN way.cost * 0.5
+                                WHEN mellow.type = ''route'' THEN way.cost * 0.75
+                                ELSE way.cost
+                            END AS cost,
+                            CASE
+                                WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
+                                {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
+                                WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
+                                {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
+                                WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
+                                WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
+                                ELSE way.reverse_cost
+                            END AS reverse_cost
+                        FROM chicago_ways AS way
+                        LEFT JOIN mellow
+                        USING(osm_id)
+                        ',
+                        %s,
+                        %s,
+                        true,
+                        true,
+                        'SELECT (to_cost * 10)::float8 as to_cost, target_id, via_path FROM restrictions'
+                    ) AS path
+                    JOIN chicago_ways AS way
+                    ON path.id2 = way.gid
+                    LEFT JOIN (
                         SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
                         FROM mbm_mellowroute
-                    )
-                    SELECT
-                        way.gid AS id,
-                        way.source,
-                        way.target,
-                        CASE
-                            WHEN mellow.type = ''path'' THEN way.cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.cost * 0.75
-                            ELSE way.cost
-                        END AS cost,
-                        CASE
-                            WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
-                            ELSE way.reverse_cost
-                        END AS reverse_cost
-                    FROM chicago_ways AS way
-                    LEFT JOIN mellow
+                    ) as mellow
                     USING(osm_id)
-                    ',
-                    %s,
-                    %s
-                ) AS path
-                JOIN chicago_ways AS way
-                ON path.edge = way.gid
-                LEFT JOIN (
-                    SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
-                    FROM mbm_mellowroute
-                ) as mellow
-                USING(osm_id)
-            """, [source_vertex_id, target_vertex_id])
+                """, [source_vertex_id, target_vertex_id])
+            else:
+                cursor.execute(f"""
+                    SELECT
+                        way.name,
+                        way.length_m,
+                        ST_AsGeoJSON(way.the_geom) AS geometry,
+                        mellow.type
+                    FROM pgr_dijkstra(
+                        'WITH mellow AS (
+                            SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
+                            FROM mbm_mellowroute
+                        )
+                        SELECT
+                            way.gid AS id,
+                            way.source,
+                            way.target,
+                            CASE
+                                WHEN mellow.type = ''path'' THEN way.cost * 0.1
+                                {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
+                                WHEN mellow.type = ''street'' THEN way.cost * 0.25
+                                {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
+                                WHEN way.oneway = ''YES'' THEN way.cost * 0.5
+                                WHEN mellow.type = ''route'' THEN way.cost * 0.75
+                                ELSE way.cost
+                            END AS cost,
+                            CASE
+                                WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
+                                {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
+                                WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
+                                {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
+                                WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
+                                WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
+                                ELSE way.reverse_cost
+                            END AS reverse_cost
+                        FROM chicago_ways AS way
+                        LEFT JOIN mellow
+                        USING(osm_id)
+                        ',
+                        %s,
+                        %s
+                    ) AS path
+                    JOIN chicago_ways AS way
+                    ON path.edge = way.gid
+                    LEFT JOIN (
+                        SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
+                        FROM mbm_mellowroute
+                    ) as mellow
+                    USING(osm_id)
+                """, [source_vertex_id, target_vertex_id])
             rows = fetchall(cursor)
 
         # Calculate total distance in miles and time in minutes based on
