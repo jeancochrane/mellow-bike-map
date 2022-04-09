@@ -133,6 +133,9 @@ db/raw/*.osm
 db/import/*.table
 db/import/*.fixture
 
+# Pycharm
+.idea/
+
 # Blackbox
 /.blackbox/pubring.gpg~
 /.blackbox/pubring.kbx~

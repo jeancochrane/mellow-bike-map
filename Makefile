@@ -4,25 +4,33 @@ all: db/import/mellowroute.fixture db/import/chicago.table
 db/import/%.fixture: app/mbm/fixtures/%.json
 	(cd app && python manage.py loaddata $*) && touch $@
 
-db/import/restrictions.table: db/import/chicago.table
-	# Handle the fact that two-way streets only have one entry in OSM by
-	# creating a union of chicago_ways with itself, reversing the source and
-	# target for all two-way streets
+db/import/shooting_star_ways.table: db/import/chicago.table
+	# Alter chicago_ways to
 	PGPASSWORD=postgres psql -U postgres -h postgres -d mbm -c " \
-		CREATE TABLE restrictions AS \
-			WITH chicago_ways_including_reversed AS ( \
-				SELECT gid, name, source, target FROM chicago_ways \
-				UNION \
-				SELECT gid, name, target, source FROM chicago_ways where reverse_cost >= 0 \
-			) \
-			SELECT \
-				CASE WHEN a.name = b.name THEN 0 ELSE 0.1 END AS to_cost, \
-				b.target::integer AS target_id, \
-				b.gid || ',' || a.gid AS via_path \
-			FROM chicago_ways_including_reversed AS a \
-			JOIN chicago_ways_including_reversed AS b \
-			ON a.target = b.source \
-			WHERE a.gid != b.gid" && \
+		CREATE TABLE shooting_star_ways AS \
+			WITH shooting_star_matrix AS ( \
+				SELECT \
+					b.name, b.gid, b.source, b.target, b.cost, b.x1, b.y1, b.x2, b.y2, \
+					a.gid AS rule, \
+					CASE WHEN b.name = a.name THEN 0 ELSE 0.1 END AS to_cost \
+				FROM temp_ways AS a \
+				JOIN temp_ways AS b \
+				ON a.target = b.source \
+			    WHERE a.gid != b.gid \
+			    UNION \
+			    SELECT \
+			    	a.name, a.gid, a.source, a.target, a.cost, a.x1, a.y1, a.x2, a.y2, \
+			    	null as rule, \
+			    	0 as to_cost \
+			    FROM temp_ways AS a \
+			    LEFT JOIN temp_ways AS b \
+			    ON a.source = b.target \
+			    WHERE b.gid IS null \
+ 			) \
+ 			SELECT name, gid, source, target, cost, x1, y1, x2, y2, to_cost, \
+ 			STRING_AGG(rule::text, ',') AS rule \
+ 			FROM shooting_star_matrix \
+ 			GROUP BY name, gid, source, target, cost, x1, y1, x2, y2, to_cost" && \
 	touch $@
 
 db/import/chicago.table: db/raw/chicago-filtered.osm
