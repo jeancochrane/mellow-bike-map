@@ -1,7 +1,7 @@
 FROM python:3.8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc make cmake gdal-bin postgresql-server-dev-11 postgresql-11-postgis-2.5 \
+    build-essential gcc make cmake gdal-bin postgresql-server-dev-13 postgresql-13-postgis-3 \
     expat libexpat1-dev libboost-dev libboost-graph-dev libboost-program-options-dev libpqxx-dev \
     osmctools wget ca-certificates
 
