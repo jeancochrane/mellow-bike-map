@@ -293,7 +293,9 @@
       const initAutocomplete = (textElementId, coordElementId, marker) => {
         // Create the autocomplete object
         let autocomplete = new google.maps.places.Autocomplete(
-          document.getElementById(textElementId)
+          document.getElementById(textElementId), {
+            componentRestrictions: { country: "us" },
+          }
         )
         // Avoid paying for data that you don't need by restricting the set of
         // place fields that are returned to just the address components.
