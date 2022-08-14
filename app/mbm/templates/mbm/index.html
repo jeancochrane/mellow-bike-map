@@ -290,6 +290,10 @@
         ['postal_code', 'short_name', '']
       ]
 
+      const zoomToLocation = (lat, lng) => {
+        map.setView([lat, lng], 14)
+      }
+
       const initAutocomplete = (textElementId, coordElementId, marker) => {
         // Create the autocomplete object
         let autocomplete = new google.maps.places.Autocomplete(
@@ -346,7 +350,7 @@
               markers['source'] = L.marker(
                 [geolocation['lat'], geolocation['lng']]
               ).bindPopup('My position').addTo(map)
-              map.setView([geolocation.lat, geolocation.lng], 14)
+              zoomToLocation(geolocation.lat, geolocation.lng)
               hasZoomedtoUser = true
             }
             const circle = new google.maps.Circle({
@@ -356,6 +360,33 @@
             autocomplete.setBounds(circle.getBounds())
           })
         }
+      }
+
+      // Moves "source" marker to a new location, updates the source input that
+      // stores the location, and zooms to the new location
+      const updateSourceLocation = position => {
+        markers['source'].setLatLng({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        })
+        document.getElementById('source').value = `${position.coords.latitude},${position.coords.longitude}`
+        zoomToLocation(position.coords.latitude, position.coords.longitude)
+      }
+
+      // Continually update the "source" marker with the user's location if th
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(position => {
+          if (!markers['source']) {
+            return
+          }
+          // Only update the source marker if the user is using their current location
+          // as the source location
+          if (document.getElementById('source_text').value != 'My position') {
+            return
+          }
+          updateSourceLocation(position)
+          console.log(`Updated position to (${position.coords.latitude},${position.coords.longitude})`)
+        })
       }
 
       let hasZoomedToUser = false
