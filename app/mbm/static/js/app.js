@@ -1,3 +1,7 @@
+// Get variables written to the page by the Django backend
+const routeListUrl = context.routeListUrl
+const routeUrl = context.routeUrl
+
 const getLineColor = (type) => {
   switch (type) {
     case 'street': return '#77b7a2'

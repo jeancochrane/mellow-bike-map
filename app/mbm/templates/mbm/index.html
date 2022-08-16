@@ -76,5 +76,11 @@
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvdUtVFRDt4QG1AcU7Vt3N1SULbxri44M&libraries=places"
   >
   </script>
+  <script type="text/javascript">
+    context = {
+      routeListUrl: "{% url 'route-list' %}",
+      routeUrl: "{% url 'route' %}"
+    }
+  </script>
   <script type="module" src="{% static 'js/app.js' %}"></script>
 {% endblock %}
