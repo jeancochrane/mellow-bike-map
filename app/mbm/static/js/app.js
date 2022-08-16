@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     map.setView([lat, lng], 14)
   }
 
-  const initAutocomplete = (textElementId, coordElementId, marker) => {
+  const initAutocomplete = (textElementId, coordElementId, marker, shouldZoom = false) => {
     // Create the autocomplete object
     let autocomplete = new google.maps.places.Autocomplete(
       document.getElementById(textElementId), {
@@ -261,19 +261,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
     // as supplied by the browser's 'navigator.geolocation' object.
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(position => {
-        geolocation = {
+        const geolocation = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
         }
-        if (!hasZoomedToUser) {
+        if (shouldZoom) {
           document.getElementById('source').value = `${geolocation['lat']},${geolocation['lng']}`
-          document.getElementById('source_text').value =  'My position'
+          document.getElementById('source_text').value = 'My position'
           if (markers['source']) {map.removeLayer(markers['source'])}
           markers['source'] = L.marker(
             [geolocation['lat'], geolocation['lng']]
           ).bindPopup('My position').addTo(map)
           zoomToLocation(geolocation.lat, geolocation.lng)
-          hasZoomedtoUser = true
         }
         const circle = new google.maps.Circle({
           center: geolocation,
@@ -311,7 +310,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
     })
   }
 
-  let hasZoomedToUser = false
-  initAutocomplete('source_text', 'source', 'source')
+  initAutocomplete('source_text', 'source', 'source', true)
   initAutocomplete('target_text', 'target', 'target')
 })
