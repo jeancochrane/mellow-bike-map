@@ -174,16 +174,16 @@ export default class MBM {
             allRoutesLayer.setStyle({opacity: 0.3})
             this.map.fitBounds(routeLayer.getBounds())
             this.showRouteEstimate(data.route.properties.distance, data.route.properties.time)
-          }).fail(function(jqxhr, textStatus, error) {
+          }.bind(this)).fail(function(jqxhr, textStatus, error) {
             const err = textStatus + ': ' + error
             alert('Request failed: ' + err)
           }).always(function() {
             this.map.spin(false)
-          })
+          }.bind(this))
         }
       }
 
-      $directionsForm.submit(search.bind(this))
+      $directionsForm.submit(search)
 
       // Define behavior for the "Reset search" button
       $('#reset-search').click(function(e) {
@@ -288,10 +288,6 @@ export default class MBM {
   // is supplied, also updates the visible <input> with the given string.
   // markerName should be one of 'source', or 'target'
   setMarkerLocation(markerName, lat, lng, addressString = '') {
-    if (!['source', 'target'].includes(markerName)) {
-      return
-    }
-
     // Create the marker if it doesn't exist
     if (!this.markers[markerName]) {
       this.markers[markerName] = L.marker([lat, lng]).addTo(this.map)
@@ -361,14 +357,14 @@ export default class MBM {
   showRouteEstimate(distance, time) {
     this.$routeEstimate.html(`<strong>${time}</strong> (${distance})`)
     this.$routeEstimate.show()
-    this.$hide.addClass('mt-1')
+    this.$hideSearch.addClass('mt-1')
     this.$hideLegend.addClass('mt-1')
   }
 
   hideRouteEstimate() {
     this.$routeEstimate.hide()
     this.$routeEstimate.html('')
-    this.$hide.removeClass('mt-1')
+    this.$hideSearch.removeClass('mt-1')
     this.$hideLegend.removeClass('mt-1')
   }
 }

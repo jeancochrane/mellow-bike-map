@@ -60,7 +60,7 @@ export default class UserLocations {
 
     // Add a new location to the map and update the locations in localstorage
     addLocation(name, lat, lng) {
-        location = {lat, lng}
+        const location = {lat, lng}
         this.locations[name] = location
         this.renderSavedLocation(name, location)
         this.saveLocations()
