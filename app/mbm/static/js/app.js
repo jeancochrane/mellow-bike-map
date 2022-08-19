@@ -235,9 +235,7 @@ export default class MBM {
       // Show the search box by default on desktop
       if (!isMobileScreen) { this.$hideSearch.click() }
 
-      if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(this.handleGPSPositionUpdate.bind(this))
-      }
+      this.startGPSTracking()
 
       for (const [name, {input}] of Object.entries(this.directionsFormElements)) {
         this.directionsFormElements[name]['autocomplete'] = initAutocomplete(input, name, this)
@@ -245,8 +243,15 @@ export default class MBM {
 
       // This is a very overcomplicated way to put our own items into the
       // autocomplete comboboxes. There doesn't seem to be any official way to do this
-      // other than completely implementing the autocomplete widget yourself, thus our hack.
-      // TODO: Add saved locations, filter by user input, make keyboard interaction work
+      // other than completely implementing the autocomplete widget yourself, thus our hacks.
+      //
+      // TODO: Add user locations, filter by user input, make keyboard interaction work
+
+      // The google autocomplete container doesn't have any obvious way to find the
+      // input associated with the list of options, which makes it difficult to write
+      // a handler for a user selecting one of our preset options (which input and coords
+      // element should we update?). So instead, we keep track of which input element
+      // received a focus event most recently and update that one when
       let lastFocusedInput
       const recordFocusEvent = (event) => {
         lastFocusedInput = event.target
@@ -260,7 +265,7 @@ export default class MBM {
           <span class="pac-icon pac-icon-marker"></span>
           <span class="pac-item-query">${this.gpsLocationString}</span>
         </div>
-      `).on('mousedown', (e) => {
+      `).on('mousedown', () => {
         lastFocusedInput.value = this.gpsLocationString
       })
       $('.pac-container').append(gpsLocationOption)
@@ -281,6 +286,12 @@ export default class MBM {
         childList: true
       })
     })
+  }
+
+  startGPSTracking() {
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(this.handleGPSPositionUpdate.bind(this))
+    }
   }
 
   // Creates a marker or moves an existing one to a new location and updates
@@ -325,7 +336,6 @@ export default class MBM {
   setTargetLocation(lat, lng, addressString) {
     this.setMarkerLocation('target', lat, lng, addressString)
   }
-
 
   // Remove a marker from the map and our list of markers
   removeMarker(name) {
