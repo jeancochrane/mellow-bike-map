@@ -10,14 +10,23 @@
 {% endblock %}
 
 {% block body %}
-  <div class="row">
-    <div id="controls-container" class="col-12 col-md-3">
-      <div class="container-fluid m-auto form-group">
+  <div class="row no-gutters">
+    <div id="controls-container" class="col-12 col-md-4">
+      <div class="container m-auto form-group">
         <div id="input-elements" class="hideable collapse multi-collapse">
-          <input id="source_text" class="form-control my-2" name="source_text" placeholder="Start address"></input>
-          <input id="source" name="source_text" hidden="true"></input>
-          <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
-          <input id="target" name="target" hidden="true"></input>
+          <div class="row no-gutters">
+            <div class="col">
+              <input id="source_text" class="form-control my-2" name="source_text" placeholder="Start address"></input>
+              <input id="source" name="source_text" hidden="true"></input>
+              <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
+              <input id="target" name="target" hidden="true"></input>
+            </div>
+            <div class="col-2 my-auto">
+              <div class="row justify-content-center no-gutters">
+                <button id="swap-addresses" class="btn btn-link btn-lg">🔃</button>
+              </div>
+            </div>
+          </div>
           <button id="submit" class="btn btn-primary btn-block mt-1">Search</button>
           <button id="reset-search" class="btn btn-secondary btn-block mb-2">Reset search</button>
           <div>
@@ -60,7 +69,7 @@
         </button>
       </div>
     </div>
-    <div class="col-12 col-md-9">
+    <div class="col-12 col-md-8">
       <div id="map"></div>
     </div>
   </div>
@@ -195,8 +204,7 @@
         console.log(textStatus + ': ' + error)
       })
 
-      // Define behavior for the search button
-      $('#submit').click(function(e) {
+      const submitSearch = (e) => {
         const source = $('#source').val()
         const target = $('#target').val()
         const enableV2 = $('#enable-v2').is(':checked')
@@ -232,17 +240,48 @@
             map.spin(false)
           })
         }
-      })
+      }
 
-      // Define behavior for the "Reset search" button
-      $('#reset-search').click(function(e) {
+      const resetSearch = (e) => {
         if (routeLayer) { map.removeLayer(routeLayer) }
         if (markers['source']) { map.removeLayer(markers['source']) }
         if (markers['target']) { map.removeLayer(markers['target']) }
         allRoutesLayer.setStyle({opacity: 0.6})
         $('#source, #source_text, #target, #target_text').val('')
         hideRouteEstimate()
-      })
+      }
+
+      const swapAddresses = (e) => {
+        // Swap the visible text boxes
+        const source_text = $('#source_text').val()
+        const target_text = $('#target_text').val()
+        $('#target_text').val(source_text)
+        $('#source_text').val(target_text)
+        // Swap the invisible lat/lng containers
+        const source = $('#source').val()
+        const target = $('#target').val()
+        $('#target').val(source)
+        $('#source').val(target)
+        // Swap the markers (if we don't do this, changing an address later moves the wrong marker)
+        const source_marker = markers['source']
+        const target_marker = markers['target']
+        markers['target'] = source_marker
+        markers['source'] = target_marker
+
+        // Recalculate route if both addresses are present
+        if (source !== '' && target !== '') {
+          submitSearch(e)
+        }
+      }
+
+      // Define behavior for the search button
+      $('#submit').click(submitSearch)
+
+      // Define behavior for the "Reset search" button
+      $('#reset-search').click(resetSearch)
+
+      // Define behavior for the "Swap start/end addresses" button
+      $('#swap-addresses').click(swapAddresses)
 
       const isHidden = (elem) => { return $(elem).data('state') === 'hidden' }
 
