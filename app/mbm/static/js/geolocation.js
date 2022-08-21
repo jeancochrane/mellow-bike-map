@@ -5,10 +5,7 @@
 export default class Geolocation {
   constructor(app) {
     this.app = app
-    // Since the app doesn't yet have any central state management, this string is used
-    // across multiple modules to indicate that a location should be based on the user's
-    // GPS position
-    this.gpsLocationString = app.gpsLocationString
+    this.markerName = 'gpslocation'
     this.startGPSTracking()
   }
 
@@ -18,17 +15,22 @@ export default class Geolocation {
     }
   }
 
+  createMarker(lat, long) {
+    const marker = L.marker([lat, long])
+    const icon = L.divIcon({className: 'gps-location-marker-icon'})
+    marker.setIcon(icon)
+    marker.bindPopup(this.app.gpsLocationString)
+    this.app.addMarker(this.markerName, marker)
+    return marker
+  }
+
   // Continuously update marker as position changes when the user selects the
   // GPS location option for the navigation source or target
   handleGPSPositionUpdate(position) {
-    for (const [name, { input }] of Object.entries(this.app.directionsFormElements)) {
-      // Only update the source marker if the user is using their current location
-      // as the source location
-      if (input.value != this.gpsLocationString) {
-        continue
-      }
-      this.app.setMarkerLocation(name, position.coords.latitude, position.coords.longitude, this.gpsLocationString)
-      this.app.zoomToLocation(position.coords.latitude, position.coords.longitude)
+    if (!this.marker) {
+      this.marker = this.createMarker(position.coords.latitude, position.coords.longitude)
+    } else {
+      this.app.setMarkerLocation(this.markerName, position.coords.latitude, position.coords.longitude)
     }
   }
 

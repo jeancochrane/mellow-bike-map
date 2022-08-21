@@ -131,7 +131,10 @@ export default class App {
     }
 
     // Add "My position" as an option to the autocomplete
-    autocomplete.addDefaultOption(this, this.gpsLocationString)
+    autocomplete.addCustomOption(this, this.gpsLocationString, (markerName) => {
+      const latlng = this.geolocation.marker.getLatLng()
+      this.setMarkerLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
+    })
   }
 
   // Fetch the layer of annotated routes from the backend and display it on the map
@@ -290,19 +293,22 @@ export default class App {
       })
     }
 
-    const { input, coords } = this.directionsFormElements[markerName]
 
-    // Update the coordinates
-    coords.value = `${lat},${lng}`
+    if (this.directionsFormElements[markerName]) {
+      const { input, coords } = this.directionsFormElements[markerName]
 
-    if (addressString) {
-      // Update the marker's popup
-      this.markers[markerName].unbindPopup().bindPopup(addressString)
-      // Update the user-facing text input field
-      input.value = addressString
+      // Update the coordinates
+      coords.value = `${lat},${lng}`
+
+      if (addressString) {
+        // Update the marker's popup
+        this.markers[markerName].unbindPopup().bindPopup(addressString)
+        // Update the user-facing text input field
+        input.value = addressString
+      }
+
+      this.map.setView([lat, lng])
     }
-
-    this.map.setView([lat, lng])
   }
 
   zoomToLocation(lat, lng) {
