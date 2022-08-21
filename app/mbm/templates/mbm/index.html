@@ -82,7 +82,6 @@
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvdUtVFRDt4QG1AcU7Vt3N1SULbxri44M&libraries=places"
   >
   </script>
-  <script type="module" src="{% static 'js/app.js' %}"></script>
   {% comment %}
   The frontend app's main class is defined in app/mbm/static/js/app.js. We instantiate
   it here with the values it needs passed from the backend and keep the rest of the logic
@@ -90,6 +89,8 @@
   {% endcomment %}
   <script type="module">
     // Start the JS app
+    import App from '{% static 'js/app.js' %}'
+
     new App("{% url 'route-list' %}", "{% url 'route' %}")
   </script>
 {% endblock %}
