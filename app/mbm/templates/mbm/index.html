@@ -24,9 +24,12 @@
             <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
             <input id="target" name="target" hidden="true"></input>
           </div>
-          <button id="submit" type="submit" class="btn btn-primary btn-block mt-1">Search</button>
-          <button id="reset-search" type="reset" class="btn btn-secondary btn-block mb-2">Reset search</button>
-          <div>
+          <div class="form-group">
+            <button id="submit" type="submit" class="btn btn-primary btn-block mt-1">Search</button>
+            <button id="reset-search" type="reset" class="btn btn-secondary btn-block mb-2">Reset search</button>
+          </div>
+          <div class="form-group">
+            <div>
               <input type="checkbox" id="enable-v2" name="enable-v2" />
               <label for="enable-v2" style="padding-left: 5px">Use v2 routing</label>
               <i
@@ -37,6 +40,19 @@
               >
                 <i class="fa fa-fw fa-info-circle text-muted"></i>
               </i>
+            </div>
+            <div>
+              <input type="checkbox" id="enable-user-locations" name="enable-user-locations" />
+              <label for="enable-user-locations" style="padding-left: 5px">Enable saved locations</label>
+              <i
+                data-toggle="tooltip"
+                data-placement="top"
+                title="When this is checked, double-clicking or double-tapping on the map will no longer zoom in and will instead open a dialog to save a location at that point."
+                style="cursor: pointer"
+              >
+                <i class="fa fa-fw fa-info-circle text-muted"></i>
+              </i>
+            </div>
           </div>
           <span id="route-estimate" class="text-muted"></span>
         </form>

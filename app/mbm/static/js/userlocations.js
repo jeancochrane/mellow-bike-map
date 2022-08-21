@@ -17,7 +17,10 @@ export default class UserLocations {
 
         // Disable double click zooming so we can use that gesture for adding a new location
         this.map.doubleClickZoom.disable()
-        this.map.on('dblclick', this.showAddLocationPopup.bind(this))
+
+        // Store the bound handler so we can remove it during unmount
+        this.dblclickHandler = this.showAddLocationPopup.bind(this)
+        this.map.on('dblclick', this.dblclickHandler)
 
         // Load user locations from localstorage
         this.locations = getUserLocations() || {}
@@ -120,4 +123,12 @@ export default class UserLocations {
         this.saveLocations()
     }
 
+    unmount() {
+        this.map.doubleClickZoom.enable()
+        this.map.off('dblclick', this.dblclickHandler)
+
+        for (const markerName of Object.keys(this.locations)) {
+            this.app.removeMarker(markerName)
+        }
+    }
 }

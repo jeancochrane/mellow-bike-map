@@ -1,6 +1,7 @@
 import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
+import { getUserPreferences, saveUserPreferences } from './storage.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -71,7 +72,25 @@ export default class App {
     this.createLegend().addTo(this.map)
 
     // Allow users to name and save their own locations by double clicking on the map
-    this.userLocations = new UserLocations(this)
+    this.userLocationsCheckbox = document.getElementById('enable-user-locations')
+    this.handleLocationsCheckboxChange = (event) => {
+      this.preferences.userLocationsEnabled = event.target.checked
+      saveUserPreferences(this.preferences)
+
+      if (event.target.checked && !this.userLocations) {
+        this.userLocations = new UserLocations(this)
+      } else {
+        this.userLocations.unmount()
+        this.userLocations = null
+      }
+    }
+    this.userLocationsCheckbox.addEventListener('change', this.handleLocationsCheckboxChange)
+
+    this.preferences = getUserPreferences()
+    if (this.preferences.userLocationsEnabled) {
+      this.userLocationsCheckbox.checked = true
+      this.userLocationsCheckbox.dispatchEvent(new Event('change'))
+    }
 
     // Load the routes layer from the backend
     this.loadAllRoutes()

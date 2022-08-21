@@ -13,12 +13,12 @@ const saveUserLocations = (locations) => {
 }
 
 const getUserPreferences = () => {
-    const preferences = JSON.parse(localStorage.getItem(preferencesKey))
+    const preferences = JSON.parse(localStorage.getItem(preferencesKey)) || {}
     return preferences
 }
 
 const saveUserPreferences = (preferences) => {
-    localStorage.setItem(JSON.stringify(preferences))
+    localStorage.setItem(preferencesKey, JSON.stringify(preferences))
 }
 
 export { getUserLocations, saveUserLocations, getUserPreferences, saveUserPreferences }
