@@ -1,18 +1,19 @@
 import { getUserLocations, saveUserLocations } from './storage.js'
 
 // TODO:
-// Differentiate icons
-// Require unique names
-// Make sure we don't cover saved location marker with source or target marker
-// Add locations to autocomplete
+//   - Add some different icon styles to differentiate target, dest, saved locations, and GPS position
+//   - Require unique names for locations
+//   - Add locations to autocomplete
 
 // Allows users to create markers for their own locations on the map by double-clicking
 // These locations are saved and loaded from localstorage
 export default class UserLocations {
-    constructor(mbm) {
-        this.mbm = mbm
-        this.map = mbm.map
-        this.addLocationPopup = L.popup()
+    constructor(app) {
+        this.app = app
+        this.map = app.map
+
+        this.form = null
+        this.addLocationPopup = this.createLocationPopup()
 
         // Disable double click zooming so we can use that gesture for adding a new location
         this.map.doubleClickZoom.disable()
@@ -27,32 +28,43 @@ export default class UserLocations {
         }
     }
 
-    // Create a popup with a form for users to save a new location to the map
-    showAddLocationPopup(clickEvent) {
+    createLocationPopup() {
+        const popup = L.popup()
         const $form = $(`
             <form>
                 <h4>Add new saved location?</h4>
                 <label for="locationName">Name</label>
-            </form>`)
+            </form>`
+        )
         const $nameInput = $('<input id="locationName" name="locationName">')
+        this.$nameInput = $nameInput
         const $saveButton = $('<button class="btn btn-primary btn-block">Save location</button>')
         $form.append($nameInput).append($saveButton)
+        $form.submit(this.handleFormSubmission.bind(this))
 
-        $form.submit((submitEvent) => {
-            submitEvent.preventDefault()
+        this.form = $form[0]
+        popup.setContent(this.form)
+        return popup
+    }
 
-            const name = $nameInput.val()
-            this.addLocation(name, clickEvent.latlng.lat, clickEvent.latlng.lng)
+    handleFormSubmission(event) {
+        event.preventDefault()
 
-            this.closeAddLocationPopup()
-        })
-    
+        const name = this.$nameInput.val()
+        const latlng = this.addLocationPopup.getLatLng()
+
+        this.addLocation(name, latlng.lat, latlng.lng)
+        this.form.reset()
+        this.closeAddLocationPopup()
+    }
+
+    // Create a popup with a form for users to save a new location to the map
+    showAddLocationPopup(clickEvent) {
         this.addLocationPopup
             .setLatLng(clickEvent.latlng)
-            .setContent($form[0])
             .openOn(this.map)
-        }
-        
+    }
+
     // Close the new location popup
     closeAddLocationPopup() {
         this.map.closePopup(this.addLocationPopup)
@@ -60,7 +72,7 @@ export default class UserLocations {
 
     // Add a new location to the map and update the locations in localstorage
     addLocation(name, lat, lng) {
-        const location = {lat, lng}
+        const location = { lat, lng }
         this.locations[name] = location
         this.renderSavedLocation(name, location)
         this.saveLocations()
@@ -71,24 +83,23 @@ export default class UserLocations {
         saveUserLocations(this.locations)
     }
 
-    //"render" a location to the map:
-    //  - Add a marker to the map at that location
-    //  - Add navigation buttons to marker popup
-    //  - Add button to marker for deleting location
-    //  - 
+    // "render" a location to the map by creating a marker at that location,
+    // with a popup containing controls to navigate to/from that marker or to
+    // delete it
     renderSavedLocation(name, location) {
         const marker = L.marker([location.lat, location.lng], {
             title: name,
+            // Make sure these markers sit above the regular source/target markers
             zIndexOffset: 100,
         })
 
         const popup = L.popup()
         const sourceButton = $(`<button class="btn btn-primary btn-block">Directions from ${name}</button>`).click(() => {
-            this.mbm.setSourceLocation(location.lat, location.lng, name)
+            this.app.setSourceLocation(location.lat, location.lng, name)
             this.map.closePopup(popup)
         })
         const targetButton = $(`<button class="btn btn-primary btn-block">Directions to ${name}</button>`).click(() => {
-            this.mbm.setTargetLocation(location.lat, location.lng, name)
+            this.app.setTargetLocation(location.lat, location.lng, name)
             this.map.closePopup(popup)
         })
         const removeButton = $(`<button class="btn btn-danger btn-block">Remove ${name} from saved locations</button>`).click(() => {
@@ -99,12 +110,13 @@ export default class UserLocations {
         popup.setContent($content[0])
 
         marker.bindPopup(popup)
-        this.mbm.addMarker(name, marker)
-  }
+        this.app.addMarker(name, marker)
+    }
 
+    // Remove a location from the map and delete it from storage
     removeLocation(name) {
         delete this.locations[name]
-        this.mbm.removeMarker(name)
+        this.app.removeMarker(name)
         this.saveLocations()
     }
 

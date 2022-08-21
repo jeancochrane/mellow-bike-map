@@ -14,12 +14,16 @@
     <div id="controls-container" class="col-12 col-md-3">
       <div class="container-fluid m-auto form-group">
         <form id="input-elements" class="hideable collapse multi-collapse">
-          <label for="source_text">Start address</label>
-          <input id="source_text" class="form-control my-2" name="source_text" placeholder="Start address" value="My position"></input>
-          <input id="source" name="source_text" hidden="true"></input>
-          <label for="target_text">End address</label>
-          <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
-          <input id="target" name="target" hidden="true"></input>
+          <div class="form-group">
+            <label for="source_text" class="sr-only">Start address</label>
+            <input id="source_text" class="form-control my-2" name="source_text" placeholder="Start address" value="My position"></input>
+            <input id="source" name="source" hidden="true"></input>
+          </div>
+          <div class="form-group">
+            <label for="target_text" class="sr-only">End address</label>
+            <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
+            <input id="target" name="target" hidden="true"></input>
+          </div>
           <button id="submit" type="submit" class="btn btn-primary btn-block mt-1">Search</button>
           <button id="reset-search" type="reset" class="btn btn-secondary btn-block mb-2">Reset search</button>
           <div>
@@ -78,11 +82,14 @@
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvdUtVFRDt4QG1AcU7Vt3N1SULbxri44M&libraries=places"
   >
   </script>
-  <script type="text/javascript">
-    context = {
-      routeListUrl: "{% url 'route-list' %}",
-      routeUrl: "{% url 'route' %}"
-    }
-  </script>
   <script type="module" src="{% static 'js/app.js' %}"></script>
+  {% comment %}
+  The frontend app's main class is defined in app/mbm/static/js/app.js. We instantiate
+  it here with the values it needs passed from the backend and keep the rest of the logic
+  in static JS files.
+  {% endcomment %}
+  <script type="module">
+    // Start the JS app
+    new App("{% url 'route-list' %}", "{% url 'route' %}")
+  </script>
 {% endblock %}
