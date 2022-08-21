@@ -104,7 +104,7 @@ const addDefaultOption = (app, optionText) => {
   const ourOption = $(`
     <div class="pac-item" tabindex="0">
       <span class="pac-icon pac-icon-marker"></span>
-      <span class="pac-item-query">${optionText}}</span>
+      <span class="pac-item-query">${optionText}</span>
     </div>
   `).on('mousedown', () => {
     lastFocusedInput.value = optionText
