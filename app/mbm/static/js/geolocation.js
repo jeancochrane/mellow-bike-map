@@ -33,23 +33,4 @@ export default class Geolocation {
       this.app.setMarkerLocation(this.markerName, position.coords.latitude, position.coords.longitude)
     }
   }
-
-  // Request the users location from the browser and run our handleGPSPositionUpdate method
-  // Since we're already using watchPosition to get updates, this is mainly used to trigger our
-  // handler, and as such, we don't mind receiving a cached value for the user location. This is
-  // important, because getCurrentPosition can sometimes take tens of seconds to return a response.
-  triggerGPSPositionUpdate() {
-    if (navigator.geolocation) {
-      const options = {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: Infinity
-      }
-      navigator.geolocation.getCurrentPosition(
-        this.handleGPSPositionUpdate.bind(this),
-        (err) => console.log(`Error retrieving GPS position. error code ${err.code}: ${err.message}`),
-        options
-      )
-    }
-  }
 }
