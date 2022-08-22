@@ -15,6 +15,8 @@ export default class App {
 
     // Start the app once the DOM is ready
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
+    this.sourceLocation = ''
+    this.targetLocation = ''
   }
 
   start() {
@@ -23,22 +25,18 @@ export default class App {
 
     // Store references to DOM elements we'll need
     const $directionsForm = $('#input-elements')
-    const sourceCoordsElem = document.getElementById('source')
     const sourceTextInput = document.getElementById('source_text')
 
-    const targetCoordsElem = document.getElementById('target')
     const targetTextInput = document.getElementById('target_text')
 
     // This uses the same keys as the `markers` object for convenience
     // in the code below
     this.directionsFormElements = {
       source: {
-        coords: sourceCoordsElem,
         input: sourceTextInput,
         autocomplete: null
       },
       target: {
-        coords: targetCoordsElem,
         input: targetTextInput,
         autocomplete: null
       }
@@ -152,7 +150,7 @@ export default class App {
     // Add "My position" as an option to the autocomplete
     autocomplete.addCustomOption(this, this.gpsLocationString, (markerName) => {
       const latlng = this.geolocation.marker.getLatLng()
-      this.setMarkerLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
+      this.setSourceOrTargetLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
     })
   }
 
@@ -206,12 +204,12 @@ export default class App {
   }
 
   // Clear the form and remove plotted directions from the map
+  // Inputs are automatically reset because the button that triggers this has `type="reset"`
   reset() {
     if (this.routeLayer) { this.map.removeLayer(this.routeLayer) }
     if (this.markers['source']) { this.map.removeLayer(this.markers['source']) }
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
     this.allRoutesLayer.setStyle({ opacity: 0.6 })
-    $('#source, #source_text, #target, #target_text').val('')
     this.hideRouteEstimate()
   }
 
@@ -259,8 +257,8 @@ export default class App {
   // form, then display it on the map
   search(e) {
     e.preventDefault()
-    const source = this.directionsFormElements.source.coords.value
-    const target = this.directionsFormElements.target.coords.value
+    const source = this.sourceLocation
+    const target = this.targetLocation
     const enableV2 = $('#enable-v2').is(':checked')
     if (source === '') {
       alert('Source is required for search')
@@ -296,14 +294,13 @@ export default class App {
     }
   }
 
-  // Creates a marker or moves an existing one to a new location and updates
-  // the associated hidden <input> that stores the location. If addressString
-  // is supplied, also updates the visible <input> with the given string.
-  // markerName should be one of 'source', or 'target'
+  // Create a marker or move an existing one to a new location. If addressString
+  // is supplied, and markerName is "source" or "target", also update the associated
+  // <input> to show addressString.
   setMarkerLocation(markerName, lat, lng, addressString = '') {
     // Create the marker if it doesn't exist
     if (!this.markers[markerName]) {
-      this.markers[markerName] = L.marker([lat, lng]).addTo(this.map)
+      this.addMarker(markerName, L.marker([lat, lng]))
     } else {
       // Move it to the new location if it does
       this.markers[markerName].setLatLng({
@@ -312,12 +309,8 @@ export default class App {
       })
     }
 
-
     if (this.directionsFormElements[markerName]) {
-      const { input, coords } = this.directionsFormElements[markerName]
-
-      // Update the coordinates
-      coords.value = `${lat},${lng}`
+      const { input } = this.directionsFormElements[markerName]
 
       if (addressString) {
         // Update the marker's popup
@@ -327,6 +320,8 @@ export default class App {
       }
 
       this.map.setView([lat, lng])
+
+      return this.markers[markerName]
     }
   }
 
@@ -334,11 +329,25 @@ export default class App {
     this.map.setView([lat, lng], 14)
   }
 
+  serializeLocation(lat, lng) {
+    return `${lat},${lng}`
+  }
+
+  setSourceOrTargetLocation(markerName, lat, lng, addressString) {
+    if (markerName === "source") {
+      this.setSourceLocation(lat, lng, addressString)
+    } else if (markerName === "target") {
+      this.setTargetLocation(lat, lng, addressString)
+    }
+  }
+
   setSourceLocation(lat, lng, addressString) {
+    this.sourceLocation = this.serializeLocation(lat, lng)
     this.setMarkerLocation('source', lat, lng, addressString)
   }
 
   setTargetLocation(lat, lng, addressString) {
+    this.targetLocation = this.serializeLocation(lat, lng)
     this.setMarkerLocation('target', lat, lng, addressString)
   }
 

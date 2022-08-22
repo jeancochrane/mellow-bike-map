@@ -45,7 +45,7 @@ const initAutocomplete = (inputElement, markerName, app) => {
         }
       }
     }
-    app.setMarkerLocation(markerName, lat, lng, addressString)
+    app.setSourceOrTargetLocation(markerName, lat, lng, addressString)
   });
 
   // TODO: This doesn't really need to depend on geolocation. We want to suggest
