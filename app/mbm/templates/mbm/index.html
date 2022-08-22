@@ -13,14 +13,21 @@
   <div class="row">
     <div id="controls-container" class="col-12 col-md-3">
       <div class="container-fluid m-auto form-group">
-        <div id="input-elements" class="hideable collapse multi-collapse">
-          <input id="source_text" class="form-control my-2" name="source_text" placeholder="Start address"></input>
-          <input id="source" name="source_text" hidden="true"></input>
-          <input id="target_text" class="form-control my-2" name="target_text" placeholder="End address"></input>
-          <input id="target" name="target" hidden="true"></input>
-          <button id="submit" class="btn btn-primary btn-block mt-1">Search</button>
-          <button id="reset-search" class="btn btn-secondary btn-block mb-2">Reset search</button>
-          <div>
+        <form id="input-elements" class="hideable collapse multi-collapse">
+          <div class="form-group">
+            <label for="source" class="sr-only">Start address</label>
+            <input id="source" class="form-control my-2" name="source" placeholder="Start address"></input>
+          </div>
+          <div class="form-group">
+            <label for="target" class="sr-only">End address</label>
+            <input id="target" class="form-control my-2" name="target" placeholder="End address"></input>
+          </div>
+          <div class="form-group">
+            <button id="submit" type="submit" class="btn btn-primary btn-block mt-1">Search</button>
+            <button id="reset-search" type="reset" class="btn btn-secondary btn-block mb-2">Reset search</button>
+          </div>
+          <div class="form-group">
+            <div>
               <input type="checkbox" id="enable-v2" name="enable-v2" />
               <label for="enable-v2" style="padding-left: 5px">Use v2 routing</label>
               <i
@@ -31,9 +38,22 @@
               >
                 <i class="fa fa-fw fa-info-circle text-muted"></i>
               </i>
+            </div>
+            <div>
+              <input type="checkbox" id="enable-user-locations" name="enable-user-locations" />
+              <label for="enable-user-locations" style="padding-left: 5px">Enable saved locations</label>
+              <i
+                data-toggle="tooltip"
+                data-placement="top"
+                title="When this is checked, double-clicking or double-tapping on the map will no longer zoom in and will instead open a dialog to save a location at that point."
+                style="cursor: pointer"
+              >
+                <i class="fa fa-fw fa-info-circle text-muted"></i>
+              </i>
+            </div>
           </div>
           <span id="route-estimate" class="text-muted"></span>
-        </div>
+        </form>
         <button
           id="hide"
           class="btn btn-outline-secondary mb-2"
@@ -76,291 +96,15 @@
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvdUtVFRDt4QG1AcU7Vt3N1SULbxri44M&libraries=places"
   >
   </script>
-  <script type="text/javascript">
-    const routeListUrl = "{% url 'route-list' %}"
-    const routeUrl = "{% url 'route' %}"
+  {% comment %}
+  The frontend app's main class is defined in app/mbm/static/js/app.js. We instantiate
+  it here with the values it needs passed from the backend and keep the rest of the logic
+  in static JS files.
+  {% endcomment %}
+  <script type="module">
+    // Start the JS app
+    import App from '{% static 'js/app.js' %}'
 
-    const getLineColor = (type) => {
-      switch (type) {
-        case 'street': return '#77b7a2'
-        case 'route': return '#e18a7e'
-        case 'path': return '#e17fa8'
-        default: return '#7ea4e1'
-      }
-    }
-
-    const showRouteEstimate = (distance, time) => {
-      $('#route-estimate').html(`<strong>${time}</strong> (${distance})`)
-      $('#route-estimate').show()
-      $('#hide, #hide-legend').addClass('mt-1')
-    }
-
-    const hideRouteEstimate = () => {
-      $('#route-estimate').hide()
-      $('#route-estimate').html('')
-      $('#hide, #hide-legend').removeClass('mt-1')
-    }
-
-    const googleStyles = [
-      {
-        stylers: [
-          {saturation: -100},
-          {lightness: 40}
-        ]
-      },
-      {
-        featureType: 'poi',
-        elementType: 'labels',
-        stylers: [{visibility: 'off'}]
-      },
-      {
-        featureType: 'transit',
-        elementType: 'labels',
-        stylers: [{visibility: 'off'}]
-      },
-      {
-        featureType: 'administrative.neighborhood',
-        elementType: 'labels',
-        stylers: [{visibility: 'off'}]
-      },
-      {
-        featureType: 'road.highway',
-        elementType: 'labels',
-        stylers: [{visibility: 'off'}]
-      },
-    ]
-
-    document.addEventListener('DOMContentLoaded', (event) => {
-      $('[data-toggle="tooltip"]').tooltip()
-
-      const map = L.map('map')
-
-      const isMobileScreen = $(window).outerWidth() <= 768
-
-      // Make sure the map fits the full height of the screen
-      $(window).resize(function () {
-        var windowHeight = $(window).innerHeight()
-        var offsetTop = $('.navbar')[0].offsetHeight
-        // Add controls to the top offset on mobile screens, where they merge
-        // with the navbar
-        if (isMobileScreen) { offsetTop += $('#controls-container')[0].offsetHeight }
-        var mapHeight = windowHeight - offsetTop
-        $('#map').css('height', mapHeight)
-      }).resize();
-
-      // Manually trigger map resize when controls are toggled
-      $('#input-elements').on('shown.bs.collapse hidden.bs.collapse', function(e) {
-        $(window).resize()
-      })
-
-      // Load basemap
-      const streets = new L.Google('ROADMAP', {mapOptions: {styles: googleStyles}})
-      map.addLayer(streets).setView([41.87, -87.62], 11);
-
-      let routeLayer, allRoutesLayer  // Init empty layers
-      let markers = {'source': undefined, 'target': undefined}  // Init marker
-
-      // Create a legend
-      const legend = L.control({position: 'bottomright'})
-      legend.onAdd = (map) => {
-        let div = L.DomUtil.create('div', 'info legend hideable-legend')
-        const routeTypes = [
-          ['path', 'Off-street bike paths (very calm)'],
-          ['street', 'Mellow streets (calm)'],
-          ['route', 'Main streets, often with bike lanes (less calm)']
-        ]
-        for (const routeType of routeTypes) {
-          const color = getLineColor(routeType[0])
-          const description = routeType[1]
-          div.innerHTML += `<i style="background:${color}"></i>${description}`
-          if (routeType !== routeTypes[routeTypes.length-1]) {
-            div.innerHTML += '<br>'
-          }
-        }
-        return div
-      }
-      legend.addTo(map)
-
-      // Start spinner while we retrieve initial route map
-      map.spin(true)
-      $.getJSON(routeListUrl).done(function(data) {
-        allRoutesLayer = L.geoJSON(data, {
-          style: function(feature) {
-            return {color: getLineColor(feature.properties.type), opacity: 0.6}
-          },
-          interactive: false,
-        }).addTo(map)
-        map.spin(false)
-      }).fail(function(jqxhr, textStatus, error) {
-        console.log(textStatus + ': ' + error)
-      })
-
-      // Define behavior for the search button
-      $('#submit').click(function(e) {
-        const source = $('#source').val()
-        const target = $('#target').val()
-        const enableV2 = $('#enable-v2').is(':checked')
-        if (source === '') {
-          alert('Source is required for search')
-        } else if (target == '') {
-          alert('Target is required for search')
-        } else {
-          map.spin(true)
-          $.getJSON(routeUrl + '?' + $.param({source, target, enable_v2: enableV2})).done(function(data) {
-            if (routeLayer) {
-              map.removeLayer(routeLayer)
-            }
-            routeLayer = L.geoJSON(data.route, {
-              style: function(feature) {
-                return {weight: 5, color: getLineColor(feature.properties.type)}
-              },
-              onEachFeature: function(feature, layer) {
-                layer.bindPopup(
-                  `<strong>Name:</strong> ${feature.properties.name}<br>` +
-                  `<strong>Type:</strong> ${feature.properties.type ? feature.properties.type : 'non-mellow street'}`
-                )
-              }
-            }).addTo(map)
-            // Lower opacity on non-route street colors
-            allRoutesLayer.setStyle({opacity: 0.3})
-            map.fitBounds(routeLayer.getBounds())
-            showRouteEstimate(data.route.properties.distance, data.route.properties.time)
-          }).fail(function(jqxhr, textStatus, error) {
-            const err = textStatus + ': ' + error
-            alert('Request failed: ' + err)
-          }).always(function() {
-            map.spin(false)
-          })
-        }
-      })
-
-      // Define behavior for the "Reset search" button
-      $('#reset-search').click(function(e) {
-        if (routeLayer) { map.removeLayer(routeLayer) }
-        if (markers['source']) { map.removeLayer(markers['source']) }
-        if (markers['target']) { map.removeLayer(markers['target']) }
-        allRoutesLayer.setStyle({opacity: 0.6})
-        $('#source, #source_text, #target, #target_text').val('')
-        hideRouteEstimate()
-      })
-
-      const isHidden = (elem) => { return $(elem).data('state') === 'hidden' }
-
-      const toggleControlText = (elem, showText, hideText) => {
-        let innerHTML
-        let state
-        if (isHidden(elem)) {
-          innerHTML = `&and; ${hideText}`
-          state = 'shown'
-        } else {
-          innerHTML = `&or; ${showText}`
-          state = 'hidden'
-        }
-        $(elem).html(innerHTML)
-        $(elem).data('state', state)
-      }
-
-      const toggleControlElement = (elem, controlSelector) => {
-        if (isHidden(elem)) {
-          $(controlSelector).show()
-        } else {
-          $(controlSelector).hide()
-        }
-      }
-
-      // Toggle text on Show/Hide button
-      $('#hide').click(function(e) {
-        $(window).resize()
-        toggleControlText(this, 'Search for a route', 'Hide search box')
-      })
-      $('#hide-legend').click(function(e) {
-        toggleControlElement(this, '.hideable-legend')
-        toggleControlText(this, 'Show legend', 'Hide legend')
-      })
-
-      // Show the search box by default on desktop
-      if (!isMobileScreen) { $('#hide').click() }
-
-      // Address components for autocomplete
-      const canonicalComponents = [
-        ['street_number', 'short_name', ' '],
-        ['route', 'long_name', ', '],
-        ['locality', 'long_name', ', '],
-        ['administrative_area_level_1', 'short_name', ' '],
-        ['postal_code', 'short_name', '']
-      ]
-
-      const initAutocomplete = (textElementId, coordElementId, marker) => {
-        // Create the autocomplete object
-        let autocomplete = new google.maps.places.Autocomplete(
-          document.getElementById(textElementId), {
-            componentRestrictions: { country: "us" },
-          }
-        )
-        // Avoid paying for data that you don't need by restricting the set of
-        // place fields that are returned to just the address components.
-        autocomplete.setFields(['address_component', 'geometry'])
-        // When the user selects an address from the drop-down, populate the
-        // address fields in the form.
-        autocomplete.addListener('place_changed', () => {
-          // Get the place details from the autocomplete object.
-          const place = autocomplete.getPlace()
-
-          const lat = place.geometry.location.lat()
-          const lng = place.geometry.location.lng()
-          document.getElementById(coordElementId).value = `${lat},${lng}`
-
-          // Get each component of the address from the place details,
-          // and then fill-in the corresponding field on the form.
-          let addressString = ''
-          for (const canonicalComponent of canonicalComponents) {
-            const componentId = canonicalComponent[0]
-            const componentType = canonicalComponent[1]
-            const componentSuffix = canonicalComponent[2]
-            for (const addressComponent of place['address_components']) {
-              if (addressComponent.types.includes(componentId)) {
-                addressString += addressComponent[componentType] + componentSuffix
-                break
-              }
-            }
-          }
-          document.getElementById(textElementId).value = addressString
-
-          if (markers[marker]) {map.removeLayer(markers[marker])}
-          markers[marker] = L.marker([lat, lng]).bindPopup(addressString).addTo(map)
-          map.setView([lat, lng])
-        });
-
-        // Bias the autocomplete object to the user's geographical location,
-        // as supplied by the browser's 'navigator.geolocation' object.
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(position => {
-            geolocation = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            }
-            if (!hasZoomedToUser) {
-              document.getElementById('source').value = `${geolocation['lat']},${geolocation['lng']}`
-              document.getElementById('source_text').value =  'My position'
-              if (markers['source']) {map.removeLayer(markers['source'])}
-              markers['source'] = L.marker(
-                [geolocation['lat'], geolocation['lng']]
-              ).bindPopup('My position').addTo(map)
-              map.setView([geolocation.lat, geolocation.lng], 14)
-              hasZoomedtoUser = true
-            }
-            const circle = new google.maps.Circle({
-              center: geolocation,
-              radius: position.coords.accuracy
-            })
-            autocomplete.setBounds(circle.getBounds())
-          })
-        }
-      }
-
-      let hasZoomedToUser = false
-      initAutocomplete('source_text', 'source', 'source')
-      initAutocomplete('target_text', 'target', 'target')
-    })
+    new App("{% url 'route-list' %}", "{% url 'route' %}")
   </script>
 {% endblock %}
