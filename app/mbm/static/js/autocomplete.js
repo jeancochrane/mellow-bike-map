@@ -90,12 +90,12 @@ const addCustomOption = (app, optionText, callback) => {
 
   // The google autocomplete container doesn't have any obvious way to find the
   // input associated with the list of options, which makes it difficult to write
-  // a handler for a user selecting one of our preset options (which input and coords
+  // a handler for a user selecting one of our preset options (which input
   // element should we update?). So instead, we keep track of which input element
   // received a focus event most recently and update it when a custom option is selected
   let markerName
   const recordFocusEvent = (event) => {
-    markerName = event.target.id.split('_text')[0]
+    markerName = event.target.id
   }
 
   app.directionsFormElements.source.input.addEventListener('focus', recordFocusEvent)

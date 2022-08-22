@@ -25,19 +25,19 @@ export default class App {
 
     // Store references to DOM elements we'll need
     const $directionsForm = $('#input-elements')
-    const sourceTextInput = document.getElementById('source_text')
+    const sourceInput = document.getElementById('source')
 
-    const targetTextInput = document.getElementById('target_text')
+    const targetInput = document.getElementById('target')
 
     // This uses the same keys as the `markers` object for convenience
     // in the code below
     this.directionsFormElements = {
       source: {
-        input: sourceTextInput,
+        input: sourceInput,
         autocomplete: null
       },
       target: {
-        input: targetTextInput,
+        input: targetInput,
         autocomplete: null
       }
     }
