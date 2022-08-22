@@ -96,6 +96,10 @@ export default class UserLocations {
             zIndexOffset: 100,
         })
 
+        // Set empty classname to remove default icon class (and styles)
+        const icon = L.divIcon({ html: '❤️', className: '' })
+        marker.setIcon(icon)
+
         const popup = L.popup()
         const sourceButton = $(`<button class="btn btn-primary btn-block">Directions from ${name}</button>`).click(() => {
             this.app.setSourceLocation(location.lat, location.lng, name)
