@@ -110,8 +110,9 @@ class Route(APIView):
                 SELECT
                     way.name,
                     way.length_m,
-                    ST_AsGeoJSON(way.the_geom) AS geometry,
-                    DEGREES(ST_AZIMUTH(ST_StartPoint(way.the_geom), ST_EndPoint(way.the_geom))) AS heading,
+                    ST_AsGeoJSON(oriented.the_geom) AS geometry,
+                    -- Calculate the angle between each segment of the route so we can generate turn-by-turn directions
+                    DEGREES(ST_AZIMUTH(ST_StartPoint(oriented.the_geom), ST_EndPoint(oriented.the_geom))) AS heading,
                     mellow.type,
                     path.seq
                 FROM pgr_dijkstra(
@@ -154,7 +155,15 @@ class Route(APIView):
                     SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
                     FROM mbm_mellowroute
                 ) as mellow
-                USING(osm_id)
+                USING(osm_id),
+                -- Make sure each segment of the route is oriented such that the last point of
+                -- each line segment is the same as the first point in the next line segment
+                LATERAL (
+                    SELECT CASE
+                        WHEN path.node = way.source THEN way.the_geom
+                        ELSE ST_Reverse(way.the_geom)
+                    END AS the_geom
+                ) as oriented
                 ORDER BY path.seq
             """, [source_vertex_id, target_vertex_id])
             rows = fetchall(cursor)
