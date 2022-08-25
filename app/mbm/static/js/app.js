@@ -2,6 +2,7 @@ import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
 import { getUserPreferences, saveUserPreferences } from './storage.js'
+import { serializeDirections, directionsList } from './turnbyturn.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -267,60 +268,9 @@ export default class App {
     } else {
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
-        const angle = ([lnga, lata], [lngb, latb]) => {
-          return (Math.atan2(Math.cos(latb) * Math.sin(lngb - lnga), Math.cos(lata) * Math.sin(latb) - Math.sin(lata) * Math.cos(latb) * Math.cos(lngb - lnga)) * 180 / Math.PI)
-        }
 
-        const turnToEnglish = (oldHeading, newHeading) => {
-          const turn = newHeading - oldHeading
-          if (turn < 100 && turn > 80) {
-            return "Turn right"
-          }
-          if (turn < -80 && turn > -100) {
-            return "Turn left"
-          }
-          if (turn < 10 && turn > -10) {
-            return "Continue"
-          }
-          if (Math.abs(turn) > 170 && Math.abs(turn) < 190) {
-            // There are many false u-turns, likely a data problem. Safer to just
-            // ignore them since this isn't a very common legit direction
-            // return "Turn around"
-            return null
-          }
-        }
-        const directionsList = () => {
-          const directions = []
-          let lastHeading, lastName
-          for (const feature of data.route.features) {
-            const name = feature.properties.name
-            const coords = feature.geometry.coordinates
-            const heading = angle(coords[0], coords[coords.length - 1])
-            const turn = lastHeading && turnToEnglish(lastHeading, heading)
-            console.log(heading)
-            console.log(lastHeading)
-            console.log(turn)
-            const distance = feature.properties.distance
-            if ((lastName && name !== lastName) || (turn || !lastHeading)) {
-              directions.push({ name, distance, turn, heading })
-            } else {
-              if (directions.length) {
-                directions[directions.length - 1].distance += distance
-              }
-              if (name && directions.length && !directions[directions.length - 1].name) {
-                directions[directions.length - 1].name = name
-              }
-            }
-            if (coords.length > 1) {
-              lastHeading = angle(coords[coords.length - 2], coords[coords.length - 1])
-            } else {
-              lastHeading = heading
-            }
-            lastName = name
-          }
-          return directions
-        }
-        console.log(directionsList())
+        const directions = serializeDirections(directionsList(data.route.features))
+        console.log(directions.join("\n"))
 
         if (this.routeLayer) {
           this.map.removeLayer(this.routeLayer)
