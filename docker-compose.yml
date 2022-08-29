@@ -9,18 +9,30 @@ services:
     tty: true
     ports:
       - 8000:8000
+      # - 5173:5173
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ./app:/app
-      - mellow-bike-map-node-modules:/app/node_modules
     environment:
       DJANGO_SECRET_KEY: reallysupersecret
       DJANGO_MANAGEPY_MIGRATE: "on"
     entrypoint: /app/docker-entrypoint.sh
     command: python manage.py runserver 0.0.0.0:8000
-
+  
+  vite:
+    container_name: vite-dev-server
+    build:
+      context: ./app
+      dockerfile: Dockerfile.vite
+    tty: true
+    ports:
+      - 5173:5173
+    volumes:
+      - mellow-bike-map-node-modules:/app/node_modules
+      - ./app:/app
+    command: npm run dev
   postgres:
     container_name: mellow-bike-map-postgres
     image: mellow-bike-map-postgres

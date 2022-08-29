@@ -1,0 +1,11 @@
+FROM node:lts
+
+WORKDIR /app
+
+RUN chown node:node .
+
+COPY package.json package-lock.json ./
+
+RUN npm install
+
+USER node

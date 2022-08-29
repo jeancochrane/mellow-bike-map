@@ -1,12 +1,17 @@
 {% extends "mbm/base.html" %}
-{% load leaflet_tags %}
+{% load django_vite %}
 {% load static %}
 
 {% block title %}{{ view.title }}{% endblock %}
 
 {% block extra_css %}
-  {% leaflet_css %}
   <link rel="stylesheet" href="{% static 'css/spin.css' %}" />
+  {% vite_hmr_client %}
+  <script>
+    var routeListURL = "{% url 'route-list' %}"
+    var routeURL = "{% url 'route' %}"
+  </script>
+  {% vite_asset 'src/index.js' %}
 {% endblock %}
 
 {% block body %}
@@ -87,24 +92,9 @@
 {% endblock %}
 
 {% block extra_js %}
-  {% leaflet_js %}
-  <script type="text/javascript" src="{% static 'js/leaflet-google.js' %}"></script>
-  <script type="text/javascript" src="{% static 'js/spin.min.js' %}"></script>
-  <script type="text/javascript" src="{% static 'js/leaflet.spin.min.js' %}"></script>
   <script
     type="text/javascript"
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvdUtVFRDt4QG1AcU7Vt3N1SULbxri44M&libraries=places"
   >
-  </script>
-  {% comment %}
-  The frontend app's main class is defined in app/mbm/static/js/app.js. We instantiate
-  it here with the values it needs passed from the backend and keep the rest of the logic
-  in static JS files.
-  {% endcomment %}
-  <script type="module">
-    // Start the JS app
-    import App from '{% static 'js/app.js' %}'
-
-    new App("{% url 'route-list' %}", "{% url 'route' %}")
   </script>
 {% endblock %}

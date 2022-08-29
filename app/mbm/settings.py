@@ -26,6 +26,8 @@ SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 # Set the DJANGO_DEBUG environment variable to False to disable debug mode
 DEBUG = False if os.getenv('DJANGO_DEBUG', True) == 'False' else True
 
+DJANGO_VITE_DEV_MODE = DEBUG
+
 # Define DJANGO_ALLOWED_HOSTS as a comma-separated list of valid hosts,
 # e.g. localhost,127.0.0.1,.herokuapp.com
 allowed_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', [])
@@ -52,7 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'django.contrib.gis',
     'django_geomultiplechoice',
-    'leaflet',
+    'django_vite',
     'mbm'
 ]
 
@@ -147,3 +149,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+DJANGO_VITE_ASSETS_PATH = os.path.join(STATIC_ROOT, 'dist')
+STATICFILES_DIRS = [DJANGO_VITE_ASSETS_PATH]
+
+DJANGO_VITE_DEV_SERVER_PORT = 5173

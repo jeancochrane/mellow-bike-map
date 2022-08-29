@@ -2,6 +2,12 @@ import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
 import { getUserPreferences, saveUserPreferences } from './storage.js'
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
+import './leaflet-google.js'
+import leafletSpin from 'leaflet-spin'
+
+
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -20,6 +26,9 @@ export default class App {
   }
 
   start() {
+    // Initialize leaflet spin plugin
+    leafletSpin()
+
     // Create the leaflet map
     this.map = this.createMap()
 
@@ -156,15 +165,19 @@ export default class App {
 
   // Fetch the layer of annotated routes from the backend and display it on the map
   loadAllRoutes() {
+    console.log("requesting routes from backend")
     // Start spinner while we retrieve initial route map
     this.map.spin(true)
     $.getJSON(this.routeListUrl).done((data) => {
+      console.log("loading routes on map")
       this.allRoutesLayer = L.geoJSON(data, {
         style: (feature) => {
           return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
         },
         interactive: false,
       }).addTo(this.map)
+      this.allRoutesLayer.bringToFront()
+      console.log("finished loading routes")
       this.map.spin(false)
     }).fail(function (jqxhr, textStatus, error) {
       console.log(textStatus + ': ' + error)
