@@ -10,3 +10,6 @@ mkdir -p /home/mbm/mellow-bike-map
 
 # Decrypt files encrypted with blackbox.
 cd /opt/codedeploy-agent/deployment-root/$DEPLOYMENT_GROUP_ID/$DEPLOYMENT_ID/deployment-archive/ && chown -R mbm.mbm . && sudo -H -u mbm blackbox_postdeploy
+
+# Generate production build of frontend
+docker-compose run vite npm run build
