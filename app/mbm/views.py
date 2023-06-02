@@ -3,7 +3,7 @@ import json
 from django.db import connection
 from django.urls import reverse_lazy
 from django.shortcuts import render
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.views.generic import TemplateView, CreateView, UpdateView, ListView, DeleteView
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -314,3 +314,10 @@ def pong(request):
         return HttpResponse('Bad deployment: {}'.format(e), status=401)
 
     return HttpResponse(DEPLOYMENT_ID)
+
+
+def healthcheck(request):
+    """Simple endpoint to test database connectivity."""
+    with connection.cursor() as cursor:
+        cursor.execute("""SELECT 1""")
+    return HttpResponse("")
