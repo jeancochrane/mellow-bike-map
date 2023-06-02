@@ -1,0 +1,26 @@
+name: Deploy
+
+on:
+  workflow_dispatch: {}
+
+env:
+  AWS_REGION: us-east-2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v2
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
+          role-session-name: GitHub-Action-Role
+          aws-region: ${{ env.AWS_REGION }}
+      - run: |
+          echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
+          commit_hash=`git rev-parse HEAD`
+          aws deploy create-deployment --application-name mellow-bike-map --deployment-group-name production --github-location repository=$GITHUB_REPOSITORY,commitId=refs/heads/master --ignore-application-stop-failures
