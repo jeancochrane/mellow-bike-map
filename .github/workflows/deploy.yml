@@ -23,4 +23,4 @@ jobs:
       - run: |
           echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
           commit_hash=`git rev-parse HEAD`
-          aws deploy create-deployment --application-name mellow-bike-map --deployment-group-name production --github-location repository=$GITHUB_REPOSITORY,commitId=refs/heads/master --ignore-application-stop-failures
+          aws deploy create-deployment --application-name mellow-bike-map --deployment-group-name production --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
