@@ -8,3 +8,4 @@ sentry-sdk==0.16.5
 djangorestframework==3.11.1
 django-geomultiplechoice==0.0.5
 django-leaflet==0.27.1
+six==1.16.0
