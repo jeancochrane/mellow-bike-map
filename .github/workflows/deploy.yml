@@ -7,25 +7,56 @@ on:
     branches:
       - master
 
-env:
-  AWS_REGION: us-east-2
-
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DJANGO_SECRET_KEY: reallysupersecret
+      DJANGO_SETTINGS_MODULE: mbm.settings
+      DB_HOST: localhost
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+    services:
+      postgres:
+        image: postgres:11
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PORT: 5432
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
-      - uses: actions/checkout@v2
-      - run: echo "Skipping tests"
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends gdal-bin
+          pip install --upgrade pip
+          pip install --upgrade -r app/requirements.txt
+      - name: Run tests
+        run: |
+          cp -R tests app/tests
+          cd app && pytest
   deploy:
     needs: test
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment: Dev
+    env:
+      AWS_REGION: us-east-2
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: aws-actions/configure-aws-credentials@v1
         with:
           role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
