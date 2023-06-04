@@ -2,6 +2,7 @@ import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
 import { getUserPreferences, saveUserPreferences } from './storage.js'
+import { serializeDirections, directionsList } from './turnbyturn.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -267,6 +268,10 @@ export default class App {
     } else {
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
+
+        const directions = serializeDirections(directionsList(data.route.features))
+        console.log(directions.join("\n"))
+
         if (this.routeLayer) {
           this.map.removeLayer(this.routeLayer)
         }
