@@ -4,7 +4,7 @@ services:
   make:
     container_name: mellow-bike-map-make
     image: mellow-bike-map-make
-    build: .
+    build: ./db
     depends_on:
       postgres:
         condition: service_healthy
