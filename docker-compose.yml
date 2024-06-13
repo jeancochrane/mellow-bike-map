@@ -13,13 +13,12 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./app:/app
-      - mellow-bike-map-node-modules:/app/node_modules
+      - .:/app
+      - mellow-bike-map-node-modules:/app/app/node_modules
     environment:
       DJANGO_SECRET_KEY: reallysupersecret
       DJANGO_MANAGEPY_MIGRATE: "on"
-    entrypoint: /app/docker-entrypoint.sh
-    command: python manage.py runserver 0.0.0.0:8000
+    command: /app/app/docker-entrypoint.sh python manage.py runserver 0.0.0.0:8000
 
   postgres:
     container_name: mellow-bike-map-postgres

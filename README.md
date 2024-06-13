@@ -25,7 +25,8 @@ so make sure to adjust your Docker preferences to allow Docker at least 6GB of
 RAM):
 
 ```
-docker compose run --rm -w /app postgres make
+docker compose run --rm -w /app postgres make db/import/chicago.table
+docker compose run --rm -w /app app make db/import/mellowroute.fixture
 ```
 
 Start the app service:

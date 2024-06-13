@@ -7,18 +7,18 @@ RUN curl -sL https://deb.nodesource.com/setup_12.x | bash -
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs gdal-bin
 
 # Inside the container, create an app directory and switch into it
-RUN mkdir /app
-WORKDIR /app
+RUN mkdir -p /app/app
+WORKDIR /app/app
 
 # Install Python requirements
-COPY ./requirements.txt /app/requirements.txt
+COPY ./requirements.txt /app/app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Node requirements
-COPY ./package.json /app/package.json
+COPY ./package.json /app/app/package.json
 RUN npm install
 
-COPY . /app
+COPY . /app/app
 
 # Add a bogus env var for the Django secret key in order to allow us to run
 # the 'collectstatic' management command
