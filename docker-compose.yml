@@ -34,11 +34,13 @@ services:
       POSTGRES_DB: mbm
       POSTGRES_PASSWORD: postgres
     volumes:
-      - mellow-bike-map-db-data:/var/lib/postgresql/data
+      - mellow-bike-map-db-data-postgis-16:/var/lib/postgresql/data
       - ./db/create-extensions.sql:/docker-entrypoint-initdb.d/create-extensions.sql
+      - ./:/app
     ports:
       - 32001:5432
 
 volumes:
   mellow-bike-map-db-data:
+  mellow-bike-map-db-data-postgis-16:
   mellow-bike-map-node-modules:
