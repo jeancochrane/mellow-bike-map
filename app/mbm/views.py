@@ -35,6 +35,10 @@ CYCLEWAY_TAG_IDS = (
 class Home(TemplateView):
     title = 'Home'
     template_name = 'mbm/index.html'
+    
+class Montreal(TemplateView):
+    title = 'Montreal'
+    template_name = 'mbm/montreal.html'
 
 
 class About(TemplateView):
@@ -53,8 +57,7 @@ class Route(APIView):
     renderer_classes = [JSONRenderer]
 
     def get(self, request):
-        # TODO: change this based on route
-        city = "montreal"
+        city = self.get_city_from_request(request)
         
         source_coord = self.get_coord_from_request(request, 'source')
         source_vertex_id = self.get_nearest_vertex_id(city, source_coord)
@@ -71,7 +74,15 @@ class Route(APIView):
             'target_vertex_id': target_vertex_id,
             'route': self.get_route(city, source_vertex_id, target_vertex_id, enable_v2)
         })
-
+    
+    def get_city_from_request(self, request):
+        try:
+            city = request.GET['city']
+        except KeyError:
+            city = 'chicago'
+        
+        return city
+        
     def get_coord_from_request(self, request, key):
         try:
             coord = request.GET[key]
