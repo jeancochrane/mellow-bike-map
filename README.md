@@ -26,6 +26,7 @@ RAM):
 
 ```
 docker compose run --rm -w /app postgres make db/import/chicago.table
+docker compose run --rm -w /app postgres make db/import/montreal.table
 docker compose run --rm -w /app app make db/import/mellowroute.fixture
 ```
 

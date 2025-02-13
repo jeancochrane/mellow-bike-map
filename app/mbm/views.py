@@ -53,11 +53,14 @@ class Route(APIView):
     renderer_classes = [JSONRenderer]
 
     def get(self, request):
+        # TODO: change this based on route
+        city = "montreal"
+        
         source_coord = self.get_coord_from_request(request, 'source')
-        source_vertex_id = self.get_nearest_vertex_id(source_coord)
+        source_vertex_id = self.get_nearest_vertex_id(city, source_coord)
 
         target_coord = self.get_coord_from_request(request, 'target')
-        target_vertex_id = self.get_nearest_vertex_id(target_coord)
+        target_vertex_id = self.get_nearest_vertex_id(city, target_coord)
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
 
@@ -66,7 +69,7 @@ class Route(APIView):
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2)
+            'route': self.get_route(city, source_vertex_id, target_vertex_id, enable_v2)
         })
 
     def get_coord_from_request(self, request, key):
@@ -87,11 +90,11 @@ class Route(APIView):
 
         return coord_parts
 
-    def get_nearest_vertex_id(self, coord):
+    def get_nearest_vertex_id(self, city, coord):
         with connection.cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT vert.id
-                FROM chicago_ways_vertices_pgr AS vert
+                FROM {city}_ways_vertices_pgr AS vert
                 ORDER BY vert.the_geom <-> ST_SetSRID(
                     ST_MakePoint(%s, %s),
                     4326
@@ -104,7 +107,7 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
+    def get_route(self, city, source_vertex_id, target_vertex_id, enable_v2=False):
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 SELECT
@@ -139,14 +142,14 @@ class Route(APIView):
                             WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
                             ELSE way.reverse_cost
                         END AS reverse_cost
-                    FROM chicago_ways AS way
+                    FROM {city}_ways AS way
                     LEFT JOIN mellow
                     USING(osm_id)
                     ',
                     %s,
                     %s
                 ) AS path
-                JOIN chicago_ways AS way
+                JOIN {city}_ways AS way
                 ON path.edge = way.gid
                 LEFT JOIN (
                     SELECT DISTINCT(UNNEST(ways)) AS osm_id, type

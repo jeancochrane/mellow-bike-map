@@ -11,7 +11,7 @@ const canonicalComponents = [
 const initAutocomplete = (inputElement, markerName, app) => {
   // Create the autocomplete object
   let autocomplete = new google.maps.places.Autocomplete(
-    inputElement, { componentRestrictions: { country: "us" } }
+    inputElement, { componentRestrictions: { country: ["us", "ca"], } }
   )
   // Avoid paying for data that you don't need by restricting the set of
   // place fields that are returned to just the address components.
