@@ -105,6 +105,6 @@
     // Start the JS app
     import App from '{% static 'js/app.js' %}'
 
-    new App("{% url 'route-list' %}", "{% url 'route' %}")
+    new App("{% url 'route-list' %}", "{% url 'route' %}", "{{ from_address|escapejs }}", "{{ to_address|escapejs }}")
   </script>
 {% endblock %}
