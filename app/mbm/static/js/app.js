@@ -6,9 +6,11 @@ import { serializeDirections, directionsList } from './turnbyturn.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
-  constructor(routeListUrl, routeUrl) {
+  constructor(routeListUrl, routeUrl, fromAddress = '', toAddress = '') {
     this.routeListUrl = routeListUrl
     this.routeUrl = routeUrl
+    this.fromAddress = fromAddress
+    this.toAddress = toAddress
 
     this.routeLayer = null
     this.allRoutesLayer = null
@@ -18,6 +20,8 @@ export default class App {
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
     this.sourceLocation = ''
     this.targetLocation = ''
+    this.sourceAddressString = ''
+    this.targetAddressString = ''
   }
 
   start() {
@@ -153,6 +157,45 @@ export default class App {
       const latlng = this.geolocation.marker.getLatLng()
       this.setSourceOrTargetLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
     })
+
+    // If from/to addresses are provided in the URL, geocode them and auto-run search
+    if (this.fromAddress && this.toAddress) {
+      this.geocodeAddressesAndRunSearch(this.fromAddress, this.toAddress)
+    }
+  }
+
+  // When addresses are provided in the URL, we don't have coordinates returned
+  // from Google Maps API as we do when selecting addresses from autocomplete,
+  // so we need to geocode the addresses by calling the Google Maps API.
+  geocodeAddressesAndRunSearch(fromAddress, toAddress) {
+    const geocoder = new google.maps.Geocoder()
+    
+    // Geocode the source address
+    geocoder.geocode({ address: fromAddress }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const sourceLat = results[0].geometry.location.lat()
+        const sourceLng = results[0].geometry.location.lng()
+        this.setSourceLocation(sourceLat, sourceLng, fromAddress)
+        
+        // Once source is set, geocode the target
+        geocoder.geocode({ address: toAddress }, (results, status) => {
+          if (status === 'OK' && results[0]) {
+            const targetLat = results[0].geometry.location.lat()
+            const targetLng = results[0].geometry.location.lng()
+            this.setTargetLocation(targetLat, targetLng, toAddress)
+            
+            // Auto-submit the search
+            $('#input-elements').submit()
+          } else {
+            console.error('Geocode failed for target address:', status)
+            alert('Could not find the destination address: ' + toAddress)
+          }
+        })
+      } else {
+        console.error('Geocode failed for source address:', status)
+        alert('Could not find the start address: ' + fromAddress)
+      }
+    })
   }
 
   // Fetch the layer of annotated routes from the backend and display it on the map
@@ -212,6 +255,10 @@ export default class App {
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
     this.allRoutesLayer.setStyle({ opacity: 0.6 })
     this.hideRouteEstimate()
+    this.sourceAddressString = ''
+    this.targetAddressString = ''
+    // Clear the URL back to home
+    window.history.pushState({}, '', '/')
   }
 
   // Set up the base leaflet map and styles
@@ -266,6 +313,16 @@ export default class App {
     } else if (target == '') {
       alert('Target is required for search')
     } else {
+      // Update URL with from/to addresses
+      // Use the stored address strings, or fall back to the input values
+      const fromAddr = this.sourceAddressString
+      const toAddr = this.targetAddressString 
+      
+      if (fromAddr && toAddr) {
+        const newUrl = `/from/${encodeURIComponent(fromAddr)}/to/${encodeURIComponent(toAddr)}/`
+        window.history.pushState({}, '', newUrl)
+      }
+      
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
 
@@ -348,11 +405,13 @@ export default class App {
 
   setSourceLocation(lat, lng, addressString) {
     this.sourceLocation = this.serializeLocation(lat, lng)
+    this.sourceAddressString = addressString
     this.setMarkerLocation('source', lat, lng, addressString)
   }
 
   setTargetLocation(lat, lng, addressString) {
     this.targetLocation = this.serializeLocation(lat, lng)
+    this.targetAddressString = addressString
     this.setMarkerLocation('target', lat, lng, addressString)
   }
 
