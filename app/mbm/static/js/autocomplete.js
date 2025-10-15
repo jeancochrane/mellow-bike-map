@@ -9,9 +9,19 @@ const canonicalComponents = [
 
 
 const initAutocomplete = (inputElement, markerName, app) => {
-  // Create the autocomplete object
+  // Define bounds for Chicagoland
+  const chicagoBounds = new google.maps.LatLngBounds(
+    new google.maps.LatLng(41.45, -88.3),
+    new google.maps.LatLng(42.2, -87.5)
+  )
+
+  // Create the autocomplete object with Chicagoland bounds and strict bounds enforcement
   let autocomplete = new google.maps.places.Autocomplete(
-    inputElement, { componentRestrictions: { country: "us" } }
+    inputElement, {
+      componentRestrictions: { country: "us" },
+      bounds: chicagoBounds,
+      strictBounds: true
+    }
   )
   // Avoid paying for data that you don't need by restricting the set of
   // place fields that are returned to just the address components.
