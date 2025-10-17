@@ -256,8 +256,9 @@ export default class App {
     this.hideRouteEstimate()
     this.sourceAddressString = ''
     this.targetAddressString = ''
-    // Clear the URL back to home
-    window.history.pushState({}, '', '/')
+    // Clear the URL back to home, preserving query params
+    const queryString = window.location.search
+    window.history.pushState({}, '', `/${queryString}`)
   }
 
   // Set up the base leaflet map and styles
@@ -318,7 +319,9 @@ export default class App {
       const toAddr = this.targetAddressString 
       
       if (fromAddr && toAddr) {
-        const newUrl = `/from/${encodeURIComponent(fromAddr)}/to/${encodeURIComponent(toAddr)}/`
+        // Preserve existing query parameters
+        const queryString = window.location.search
+        const newUrl = `/from/${encodeURIComponent(fromAddr)}/to/${encodeURIComponent(toAddr)}/${queryString}`
         window.history.pushState({}, '', newUrl)
       }
       
