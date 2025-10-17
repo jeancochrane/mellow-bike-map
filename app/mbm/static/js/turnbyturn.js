@@ -23,7 +23,8 @@ const headingToEnglishManeuver = (heading, previousHeading) => {
 const directionsList = (features) => {
   const directions = []
   let previousHeading, previousName
-  for (const feature of features) {
+  for (let i = 0; i < features.length; i++) {
+    const feature = features[i]
     const name = feature.properties.name
     const heading = feature.properties.heading
     const { maneuver, cardinal } = headingToEnglishManeuver(heading, previousHeading)
@@ -49,12 +50,18 @@ const directionsList = (features) => {
       distance,
       name
     }
-    const direction = { name, distance, maneuver, heading, cardinal, type, osmData, osmDataSegments: [segment] }
+    const direction = { name, distance, maneuver, heading, cardinal, type, osmData, osmDataSegments: [segment], featureIndices: [i] }
 
+    // Determine if this is a slight turn that can be collapsed
+    const isSlightTurn = (maneuver === 'Turn slightly to the left' || maneuver === 'Turn slightly to the right')
+    const sameNamedStreet = name && previousName && name === previousName
+    const shouldCollapseSlightTurn = isSlightTurn && sameNamedStreet
+    
     // If the street name changed or there's a turn to be made, add a new direction to the list
+    // Exception: collapse slight turns on the same named street
     const streetNameChanged = previousName && name !== previousName
     const turnRequired = (maneuver !== 'Continue' || !previousHeading) // "Continue"
-    if (streetNameChanged || turnRequired) {
+    if ((streetNameChanged || turnRequired) && !shouldCollapseSlightTurn) {
       directions.push(direction)
     }
     // Otherwise this is just a quirk of our data and the line segments should be combined
@@ -63,6 +70,8 @@ const directionsList = (features) => {
         directions[directions.length - 1].distance += distance
         // Add this segment's data to the array
         directions[directions.length - 1].osmDataSegments.push(segment)
+        // Track the feature index
+        directions[directions.length - 1].featureIndices.push(i)
       }
       // Sometimes only some segments of a street are named, so check if the
       // previous segment is named and backfill the name if not
