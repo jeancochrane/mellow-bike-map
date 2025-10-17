@@ -3,14 +3,14 @@
 
 const headingToEnglishManeuver = (heading, previousHeading) => {
   const maneuvers = {
-    0: { maneuver: "Continue", cardinal: "North" },
-    45: { maneuver: "Turn slightly to the right", cardinal: "Northeast" },
-    90: { maneuver: "Turn right", cardinal: "East" },
-    135: { maneuver: "Take a sharp right turn", cardinal: "Southeast" },
-    180: { maneuver: "Turn around", cardinal: "South" },
-    225: { maneuver: "Take a sharp left turn", cardinal: "Southwest" },
-    270: { maneuver: "Turn left", cardinal: "West" },
-    315: { maneuver: "Turn slightly to the left", cardinal: "Northwest" },
+    0: { maneuver: "Continue", cardinal: "north" },
+    45: { maneuver: "Turn slightly to the right", cardinal: "northeast" },
+    90: { maneuver: "Turn right", cardinal: "east" },
+    135: { maneuver: "Take a sharp right turn", cardinal: "southeast" },
+    180: { maneuver: "Turn around", cardinal: "south" },
+    225: { maneuver: "Take a sharp left turn", cardinal: "southwest" },
+    270: { maneuver: "Turn left", cardinal: "west" },
+    315: { maneuver: "Turn slightly to the left", cardinal: "northwest" },
   }
 
   const nearest45 = (x) => (Math.round(x / 45) * 45) % 360
