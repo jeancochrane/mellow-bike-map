@@ -28,6 +28,7 @@ const directionsList = (features) => {
     const heading = feature.properties.heading
     const { maneuver, cardinal } = headingToEnglishManeuver(heading, previousHeading)
     const distance = feature.properties.distance
+    const type = feature.properties.type
     // Include OSM debugging data
     const osmData = {
       osm_id: feature.properties.osm_id,
@@ -39,7 +40,7 @@ const directionsList = (features) => {
       maxspeed_backward: feature.properties.maxspeed_backward,
       osm_tags: feature.properties.osm_tags
     }
-    const direction = { name, distance, maneuver, heading, cardinal, osmData }
+    const direction = { name, distance, maneuver, heading, cardinal, type, osmData }
 
     // If the street name changed or there's a turn to be made, add a new direction to the list
     const streetNameChanged = previousName && name !== previousName

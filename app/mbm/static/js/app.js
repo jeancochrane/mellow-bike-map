@@ -2,7 +2,7 @@ import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
 import { getUserPreferences, saveUserPreferences } from './storage.js'
-import { serializeDirections, directionsList } from './turnbyturn.js'
+import { directionsList } from './turnbyturn.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -332,7 +332,7 @@ export default class App {
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
 
-        const directions = serializeDirections(directionsList(data.route.features))
+        const directions = directionsList(data.route.features)
         this.displayDirections(directions)
 
         if (this.routeLayer) {
@@ -447,31 +447,31 @@ export default class App {
     this.$hideLegend.removeClass('mt-1')
   }
 
-  getDirectionIcon(maneuver) {
+  getDirectionIcon(maneuver, color) {
     const icons = {
       'Continue': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
       'Turn slightly to the left': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(-15 12 12)"/>
+        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(-15 12 12)"/>
       </svg>`,
       'Turn left': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M19 19V13C19 11.8954 18.1046 11 17 11H7M7 11L11 7M7 11L11 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19 19V13C19 11.8954 18.1046 11 17 11H7M7 11L11 7M7 11L11 15" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
       'Take a sharp left turn': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M19 19V9C19 7.89543 18.1046 7 17 7H7M7 7L11 3M7 7L11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M19 19V9C19 7.89543 18.1046 7 17 7H7M7 7L11 3M7 7L11 11" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
       'Turn slightly to the right': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(15 12 12)"/>
+        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(15 12 12)"/>
       </svg>`,
       'Turn right': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M5 19V13C5 11.8954 5.89543 11 7 11H17M17 11L13 7M17 11L13 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 19V13C5 11.8954 5.89543 11 7 11H17M17 11L13 7M17 11L13 15" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
       'Take a sharp right turn': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M5 19V9C5 7.89543 5.89543 7 7 7H17M17 7L13 3M17 7L13 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 19V9C5 7.89543 5.89543 7 7 7H17M17 7L13 3M17 7L13 11" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
       'Turn around': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8 8C8 8 8 4.5 11.5 4.5C15 4.5 16 7 16 10C16 14 12 16 12 16L12 20M12 20L9 17M12 20L15 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 8C8 8 8 4.5 11.5 4.5C15 4.5 16 7 16 10C16 14 12 16 12 16L12 20M12 20L9 17M12 20L15 17" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`
     }
     return icons[maneuver] || icons['Continue']
@@ -484,34 +484,89 @@ export default class App {
     // Clear any existing directions
     $directionsList.empty()
     
-    // Define the maneuvers to check for
-    const maneuverTypes = [
-      'Turn slightly to the left',
-      'Turn slightly to the right',
-      'Take a sharp left turn',
-      'Take a sharp right turn',
-      'Turn left',
-      'Turn right',
-      'Turn around',
-      'Continue'
-    ]
+    // Check if debug mode is enabled
+    const urlParams = new URLSearchParams(window.location.search)
+    const debugMode = urlParams.get('debug') === 'true'
     
-    // Add each direction as a list item with icon
-    directions.forEach((direction, index) => {
-      // Extract the maneuver from the direction text
-      let maneuver = 'Continue' // Default for first direction which starts with "Head"
+    // Format the OSM debug info
+    const formatOsmDebugInfo = (osmData) => {
+      if (!osmData) return ''
       
-      if (index > 0) { // First direction starts with "Head", rest start with maneuver
-        for (const maneuverType of maneuverTypes) {
-          if (direction.startsWith(maneuverType)) {
-            maneuver = maneuverType
-            break
-          }
-        }
+      const parts = []
+      parts.push(`OSM ID: ${osmData.osm_id}`)
+      if (osmData.tag_id) parts.push(`Tag ID: ${osmData.tag_id}`)
+      if (osmData.oneway && osmData.oneway !== 'NO') parts.push(`Oneway: ${osmData.oneway}`)
+      if (osmData.rule) parts.push(`Rule: ${osmData.rule}`)
+      if (osmData.priority) parts.push(`Priority: ${osmData.priority}`)
+      if (osmData.maxspeed_forward) parts.push(`Max Speed Fwd: ${osmData.maxspeed_forward}`)
+      if (osmData.maxspeed_backward) parts.push(`Max Speed Back: ${osmData.maxspeed_backward}`)
+      
+      // Add OSM tags if available
+      if (osmData.osm_tags && Object.keys(osmData.osm_tags).length > 0) {
+        const tagStrings = Object.entries(osmData.osm_tags)
+          .map(([key, value]) => `${key}=${value}`)
+          .join(', ')
+        parts.push(`Tags: {${tagStrings}}`)
       }
       
-      const icon = this.getDirectionIcon(maneuver)
-      $directionsList.append(`<li><span class="direction-icon-wrapper">${icon}</span><span class="direction-text">${direction}</span></li>`)
+      return parts.join(', ')
+    }
+    
+    // Get calmness description
+    const getCalmnessDescription = (type) => {
+      switch (type) {
+        case 'path': return 'Off-street bike paths (very calm)'
+        case 'street': return 'Mellow streets (calm)'
+        case 'route': return 'Main streets, often with bike lanes (less calm)'
+        default: return 'Not calm'
+      }
+    }
+    
+    // Process and add each direction
+    directions.forEach((direction, index) => {
+      // Determine maneuver for first direction
+      const maneuver = index === 0 ? 'Continue' : direction.maneuver
+      
+      // Get the color based on the type
+      const color = this.getLineColor(direction.type)
+      
+      // Get the icon with the appropriate color
+      const icon = this.getDirectionIcon(maneuver, color)
+      
+      // Build the direction text
+      let directionText = ''
+      if (index === 0) {
+        let streetName = direction.name || 'an unknown street'
+        directionText = `Head ${direction.cardinal} on ${streetName} for ${Math.round(direction.distance)} meters`
+      } else {
+        let streetName = direction.name || 'an unknown street'
+        directionText = `${direction.maneuver} onto ${streetName} and head ${direction.cardinal} for ${Math.round(direction.distance)} meters`
+      }
+      
+      // Add "until you reach your destination" to last direction
+      if (index === directions.length - 1) {
+        directionText += " until you reach your destination"
+      }
+      
+      // Build the list item
+      let listItemHtml = `<li><span class="direction-icon-wrapper">${icon}</span><span class="direction-text">${directionText}`
+      
+      // Add debug information if enabled
+      if (debugMode) {
+        const calmnessInfo = getCalmnessDescription(direction.type)
+        const osmInfo = direction.osmData ? formatOsmDebugInfo(direction.osmData) : 'No OSM data'
+        
+        listItemHtml += `
+          <div class="direction-debug-info">
+            <div><span class="debug-label">Calmness:</span> ${calmnessInfo}</div>
+            <div><span class="debug-label">OSM Data:</span> ${osmInfo}</div>
+          </div>
+        `
+      }
+      
+      listItemHtml += `</span></li>`
+      
+      $directionsList.append(listItemHtml)
     })
     
     // Show the directions container
