@@ -258,8 +258,10 @@ export default class App {
     this.hideDirections()
     this.sourceAddressString = ''
     this.targetAddressString = ''
-    // Clear the URL back to home
-    window.history.pushState({}, '', '/')
+    // Clear the URL back to home, but preserve query parameters (like ?debug=true)
+    const searchParams = new URLSearchParams(window.location.search)
+    const queryString = searchParams.toString()
+    window.history.pushState({}, '', '/' + (queryString ? '?' + queryString : ''))
   }
 
   // Set up the base leaflet map and styles
@@ -320,7 +322,10 @@ export default class App {
       const toAddr = this.targetAddressString 
       
       if (fromAddr && toAddr) {
-        const newUrl = `/from/${encodeURIComponent(fromAddr)}/to/${encodeURIComponent(toAddr)}/`
+        // Preserve existing query parameters (like ?debug=true)
+        const searchParams = new URLSearchParams(window.location.search)
+        const queryString = searchParams.toString()
+        const newUrl = `/from/${encodeURIComponent(fromAddr)}/to/${encodeURIComponent(toAddr)}/${queryString ? '?' + queryString : ''}`
         window.history.pushState({}, '', newUrl)
       }
       
