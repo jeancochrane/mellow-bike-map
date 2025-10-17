@@ -25,6 +25,7 @@ urlpatterns = [
     path('about/', views.About.as_view(), name='about'),
     path('api/route/', views.Route.as_view(), name='route'),
     path('api/routes/', cache_page(60 * 60 * 24)(views.RouteList.as_view()), name='route-list'),
+    path('api/osm-way/', views.OsmWay.as_view(), name='osm-way'),
     path('neighborhoods/', views.MellowRouteList.as_view(), name='mellow-route-list'),
     path('neighborhoods/create/', views.MellowRouteCreate.as_view(), name='mellow-route-create'),
     path('neighborhoods/edit/<slug:slug>/', views.MellowRouteNeighborhoodEdit.as_view(), name='mellow-route-neighborhood-edit'),

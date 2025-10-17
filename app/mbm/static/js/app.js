@@ -15,6 +15,9 @@ export default class App {
     this.routeLayer = null
     this.allRoutesLayer = null
     this.markers = { 'source': null, 'target': null }
+    this.routeData = null
+    this.highlightLayer = null
+    this.highlightGlowLayer = null
 
     // Start the app once the DOM is ready
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
@@ -247,10 +250,32 @@ export default class App {
     }
   }
 
+  // Convert a hex color to a lighter shade for highlighting
+  getLightColor(hexColor) {
+    // Remove the # if present
+    const hex = hexColor.replace('#', '')
+    
+    // Parse RGB values
+    const r = parseInt(hex.substring(0, 2), 16)
+    const g = parseInt(hex.substring(2, 4), 16)
+    const b = parseInt(hex.substring(4, 6), 16)
+    
+    // Lighten by mixing with white (increase each channel towards 255)
+    const lightness = 0.85 // 0.85 = 85% towards white
+    const lightR = Math.round(r + (255 - r) * lightness)
+    const lightG = Math.round(g + (255 - g) * lightness)
+    const lightB = Math.round(b + (255 - b) * lightness)
+    
+    // Convert back to hex
+    return `#${lightR.toString(16).padStart(2, '0')}${lightG.toString(16).padStart(2, '0')}${lightB.toString(16).padStart(2, '0')}`
+  }
+
   // Clear the form and remove plotted directions from the map
   // Inputs are automatically reset because the button that triggers this has `type="reset"`
   reset() {
     if (this.routeLayer) { this.map.removeLayer(this.routeLayer) }
+    if (this.highlightLayer) { this.map.removeLayer(this.highlightLayer) }
+    if (this.highlightGlowLayer) { this.map.removeLayer(this.highlightGlowLayer) }
     if (this.markers['source']) { this.map.removeLayer(this.markers['source']) }
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
     this.allRoutesLayer.setStyle({ opacity: 0.6 })
@@ -258,6 +283,7 @@ export default class App {
     this.hideDirections()
     this.sourceAddressString = ''
     this.targetAddressString = ''
+    this.routeData = null
     // Clear the URL back to home, but preserve query parameters (like ?debug=true)
     const searchParams = new URLSearchParams(window.location.search)
     const queryString = searchParams.toString()
@@ -332,6 +358,9 @@ export default class App {
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
 
+        // Store the route data for highlighting
+        this.routeData = data.route
+        
         const directions = directionsList(data.route.features)
         this.displayDirections(directions)
 
@@ -574,8 +603,8 @@ export default class App {
         directionText += " until you reach your destination"
       }
       
-      // Build the list item
-      let listItemHtml = `<li><span class="direction-icon-wrapper">${icon}</span><span class="direction-text">${directionText}`
+      // Build the list item with clickable class and color data
+      let listItemHtml = `<li class="direction-item" data-direction-index="${index}" data-color="${color}"><span class="direction-icon-wrapper">${icon}</span><span class="direction-text">${directionText}`
       
       // Add debug information if enabled
       if (debugMode) {
@@ -586,21 +615,38 @@ export default class App {
             <div><span class="debug-label">Calmness:</span> ${calmnessInfo}</div>
         `
         
-        // Display all segments if available
-        if (direction.osmDataSegments && direction.osmDataSegments.length > 0) {
-          listItemHtml += `<div><span class="debug-label">Segments (${direction.osmDataSegments.length}):</span></div>`
+        // Display all chicago_ways if available
+        if (direction.osmDataChicagoWays && direction.osmDataChicagoWays.length > 0) {
+          listItemHtml += `<div><span class="debug-label">Chicago Ways (${direction.osmDataChicagoWays.length}):</span></div>`
           
-          direction.osmDataSegments.forEach((segment, idx) => {
-            const chicagoWaysInfo = formatChicagoWaysInfo(segment.osmData)
-            const osmWaysInfo = formatOsmWaysInfo(segment.osmData)
+          // Track which osm_ids have been displayed with buttons in this direction
+          const seenOsmIds = new Set()
+          
+          direction.osmDataChicagoWays.forEach((chicagoWay, idx) => {
+            const chicagoWaysInfo = formatChicagoWaysInfo(chicagoWay.osmData)
+            const osmWaysInfo = formatOsmWaysInfo(chicagoWay.osmData)
             
-            // Format the instruction for this segment
-            const segmentName = segment.name || 'an unknown street'
-            const instruction = `${segment.maneuver} ${segment.cardinal} on ${segmentName} for ${Math.round(segment.distance)}m`
+            // Format the instruction for this chicago_way
+            const chicagoWayName = chicagoWay.name || 'an unknown street'
+            const instruction = `${chicagoWay.maneuver} ${chicagoWay.cardinal} on ${chicagoWayName} for ${Math.round(chicagoWay.distance)}m`
+            
+            // Get the feature index for this chicago_way
+            const featureIndex = direction.featureIndices[idx]
+            
+            // Add button for unique osm_ids
+            const osmId = chicagoWay.osmData?.osm_id
+            let osmWayButton = ''
+            if (osmId && !seenOsmIds.has(osmId)) {
+              seenOsmIds.add(osmId)
+              osmWayButton = `<button class="osm-way-button" data-osm-id="${osmId}" title="Highlight OSM way ${osmId} on map">Highlight OSM way</button>`
+            }
+            
+            // Add button to highlight this specific chicago_way
+            const highlightChicagoWayButton = `<button class="osm-way-button" data-chicago-way-index="${featureIndex}" title="Highlight this chicago_way on map">Highlight chicago_way</button>`
             
             listItemHtml += `
               <div style="margin-left: 15px; margin-top: 5px;">
-                <div><strong>Segment ${idx + 1}:</strong> ${instruction}</div>
+                <div><strong>Chicago Way ${idx + 1}:</strong> ${instruction} ${highlightChicagoWayButton} ${osmWayButton}</div>
                 <div style="margin-left: 10px;"><span class="debug-label">Chicago Ways:</span> ${chicagoWaysInfo}</div>
                 <div style="margin-left: 10px;"><span class="debug-label">OSM Ways:</span> ${osmWaysInfo}</div>
               </div>
@@ -624,6 +670,87 @@ export default class App {
       $directionsList.append(listItemHtml)
     })
     
+    // Add click handlers to each direction item
+    $('.direction-item').on('click', (e) => {
+      // Don't trigger if clicking on debug info
+      if ($(e.target).closest('.direction-debug-info').length > 0) {
+        return
+      }
+      
+      const $clickedItem = $(e.currentTarget)
+      const directionIndex = $clickedItem.data('direction-index')
+      const direction = directions[directionIndex]
+      
+      if (direction && direction.featureIndices) {
+        // Remove selected class and styles from all direction items
+        $('.direction-item').removeClass('selected').css({
+          'background-color': '',
+          'border-left-color': ''
+        })
+        
+        // Get the color for this direction
+        const color = $clickedItem.data('color')
+        const lightColor = this.getLightColor(color)
+        
+        // Add selected class and color-based styles to the clicked item
+        $clickedItem.addClass('selected').css({
+          'background-color': lightColor,
+          'border-left-color': color
+        })
+        
+        // Highlight the chicago_ways on the map
+        this.highlightChicagoWays(direction.featureIndices)
+        
+        // Scroll to the map smoothly
+        const mapElement = document.getElementById('map')
+        if (mapElement) {
+          mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }
+    })
+    
+    // Add click handlers for OSM way buttons
+    $('.osm-way-button').on('click', (e) => {
+      e.stopPropagation() // Prevent triggering the direction-item click
+      
+      const $button = $(e.currentTarget)
+      const osmId = $button.data('osm-id')
+      const chicagoWayIndex = $button.data('chicago-way-index')
+      
+      // Handle chicago_way highlighting
+      if (chicagoWayIndex !== undefined) {
+        this.highlightChicagoWays([chicagoWayIndex])
+        
+        // Scroll to the map smoothly
+        const mapElement = document.getElementById('map')
+        if (mapElement) {
+          mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+        return
+      }
+      
+      // Handle OSM way display
+      if (!osmId) {
+        return
+      }
+      
+      // Fetch the full OSM way geometry from the API
+      $.getJSON(`/api/osm-way/?osm_id=${osmId}`)
+        .done((data) => {
+          this.highlightOsmWay(data)
+          
+          // Scroll to the map smoothly
+          const mapElement = document.getElementById('map')
+          if (mapElement) {
+            mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        })
+        .fail((jqxhr, textStatus, error) => {
+          console.error('Failed to fetch OSM way:', textStatus, error)
+          alert(`Failed to load OSM way ${osmId}: ${error}`)
+        })
+    })
+    
     // Show the directions container
     $directionsContainer.show()
   }
@@ -634,5 +761,93 @@ export default class App {
     
     $directionsContainer.hide()
     $directionsList.empty()
+  }
+
+  highlightChicagoWays(featureIndices) {
+    // Remove any existing highlight
+    if (this.highlightLayer) {
+      this.map.removeLayer(this.highlightLayer)
+    }
+    if (this.highlightGlowLayer) {
+      this.map.removeLayer(this.highlightGlowLayer)
+    }
+
+    if (!this.routeData || !featureIndices || featureIndices.length === 0) {
+      return
+    }
+
+    // Create a GeoJSON with only the selected features
+    const selectedFeatures = featureIndices.map(idx => this.routeData.features[idx])
+    const highlightGeoJSON = {
+      type: 'FeatureCollection',
+      features: selectedFeatures
+    }
+
+    // Create glow layer first (wider, semi-transparent)
+    this.highlightGlowLayer = L.geoJSON(highlightGeoJSON, {
+      style: (feature) => {
+        const color = this.getLineColor(feature.properties.type)
+        return {
+          weight: 16,
+          color: color,
+          opacity: 0.3
+        }
+      }
+    }).addTo(this.map)
+    
+    // Create main highlight layer on top (narrower, fully opaque)
+    this.highlightLayer = L.geoJSON(highlightGeoJSON, {
+      style: (feature) => {
+        const color = this.getLineColor(feature.properties.type)
+        return {
+          weight: 8,
+          color: color,
+          opacity: 1
+        }
+      }
+    }).addTo(this.map)
+
+    // Fit the map to show the highlighted chicago_ways
+    this.map.fitBounds(this.highlightLayer.getBounds(), { padding: [50, 50] })
+  }
+
+  highlightOsmWay(osmWayFeature) {
+    // Remove any existing highlight
+    if (this.highlightLayer) {
+      this.map.removeLayer(this.highlightLayer)
+    }
+    if (this.highlightGlowLayer) {
+      this.map.removeLayer(this.highlightGlowLayer)
+    }
+
+    if (!osmWayFeature || !osmWayFeature.geometry) {
+      return
+    }
+
+    // Create glow layer for the OSM way
+    this.highlightGlowLayer = L.geoJSON(osmWayFeature, {
+      style: () => {
+        return {
+          weight: 14,
+          color: '#9b59b6', // Purple color for OSM ways
+          opacity: 0.3
+        }
+      }
+    }).addTo(this.map)
+
+    // Create and add the highlight layer for the full OSM way
+    // Use a distinct color (purple/magenta) to distinguish from chicago_ways
+    this.highlightLayer = L.geoJSON(osmWayFeature, {
+      style: () => {
+        return {
+          weight: 6,
+          color: '#9b59b6', // Purple color for OSM ways
+          opacity: 0.9
+        }
+      }
+    }).addTo(this.map)
+
+    // Fit the map to show the highlighted OSM way
+    this.map.fitBounds(this.highlightLayer.getBounds(), { padding: [50, 50] })
   }
 }

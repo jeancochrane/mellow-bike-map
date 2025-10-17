@@ -42,15 +42,15 @@ const directionsList = (features) => {
       length_m: feature.properties.distance,
       osm_tags: feature.properties.osm_tags
     }
-    // Create segment object with instruction info
-    const segment = {
+    // Create chicago_way object with instruction info
+    const chicagoWay = {
       osmData,
       maneuver,
       cardinal,
       distance,
       name
     }
-    const direction = { name, distance, maneuver, heading, cardinal, type, osmData, osmDataSegments: [segment], featureIndices: [i] }
+    const direction = { name, distance, maneuver, heading, cardinal, type, osmData, osmDataChicagoWays: [chicagoWay], featureIndices: [i] }
 
     // Determine if this is a slight turn that can be collapsed
     const isSlightTurn = (maneuver === 'Turn slightly to the left' || maneuver === 'Turn slightly to the right')
@@ -68,17 +68,17 @@ const directionsList = (features) => {
     else {
       if (directions.length) {
         directions[directions.length - 1].distance += distance
-        // Add this segment's data to the array
-        directions[directions.length - 1].osmDataSegments.push(segment)
+        // Add this chicago_way's data to the array
+        directions[directions.length - 1].osmDataChicagoWays.push(chicagoWay)
         // Track the feature index
         directions[directions.length - 1].featureIndices.push(i)
       }
-      // Sometimes only some segments of a street are named, so check if the
-      // previous segment is named and backfill the name if not
+      // Sometimes only some chicago_ways of a street are named, so check if the
+      // previous chicago_way is named and backfill the name if not
       if (name && directions.length && !directions[directions.length - 1].name) {
         directions[directions.length - 1].name = name
       }
-      // For unnamed streets, preserve OSM data from the current segment if previous doesn't have a name
+      // For unnamed streets, preserve OSM data from the current chicago_way if previous doesn't have a name
       if (!name && osmData && directions.length && !directions[directions.length - 1].name) {
         directions[directions.length - 1].osmData = osmData
       }
