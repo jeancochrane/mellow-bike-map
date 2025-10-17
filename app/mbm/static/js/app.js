@@ -488,8 +488,8 @@ export default class App {
     const urlParams = new URLSearchParams(window.location.search)
     const debugMode = urlParams.get('debug') === 'true'
     
-    // Format the OSM debug info
-    const formatOsmDebugInfo = (osmData) => {
+    // Format debug info from chicago_ways table
+    const formatChicagoWaysInfo = (osmData) => {
       if (!osmData) return ''
       
       const parts = []
@@ -500,16 +500,42 @@ export default class App {
       if (osmData.priority) parts.push(`Priority: ${osmData.priority}`)
       if (osmData.maxspeed_forward) parts.push(`Max Speed Fwd: ${osmData.maxspeed_forward}`)
       if (osmData.maxspeed_backward) parts.push(`Max Speed Back: ${osmData.maxspeed_backward}`)
+      if (osmData.length_m) parts.push(`Length: ${osmData.length_m.toFixed(2)}m`)
       
-      // Add OSM tags if available
-      if (osmData.osm_tags && Object.keys(osmData.osm_tags).length > 0) {
+      return parts.join(', ')
+    }
+    
+    // Format debug info from osm_ways table
+    const formatOsmWaysInfo = (osmData) => {
+      if (!osmData || !osmData.osm_tags) return ''
+      
+      if (Object.keys(osmData.osm_tags).length > 0) {
         const tagStrings = Object.entries(osmData.osm_tags)
           .map(([key, value]) => `${key}=${value}`)
           .join(', ')
-        parts.push(`Tags: {${tagStrings}}`)
+        return `{${tagStrings}}`
       }
       
-      return parts.join(', ')
+      return ''
+    }
+    
+    // Format distance from meters to miles or feet
+    const formatDistance = (meters) => {
+      const metersPerMile = 1609.344
+      const metersPerFoot = 0.3048
+      const miles = meters / metersPerMile
+      
+      // Use feet for distances less than 0.09 miles
+      if (miles < 0.09) {
+        const feet = Math.round(meters / metersPerFoot)
+        const unit = feet === 1 ? 'foot' : 'feet'
+        return `${feet} ${unit}`
+      } else {
+        // Round to 1 decimal place (0.x miles)
+        const roundedMiles = Math.round(miles * 10) / 10
+        const unit = roundedMiles === 1 ? 'mile' : 'miles'
+        return `${roundedMiles} ${unit}`
+      }
     }
     
     // Get calmness description
@@ -537,10 +563,10 @@ export default class App {
       let directionText = ''
       if (index === 0) {
         let streetName = direction.name || 'an unknown street'
-        directionText = `Head ${direction.cardinal} on ${streetName} for ${Math.round(direction.distance)} meters`
+        directionText = `Head ${direction.cardinal} on ${streetName} for ${formatDistance(direction.distance)}`
       } else {
         let streetName = direction.name || 'an unknown street'
-        directionText = `${direction.maneuver} onto ${streetName} and head ${direction.cardinal} for ${Math.round(direction.distance)} meters`
+        directionText = `${direction.maneuver} onto ${streetName} and head ${direction.cardinal} for ${formatDistance(direction.distance)}`
       }
       
       // Add "until you reach your destination" to last direction
@@ -554,14 +580,43 @@ export default class App {
       // Add debug information if enabled
       if (debugMode) {
         const calmnessInfo = getCalmnessDescription(direction.type)
-        const osmInfo = direction.osmData ? formatOsmDebugInfo(direction.osmData) : 'No OSM data'
         
         listItemHtml += `
           <div class="direction-debug-info">
             <div><span class="debug-label">Calmness:</span> ${calmnessInfo}</div>
-            <div><span class="debug-label">OSM Data:</span> ${osmInfo}</div>
-          </div>
         `
+        
+        // Display all segments if available
+        if (direction.osmDataSegments && direction.osmDataSegments.length > 0) {
+          listItemHtml += `<div><span class="debug-label">Segments (${direction.osmDataSegments.length}):</span></div>`
+          
+          direction.osmDataSegments.forEach((segment, idx) => {
+            const chicagoWaysInfo = formatChicagoWaysInfo(segment.osmData)
+            const osmWaysInfo = formatOsmWaysInfo(segment.osmData)
+            
+            // Format the instruction for this segment
+            const segmentName = segment.name || 'an unknown street'
+            const instruction = `${segment.maneuver} ${segment.cardinal} on ${segmentName} for ${Math.round(segment.distance)}m`
+            
+            listItemHtml += `
+              <div style="margin-left: 15px; margin-top: 5px;">
+                <div><strong>Segment ${idx + 1}:</strong> ${instruction}</div>
+                <div style="margin-left: 10px;"><span class="debug-label">Chicago Ways:</span> ${chicagoWaysInfo}</div>
+                <div style="margin-left: 10px;"><span class="debug-label">OSM Ways:</span> ${osmWaysInfo}</div>
+              </div>
+            `
+          })
+        } else {
+          const chicagoWaysInfo = direction.osmData ? formatChicagoWaysInfo(direction.osmData) : 'No data'
+          const osmWaysInfo = direction.osmData ? formatOsmWaysInfo(direction.osmData) : 'No data'
+          
+          listItemHtml += `
+            <div><span class="debug-label">Chicago Ways Data:</span> ${chicagoWaysInfo}</div>
+            <div><span class="debug-label">OSM Ways Data:</span> ${osmWaysInfo}</div>
+          `
+        }
+        
+        listItemHtml += `</div>`
       }
       
       listItemHtml += `</span></li>`

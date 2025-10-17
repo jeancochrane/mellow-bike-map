@@ -38,9 +38,18 @@ const directionsList = (features) => {
       priority: feature.properties.priority,
       maxspeed_forward: feature.properties.maxspeed_forward,
       maxspeed_backward: feature.properties.maxspeed_backward,
+      length_m: feature.properties.distance,
       osm_tags: feature.properties.osm_tags
     }
-    const direction = { name, distance, maneuver, heading, cardinal, type, osmData }
+    // Create segment object with instruction info
+    const segment = {
+      osmData,
+      maneuver,
+      cardinal,
+      distance,
+      name
+    }
+    const direction = { name, distance, maneuver, heading, cardinal, type, osmData, osmDataSegments: [segment] }
 
     // If the street name changed or there's a turn to be made, add a new direction to the list
     const streetNameChanged = previousName && name !== previousName
@@ -52,6 +61,8 @@ const directionsList = (features) => {
     else {
       if (directions.length) {
         directions[directions.length - 1].distance += distance
+        // Add this segment's data to the array
+        directions[directions.length - 1].osmDataSegments.push(segment)
       }
       // Sometimes only some segments of a street are named, so check if the
       // previous segment is named and backfill the name if not
