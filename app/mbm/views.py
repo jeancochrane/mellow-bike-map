@@ -121,7 +121,16 @@ class Route(APIView):
                     -- Calculate the angle between each segment of the route so we can generate turn-by-turn directions
                     DEGREES(ST_AZIMUTH(ST_StartPoint(oriented.the_geom), ST_EndPoint(oriented.the_geom))) AS heading,
                     mellow.type,
-                    path.seq
+                    path.seq,
+                    -- Additional OSM data for debugging
+                    way.osm_id,
+                    way.tag_id,
+                    way.oneway,
+                    way.rule,
+                    way.priority,
+                    way.maxspeed_forward,
+                    way.maxspeed_backward,
+                    osm_way.tags
                 FROM pgr_dijkstra(
                     'WITH mellow AS (
                         SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
@@ -162,7 +171,9 @@ class Route(APIView):
                     SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
                     FROM mbm_mellowroute
                 ) as mellow
-                USING(osm_id),
+                USING(osm_id)
+                LEFT JOIN osm_ways AS osm_way
+                ON way.osm_id = osm_way.osm_id,
                 -- Make sure each segment of the route is oriented such that the last point of
                 -- each line segment is the same as the first point in the next line segment
                 LATERAL (
@@ -195,6 +206,15 @@ class Route(APIView):
                         'type': row['type'],
                         'distance': row['length_m'],
                         'heading': row['heading'],
+                        # OSM debugging data
+                        'osm_id': row['osm_id'],
+                        'tag_id': row['tag_id'],
+                        'oneway': row['oneway'],
+                        'rule': row['rule'],
+                        'priority': row['priority'],
+                        'maxspeed_forward': row['maxspeed_forward'],
+                        'maxspeed_backward': row['maxspeed_backward'],
+                        'osm_tags': row['tags'],
                     }
                 }
                 for row in rows

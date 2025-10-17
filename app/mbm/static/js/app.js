@@ -255,6 +255,7 @@ export default class App {
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
     this.allRoutesLayer.setStyle({ opacity: 0.6 })
     this.hideRouteEstimate()
+    this.hideDirections()
     this.sourceAddressString = ''
     this.targetAddressString = ''
     // Clear the URL back to home
@@ -327,7 +328,7 @@ export default class App {
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
 
         const directions = serializeDirections(directionsList(data.route.features))
-        console.log(directions.join("\n"))
+        this.displayDirections(directions)
 
         if (this.routeLayer) {
           this.map.removeLayer(this.routeLayer)
@@ -439,5 +440,84 @@ export default class App {
     this.$routeEstimate.html('')
     this.$hideSearch.removeClass('mt-1')
     this.$hideLegend.removeClass('mt-1')
+  }
+
+  getDirectionIcon(maneuver) {
+    const icons = {
+      'Continue': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+      'Turn slightly to the left': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(-15 12 12)"/>
+      </svg>`,
+      'Turn left': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 19V13C19 11.8954 18.1046 11 17 11H7M7 11L11 7M7 11L11 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+      'Take a sharp left turn': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 19V9C19 7.89543 18.1046 7 17 7H7M7 7L11 3M7 7L11 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+      'Turn slightly to the right': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L12 20M12 4L8 8M12 4L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(15 12 12)"/>
+      </svg>`,
+      'Turn right': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 19V13C5 11.8954 5.89543 11 7 11H17M17 11L13 7M17 11L13 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+      'Take a sharp right turn': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 19V9C5 7.89543 5.89543 7 7 7H17M17 7L13 3M17 7L13 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+      'Turn around': `<svg class="direction-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 8C8 8 8 4.5 11.5 4.5C15 4.5 16 7 16 10C16 14 12 16 12 16L12 20M12 20L9 17M12 20L15 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`
+    }
+    return icons[maneuver] || icons['Continue']
+  }
+
+  displayDirections(directions) {
+    const $directionsList = $('#directions-list')
+    const $directionsContainer = $('#directions-container')
+    
+    // Clear any existing directions
+    $directionsList.empty()
+    
+    // Define the maneuvers to check for
+    const maneuverTypes = [
+      'Turn slightly to the left',
+      'Turn slightly to the right',
+      'Take a sharp left turn',
+      'Take a sharp right turn',
+      'Turn left',
+      'Turn right',
+      'Turn around',
+      'Continue'
+    ]
+    
+    // Add each direction as a list item with icon
+    directions.forEach((direction, index) => {
+      // Extract the maneuver from the direction text
+      let maneuver = 'Continue' // Default for first direction which starts with "Head"
+      
+      if (index > 0) { // First direction starts with "Head", rest start with maneuver
+        for (const maneuverType of maneuverTypes) {
+          if (direction.startsWith(maneuverType)) {
+            maneuver = maneuverType
+            break
+          }
+        }
+      }
+      
+      const icon = this.getDirectionIcon(maneuver)
+      $directionsList.append(`<li><span class="direction-icon-wrapper">${icon}</span><span class="direction-text">${direction}</span></li>`)
+    })
+    
+    // Show the directions container
+    $directionsContainer.show()
+  }
+
+  hideDirections() {
+    const $directionsContainer = $('#directions-container')
+    const $directionsList = $('#directions-list')
+    
+    $directionsContainer.hide()
+    $directionsList.empty()
   }
 }
