@@ -14,9 +14,9 @@ export default class App {
     this.markers = { 'source': null, 'target': null }
 
     this.visibleRouteTypes = {
-      'path': true,
-      'street': true,
-      'route': true
+      'path': true, // Off-street bike paths (very calm)
+      'street': true, // Mellow streets (calm)
+      'route': true // Main streets, often with bike lanes (less calm)
     }
 
     // Start the app once the DOM is ready
