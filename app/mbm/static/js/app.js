@@ -248,11 +248,6 @@ export default class App {
     
     // Reload the routes layer with the new filter
     this.reloadCalmRoutes()
-    
-    // Also update the route layer if one exists
-    if (this.directionsRouteLayer) {
-      this.updateRouteLayerVisibility()
-    }
   }
 
   // Reload all routes with current filters
@@ -262,18 +257,6 @@ export default class App {
       this.calmRoutesLayer = null
     }
     this.loadCalmRoutes()
-  }
-
-  // Update the visibility of the route layer based on current filters
-  updateRouteLayerVisibility() {
-    this.directionsRouteLayer.eachLayer((layer) => {
-      const type = layer.feature.properties.type
-      if (this.visibleRouteTypes[type]) {
-        layer.setStyle({ opacity: 1 })
-      } else {
-        layer.setStyle({ opacity: 0 })
-      }
-    })
   }
 
   // Clear the form and remove plotted directions from the map
