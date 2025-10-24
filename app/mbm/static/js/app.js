@@ -97,7 +97,7 @@ export default class App {
     }
 
     // Load the routes layer from the backend
-    this.loadAllRoutes()
+    this.loadCalmRoutes()
 
     // Define behavior for the search button
     $directionsForm.submit(this.search.bind(this))
@@ -161,7 +161,7 @@ export default class App {
   }
 
   // Fetch the layer of annotated routes from the backend and display it on the map
-  loadAllRoutes() {
+  loadCalmRoutes() {
     // Start spinner while we retrieve initial route map
     this.map.spin(true)
     $.getJSON(this.routeListUrl).done((data) => {
@@ -211,7 +211,7 @@ export default class App {
         // Add click handler to container to toggle the visibility of the route type
         L.DomEvent.on(item, 'click', (e) => {
           L.DomEvent.stopPropagation(e)
-          this.toggleRouteTypeVisibility(type)
+          this.toggleCalmRouteTypeVisibility(type)
         })
       }
       
@@ -233,7 +233,7 @@ export default class App {
   }
 
   // Toggle the visibility of a route type
-  toggleRouteTypeVisibility(type) {
+  toggleCalmRouteTypeVisibility(type) {
     this.visibleRouteTypes[type] = !this.visibleRouteTypes[type]
     
     // Update the legend item appearance
@@ -247,7 +247,7 @@ export default class App {
     }
     
     // Reload the routes layer with the new filter
-    this.reloadAllRoutes()
+    this.reloadCalmRoutes()
     
     // Also update the route layer if one exists
     if (this.directionsRouteLayer) {
@@ -256,12 +256,12 @@ export default class App {
   }
 
   // Reload all routes with current filters
-  reloadAllRoutes() {
+  reloadCalmRoutes() {
     if (this.calmRoutesLayer) {
       this.map.removeLayer(this.calmRoutesLayer)
       this.calmRoutesLayer = null
     }
-    this.loadAllRoutes()
+    this.loadCalmRoutes()
   }
 
   // Update the visibility of the route layer based on current filters
