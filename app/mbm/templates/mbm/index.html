@@ -93,12 +93,5 @@
     import App from '{% static 'js/app.js' %}'
 
     new App("{% url 'route-list' %}", "{% url 'route' %}")
-
-    // Prevent settings dropdown from closing when clicking on checkboxes
-    document.addEventListener('DOMContentLoaded', function() {
-      $('#settings-dropdown').on('click', function(e) {
-        e.stopPropagation();
-      });
-    });
   </script>
 {% endblock %}

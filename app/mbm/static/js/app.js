@@ -47,6 +47,11 @@ export default class App {
     // Setup interactive tooltip elements (via jQuery UI)
     $('[data-toggle="tooltip"]').tooltip()
 
+    // Prevent settings dropdown from closing when clicking on checkboxes
+    $('#settings-dropdown').on('click', function(e) {
+      e.stopPropagation();
+    });
+
     this.gpsLocationString = 'My position'
 
     const isMobileScreen = $(window).outerWidth() <= 768
