@@ -99,45 +99,36 @@ export default class App {
     // Define behavior for the "Reset search" button
     $('#reset-search').click(this.reset.bind(this))
 
-    const isHidden = (elem) => { return $(elem).data('state') === 'hidden' }
-
-    const toggleControlText = (elem, showText, hideText) => {
-      let innerHTML
-      let state
-      if (isHidden(elem)) {
-        innerHTML = `&and; ${hideText}`
-        state = 'shown'
+    // Handle hide search box checkbox
+    this.hideSearchCheckbox = document.getElementById('hide-search-box')
+    this.handleHideSearchChange = (event) => {
+      if (event.target.checked) {
+        $('#input-elements').collapse('hide')
       } else {
-        innerHTML = `&or; ${showText}`
-        state = 'hidden'
+        $('#input-elements').collapse('show')
       }
-      $(elem).html(innerHTML)
-      $(elem).data('state', state)
-    }
-
-    const toggleControlElement = (elem, controlSelector) => {
-      if (isHidden(elem)) {
-        $(controlSelector).show()
-      } else {
-        $(controlSelector).hide()
-      }
-    }
-
-    this.$hideSearch = $('#hide')
-    // Toggle text on Show/Hide button
-    this.$hideSearch.click(function (e) {
       $(window).resize()
-      toggleControlText(this, 'Search for a route', 'Hide search box')
-    })
+    }
+    this.hideSearchCheckbox.addEventListener('change', this.handleHideSearchChange)
 
-    this.$hideLegend = $('#hide-legend')
-    this.$hideLegend.click(function (e) {
-      toggleControlElement(this, '.hideable-legend')
-      toggleControlText(this, 'Show legend', 'Hide legend')
-    })
+    // Handle hide legend checkbox
+    this.hideLegendCheckbox = document.getElementById('hide-legend-box')
+    this.handleHideLegendChange = (event) => {
+      if (event.target.checked) {
+        $('.hideable-legend').hide()
+      } else {
+        $('.hideable-legend').show()
+      }
+    }
+    this.hideLegendCheckbox.addEventListener('change', this.handleHideLegendChange)
 
-    // Show the search box by default on desktop
-    if (!isMobileScreen) { this.$hideSearch.click() }
+    // Show the search box by default on desktop (hide it on mobile)
+    if (isMobileScreen) {
+      this.hideSearchCheckbox.checked = true
+      this.hideSearchCheckbox.dispatchEvent(new Event('change'))
+    } else {
+      $('#input-elements').collapse('show')
+    }
 
     // Watch the user's location and update the map as it changes
     this.geolocation = new Geolocation(this)
@@ -366,14 +357,10 @@ export default class App {
   showRouteEstimate(distance, time) {
     this.$routeEstimate.html(`<strong>${time}</strong> (${distance})`)
     this.$routeEstimate.show()
-    this.$hideSearch.addClass('mt-1')
-    this.$hideLegend.addClass('mt-1')
   }
 
   hideRouteEstimate() {
     this.$routeEstimate.hide()
     this.$routeEstimate.html('')
-    this.$hideSearch.removeClass('mt-1')
-    this.$hideLegend.removeClass('mt-1')
   }
 }
