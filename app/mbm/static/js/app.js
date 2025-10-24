@@ -9,9 +9,15 @@ export default class App {
     this.routeListUrl = routeListUrl
     this.routeUrl = routeUrl
 
-    this.routeLayer = null
-    this.allRoutesLayer = null
+    this.directionsRouteLayer = null
+    this.calmRoutesLayer = null
     this.markers = { 'source': null, 'target': null }
+
+    this.visibleRouteTypes = {
+      'path': true,
+      'street': true,
+      'route': true
+    }
 
     // Start the app once the DOM is ready
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
@@ -159,11 +165,14 @@ export default class App {
     // Start spinner while we retrieve initial route map
     this.map.spin(true)
     $.getJSON(this.routeListUrl).done((data) => {
-      this.allRoutesLayer = L.geoJSON(data, {
+      this.calmRoutesLayer = L.geoJSON(data, {
         style: (feature) => {
           return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
         },
         interactive: false,
+        filter: (feature) => {
+          return this.visibleRouteTypes[feature.properties.type] === true
+        }
       }).addTo(this.map)
       this.map.spin(false)
     }).fail(function (jqxhr, textStatus, error) {
@@ -182,13 +191,33 @@ export default class App {
         ['route', 'Main streets, often with bike lanes (less calm)']
       ]
       for (const routeType of routeTypes) {
-        const color = this.getLineColor(routeType[0])
+        const type = routeType[0]
+        const color = this.getLineColor(type)
         const description = routeType[1]
-        div.innerHTML += `<i style="background:${color}"></i>${description}`
-        if (routeType !== routeTypes[routeTypes.length - 1]) {
-          div.innerHTML += '<br>'
-        }
+        
+        // Create a container for each legend item
+        const item = L.DomUtil.create('div', 'legend-item', div)
+        item.style.cursor = 'pointer'
+        item.setAttribute('data-route-type', type)
+        
+        // Create the color box
+        const colorBox = L.DomUtil.create('i', '', item)
+        colorBox.style.background = color
+        
+        // Create the text label
+        const label = L.DomUtil.create('span', '', item)
+        label.textContent = description
+        
+        // Add click handler to container to toggle the visibility of the route type
+        L.DomEvent.on(item, 'click', (e) => {
+          L.DomEvent.stopPropagation(e)
+          this.toggleRouteTypeVisibility(type)
+        })
       }
+      
+      // Prevent map interactions when clicking on legend
+      L.DomEvent.disableClickPropagation(div)
+      
       return div
     }
     return legend
@@ -203,13 +232,57 @@ export default class App {
     }
   }
 
+  // Toggle the visibility of a route type
+  toggleRouteTypeVisibility(type) {
+    this.visibleRouteTypes[type] = !this.visibleRouteTypes[type]
+    
+    // Update the legend item appearance
+    const legendItem = document.querySelector(`.legend-item[data-route-type="${type}"]`)
+    if (legendItem) {
+      if (this.visibleRouteTypes[type]) {
+        legendItem.classList.remove('legend-item-inactive')
+      } else {
+        legendItem.classList.add('legend-item-inactive')
+      }
+    }
+    
+    // Reload the routes layer with the new filter
+    this.reloadAllRoutes()
+    
+    // Also update the route layer if one exists
+    if (this.directionsRouteLayer) {
+      this.updateRouteLayerVisibility()
+    }
+  }
+
+  // Reload all routes with current filters
+  reloadAllRoutes() {
+    if (this.calmRoutesLayer) {
+      this.map.removeLayer(this.calmRoutesLayer)
+      this.calmRoutesLayer = null
+    }
+    this.loadAllRoutes()
+  }
+
+  // Update the visibility of the route layer based on current filters
+  updateRouteLayerVisibility() {
+    this.directionsRouteLayer.eachLayer((layer) => {
+      const type = layer.feature.properties.type
+      if (this.visibleRouteTypes[type]) {
+        layer.setStyle({ opacity: 1 })
+      } else {
+        layer.setStyle({ opacity: 0 })
+      }
+    })
+  }
+
   // Clear the form and remove plotted directions from the map
   // Inputs are automatically reset because the button that triggers this has `type="reset"`
   reset() {
-    if (this.routeLayer) { this.map.removeLayer(this.routeLayer) }
+    if (this.directionsRouteLayer) { this.map.removeLayer(this.directionsRouteLayer) }
     if (this.markers['source']) { this.map.removeLayer(this.markers['source']) }
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
-    this.allRoutesLayer.setStyle({ opacity: 0.6 })
+    this.calmRoutesLayer.setStyle({ opacity: 0.6 })
     this.hideRouteEstimate()
   }
 
@@ -267,10 +340,10 @@ export default class App {
     } else {
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
-        if (this.routeLayer) {
-          this.map.removeLayer(this.routeLayer)
+        if (this.directionsRouteLayer) {
+          this.map.removeLayer(this.directionsRouteLayer)
         }
-        this.routeLayer = L.geoJSON(data.route, {
+        this.directionsRouteLayer = L.geoJSON(data.route, {
           style: (feature) => {
             return { weight: 5, color: this.getLineColor(feature.properties.type) }
           },
@@ -282,8 +355,8 @@ export default class App {
           }
         }).addTo(this.map)
         // Lower opacity on non-route street colors
-        this.allRoutesLayer.setStyle({ opacity: 0.3 })
-        this.map.fitBounds(this.routeLayer.getBounds())
+        this.calmRoutesLayer.setStyle({ opacity: 0.3 })
+        this.map.fitBounds(this.directionsRouteLayer.getBounds())
         this.showRouteEstimate(data.route.properties.distance, data.route.properties.time)
       }).fail((jqxhr, textStatus, error) => {
         const err = textStatus + ': ' + error
