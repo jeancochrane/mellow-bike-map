@@ -60,13 +60,14 @@ class Route(APIView):
         target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
+        allow_sidewalks = request.GET.get("allow_sidewalks", False) == "true"
 
         return Response({
             'source': source_coord,
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2)
+            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, allow_sidewalks)
         })
 
     def get_coord_from_request(self, request, key):
@@ -104,7 +105,25 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
+    def sidewalk_filter_sql(self, allow_sidewalks):
+        if allow_sidewalks:
+            return ""
+        
+        return """
+            LEFT JOIN osm_ways AS osm_way
+            ON way.osm_id = osm_way.osm_id
+            WHERE (
+                NOT (
+                    osm_way.tags @> ''footway=>sidewalk''::hstore OR
+                    osm_way.tags @> ''footway=>crossing''::hstore OR
+                    osm_way.tags @> ''highway=>footway''::hstore
+                )
+                OR
+                (osm_way.tags @> ''bicycle=>permissive''::hstore OR osm_way.tags @> ''bicycle=>yes''::hstore)
+            ) OR osm_way.tags IS NULL
+            """
+
+    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, allow_sidewalks=False):
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 SELECT
@@ -142,6 +161,7 @@ class Route(APIView):
                     FROM chicago_ways AS way
                     LEFT JOIN mellow
                     USING(osm_id)
+                    {self.sidewalk_filter_sql(allow_sidewalks)}
                     ',
                     %s,
                     %s
