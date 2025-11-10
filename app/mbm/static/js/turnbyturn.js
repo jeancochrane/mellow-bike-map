@@ -1,22 +1,30 @@
 // This should probably all be moved to python but is a first draft of
 // what turn-by-turn directions will look like
 
-const describeUnnamedStreet = (osmTags) => {
+const describeUnnamedStreet = (osmTags, parkName) => {
   if (!osmTags) return 'an unknown street'
   
+  let description = ''
+  
   if (osmTags.highway === 'service' && osmTags.service === 'alley') {
-    return 'an alley'
+    description = 'an alley'
+  } else if (osmTags.footway === 'crossing') {
+    description = 'a crosswalk'
+  } else if (osmTags.highway === 'footway' && osmTags.footway === 'sidewalk') {
+    description = 'a sidewalk'
+  } else if (parkName) {
+    // If inside a park and no specific description, call it a path
+    description = 'a path'
+  } else {
+    description = 'an unknown street'
   }
   
-  if (osmTags.footway === 'crossing') {
-    return 'a crosswalk'
+  // Add park name if the street is within a park
+  if (parkName) {
+    description += ` inside ${parkName}`
   }
   
-  if (osmTags.highway === 'footway' && osmTags.footway === 'sidewalk') {
-    return 'a sidewalk'
-  }
-  
-  return 'an unknown street'
+  return description
 }
 
 const headingToEnglishManeuver = (heading, previousHeading) => {
@@ -58,7 +66,8 @@ const directionsList = (features) => {
       maxspeed_forward: feature.properties.maxspeed_forward,
       maxspeed_backward: feature.properties.maxspeed_backward,
       length_m: feature.properties.distance,
-      osm_tags: feature.properties.osm_tags
+      osm_tags: feature.properties.osm_tags,
+      park_name: feature.properties.park_name
     }
     // Create chicago_way object with instruction info
     const chicagoWay = {
@@ -70,7 +79,7 @@ const directionsList = (features) => {
     }
     const direction = { name, distance, maneuver, heading, cardinal, type, osmData, osmDataChicagoWays: [chicagoWay], featureIndices: [i] }
 
-    const effectiveName = name || describeUnnamedStreet(osmData.osm_tags)
+    const effectiveName = name || describeUnnamedStreet(osmData.osm_tags, osmData.park_name)
 
     // Determine if this is a slight turn that can be collapsed
     const isSlightTurn = (maneuver === 'Turn slightly to the left' || maneuver === 'Turn slightly to the right')
@@ -116,6 +125,7 @@ const formatOsmDebugInfo = (osmData) => {
   const parts = []
   parts.push(`[OSM ID: ${osmData.osm_id}`)
   if (osmData.tag_id) parts.push(`Tag ID: ${osmData.tag_id}`)
+  if (osmData.park_name) parts.push(`Park: ${osmData.park_name}`)
   if (osmData.oneway && osmData.oneway !== 'NO') parts.push(`Oneway: ${osmData.oneway}`)
   if (osmData.rule) parts.push(`Rule: ${osmData.rule}`)
   if (osmData.priority) parts.push(`Priority: ${osmData.priority}`)
@@ -142,7 +152,7 @@ const serializeDirections = (directions) => {
   }
   
   const first = directions.shift()
-  let firstStreetName = first.name || describeUnnamedStreet(first.osmData?.osm_tags)
+  let firstStreetName = first.name || describeUnnamedStreet(first.osmData?.osm_tags, first.osmData?.park_name)
   // Add OSM debug info for unnamed streets
   if (!first.name && first.osmData) {
     firstStreetName += ' ' + formatOsmDebugInfo(first.osmData)
@@ -150,7 +160,7 @@ const serializeDirections = (directions) => {
   lines.push(`Head ${first.cardinal} on ${firstStreetName} for ${Math.round(first.distance)} meters`)
   
   for (const direction of directions) {
-    let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags)
+    let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags, direction.osmData?.park_name)
     // Add OSM debug info for unnamed streets
     if (!direction.name && direction.osmData) {
       streetName += ' ' + formatOsmDebugInfo(direction.osmData)

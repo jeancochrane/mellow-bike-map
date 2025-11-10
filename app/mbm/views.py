@@ -130,7 +130,8 @@ class Route(APIView):
                     way.priority,
                     way.maxspeed_forward,
                     way.maxspeed_backward,
-                    osm_way.tags
+                    osm_way.tags,
+                    way.park_name
                 FROM pgr_dijkstra(
                     'WITH mellow AS (
                         SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
@@ -215,6 +216,7 @@ class Route(APIView):
                         'maxspeed_forward': row['maxspeed_forward'],
                         'maxspeed_backward': row['maxspeed_backward'],
                         'osm_tags': row['tags'],
+                        'park_name': row['park_name'],
                     }
                 }
                 for row in rows
@@ -291,6 +293,39 @@ class OsmWay(APIView):
                 'osm_id': result['osm_id'],
                 'name': result['name']
             }
+        })
+
+
+class ParkBoundaries(LoginRequiredMixin, APIView):
+    """
+    API endpoint to fetch Chicago park boundaries as GeoJSON.
+    """
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    park,
+                    ST_AsGeoJSON(wkb_geometry) AS geometry
+                FROM chicago_parks
+                WHERE park IS NOT NULL
+                ORDER BY park
+            """)
+            rows = fetchall(cursor)
+        
+        return Response({
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'geometry': json.loads(row['geometry']),
+                    'properties': {
+                        'name': row['park']
+                    }
+                }
+                for row in rows
+            ]
         })
 
 

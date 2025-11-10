@@ -18,6 +18,7 @@ export default class App {
     this.routeData = null
     this.highlightLayer = null
     this.highlightGlowLayer = null
+    this.parksLayer = null  // For debug mode: shows park boundaries
 
     // Start the app once the DOM is ready
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
@@ -100,6 +101,15 @@ export default class App {
 
     // Load the routes layer from the backend
     this.loadAllRoutes()
+
+    // ===== DEBUG MODE: Load park boundaries =====
+    // Check if debug mode is enabled via URL parameter
+    const urlParams = new URLSearchParams(window.location.search)
+    const debugMode = urlParams.get('debug') === 'true'
+    if (debugMode) {
+      this.loadParkBoundaries()
+    }
+    // ===== END DEBUG MODE =====
 
     // Define behavior for the search button
     $directionsForm.submit(this.search.bind(this))
@@ -217,6 +227,37 @@ export default class App {
       console.log(textStatus + ': ' + error)
     })
   }
+
+  // ===== DEBUG MODE: Load park boundaries =====
+  // Fetch park boundaries from the backend and display them on the map
+  // This method is only called when debug mode is enabled (?debug=true)
+  loadParkBoundaries() {
+    $.getJSON('/api/parks/').done((data) => {
+      this.parksLayer = L.geoJSON(data, {
+        style: {
+          color: '#90EE90',      // Light green border
+          weight: 2,
+          opacity: 0.7,
+          fillColor: '#90EE90',
+          fillOpacity: 0.1
+        },
+        onEachFeature: (feature, layer) => {
+          // Add park name as a tooltip
+          if (feature.properties.name) {
+            layer.bindTooltip(feature.properties.name, {
+              permanent: false,
+              direction: 'center',
+              className: 'park-label'
+            })
+          }
+        }
+      }).addTo(this.map)
+      console.log('Loaded park boundaries for debug mode')
+    }).fail(function (jqxhr, textStatus, error) {
+      console.log('Failed to load park boundaries: ' + textStatus + ': ' + error)
+    })
+  }
+  // ===== END DEBUG MODE =====
 
   // Create a legend
   createLegend() {
@@ -524,6 +565,7 @@ export default class App {
       const parts = []
       parts.push(`OSM ID: ${osmData.osm_id}`)
       if (osmData.tag_id) parts.push(`Tag ID: ${osmData.tag_id}`)
+      if (osmData.park_name) parts.push(`Park: ${osmData.park_name}`)
       if (osmData.oneway && osmData.oneway !== 'NO') parts.push(`Oneway: ${osmData.oneway}`)
       if (osmData.rule) parts.push(`Rule: ${osmData.rule}`)
       if (osmData.priority) parts.push(`Priority: ${osmData.priority}`)
@@ -591,10 +633,10 @@ export default class App {
       // Build the direction text
       let directionText = ''
       if (index === 0) {
-        let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags)
+        let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags, direction.osmData?.park_name)
         directionText = `Head ${direction.cardinal} on ${streetName} for ${formatDistance(direction.distance)}`
       } else {
-        let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags)
+        let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags, direction.osmData?.park_name)
         directionText = `${direction.maneuver} onto ${streetName} and head ${direction.cardinal} for ${formatDistance(direction.distance)}`
       }
       
@@ -627,7 +669,7 @@ export default class App {
             const osmWaysInfo = formatOsmWaysInfo(chicagoWay.osmData)
             
             // Format the instruction for this chicago_way
-            const chicagoWayName = chicagoWay.name || describeUnnamedStreet(chicagoWay.osmData?.osm_tags)
+            const chicagoWayName = chicagoWay.name || describeUnnamedStreet(chicagoWay.osmData?.osm_tags, chicagoWay.osmData?.park_name)
             const instruction = `${chicagoWay.maneuver} ${chicagoWay.cardinal} on ${chicagoWayName} for ${Math.round(chicagoWay.distance)}m`
             
             // Get the feature index for this chicago_way
@@ -644,21 +686,26 @@ export default class App {
             // Add button to highlight this specific chicago_way
             const highlightChicagoWayButton = `<button class="osm-way-button" data-chicago-way-index="${featureIndex}" title="Highlight this chicago_way on map">Highlight chicago_way</button>`
             
+            const parkName = chicagoWay.osmData?.park_name || 'None'
+            
             listItemHtml += `
               <div style="margin-left: 15px; margin-top: 5px;">
                 <div><strong>Chicago Way ${idx + 1}:</strong> ${instruction} ${highlightChicagoWayButton} ${osmWayButton}</div>
                 <div style="margin-left: 10px;"><span class="debug-label">Chicago Ways:</span> ${chicagoWaysInfo}</div>
                 <div style="margin-left: 10px;"><span class="debug-label">OSM Ways:</span> ${osmWaysInfo}</div>
+                <div style="margin-left: 10px;"><span class="debug-label">Containing Park:</span> ${parkName}</div>
               </div>
             `
           })
         } else {
           const chicagoWaysInfo = direction.osmData ? formatChicagoWaysInfo(direction.osmData) : 'No data'
           const osmWaysInfo = direction.osmData ? formatOsmWaysInfo(direction.osmData) : 'No data'
+          const parkName = direction.osmData?.park_name || 'None'
           
           listItemHtml += `
             <div><span class="debug-label">Chicago Ways Data:</span> ${chicagoWaysInfo}</div>
             <div><span class="debug-label">OSM Ways Data:</span> ${osmWaysInfo}</div>
+            <div><span class="debug-label">Containing Park:</span> ${parkName}</div>
           `
         }
         
