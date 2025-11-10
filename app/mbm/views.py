@@ -321,3 +321,219 @@ def healthcheck(request):
     with connection.cursor() as cursor:
         cursor.execute("""SELECT 1""")
     return HttpResponse("")
+
+
+class ChicagoWaysGeometry(APIView):
+    """API endpoint to retrieve chicago_ways geometries by gid, osm_id, or OSM tags."""
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        # Get gid, osm_id, tags, and nearby_gid parameters from request
+        gids_param = request.GET.get('gids', '')
+        osm_ids_param = request.GET.get('osm_ids', '')
+        tags_param = request.GET.get('tags', '')
+        nearby_gid_param = request.GET.get('nearby_gid', '')
+        
+        # Parse page parameter with error handling
+        try:
+            page = int(request.GET.get('page', 1))
+            if page < 1:
+                page = 1
+        except (ValueError, TypeError):
+            page = 1
+        
+        page_size = 5000
+
+        # Parse nearby_gid parameter
+        nearby_gid = None
+        if nearby_gid_param.strip().isdigit():
+            nearby_gid = int(nearby_gid_param.strip())
+
+        # Parse the comma-separated values
+        gids = [int(g.strip()) for g in gids_param.split(',') if g.strip().isdigit()]
+        osm_ids = [int(o.strip()) for o in osm_ids_param.split(',') if o.strip().lstrip('-').isdigit()]
+        
+        # Parse tags into HStore format
+        tags_dict = {}
+        if tags_param:
+            for tag_pair in tags_param.split(','):
+                tag_pair = tag_pair.strip()
+                # Support both 'key=value' and 'key=>value' formats
+                if '=>' in tag_pair:
+                    key, value = tag_pair.split('=>', 1)
+                    tags_dict[key.strip()] = value.strip()
+                elif '=' in tag_pair:
+                    key, value = tag_pair.split('=', 1)
+                    tags_dict[key.strip()] = value.strip()
+
+        if not gids and not osm_ids and not tags_dict and not nearby_gid:
+            raise ParseError('At least one gid, osm_id, tag, or nearby_gid is required')
+
+        # Build query to get matching chicago_ways
+        # Include tags from osm_ways if tag search was performed
+        with connection.cursor() as cursor:
+            if nearby_gid:
+                # Special case: find all ways within 100 meters of the given way
+                # First get the total count
+                cursor.execute("""
+                    SELECT COUNT(*) as total
+                    FROM chicago_ways cw
+                    WHERE ST_DWithin(
+                        cw.the_geom::geography,
+                        (SELECT the_geom::geography FROM chicago_ways WHERE gid = %s),
+                        100
+                    )
+                """, [nearby_gid])
+                total_count = cursor.fetchone()[0]
+                
+                # Calculate pagination
+                offset = (page - 1) * page_size
+                total_pages = (total_count + page_size - 1) // page_size
+                
+                # Get paginated results ordered by distance, including tags
+                cursor.execute("""
+                    SELECT 
+                        cw.gid, 
+                        cw.osm_id, 
+                        cw.name, 
+                        ST_AsGeoJSON(cw.the_geom) AS geometry,
+                        ST_Distance(
+                            cw.the_geom::geography,
+                            (SELECT the_geom::geography FROM chicago_ways WHERE gid = %s)
+                        ) as distance,
+                        ow.tags
+                    FROM chicago_ways cw
+                    LEFT JOIN osm_ways ow ON cw.osm_id = ow.osm_id
+                    WHERE ST_DWithin(
+                        cw.the_geom::geography,
+                        (SELECT the_geom::geography FROM chicago_ways WHERE gid = %s),
+                        100
+                    )
+                    ORDER BY distance
+                    LIMIT %s OFFSET %s
+                """, [nearby_gid, nearby_gid, page_size, offset])
+            elif tags_dict:
+                # Include tags in the result when filtering by tags
+                # Build query conditions with qualified column names
+                conditions = []
+                params = []
+                
+                if gids:
+                    conditions.append("cw.gid = ANY(%s)")
+                    params.append(gids)
+                
+                if osm_ids:
+                    conditions.append("cw.osm_id = ANY(%s)")
+                    params.append(osm_ids)
+                
+                # Build HStore query string for tags
+                hstore_str = ','.join([f'"{k}"=>"{v}"' for k, v in tags_dict.items()])
+                conditions.append("""cw.osm_id IN (
+                    SELECT osm_id FROM osm_ways 
+                    WHERE tags @> %s::hstore
+                )""")
+                params.append(hstore_str)
+                
+                where_clause = " OR ".join(conditions)
+                
+                # First get the total count
+                cursor.execute(f"""
+                    SELECT COUNT(*) as total
+                    FROM chicago_ways cw
+                    LEFT JOIN osm_ways ow ON cw.osm_id = ow.osm_id
+                    WHERE {where_clause}
+                """, params)
+                total_count = cursor.fetchone()[0]
+                
+                # Calculate pagination
+                offset = (page - 1) * page_size
+                total_pages = (total_count + page_size - 1) // page_size
+                
+                # Get paginated results ordered by centroid for spatial clustering
+                cursor.execute(f"""
+                    SELECT 
+                        cw.gid, 
+                        cw.osm_id, 
+                        cw.name, 
+                        ST_AsGeoJSON(cw.the_geom) AS geometry,
+                        ow.tags
+                    FROM chicago_ways cw
+                    LEFT JOIN osm_ways ow ON cw.osm_id = ow.osm_id
+                    WHERE {where_clause}
+                    ORDER BY ST_Y(ST_Centroid(cw.the_geom)), ST_X(ST_Centroid(cw.the_geom))
+                    LIMIT %s OFFSET %s
+                """, params + [page_size, offset])
+            else:
+                # No tags, use simpler query without join
+                conditions = []
+                params = []
+                
+                if gids:
+                    conditions.append("gid = ANY(%s)")
+                    params.append(gids)
+                
+                if osm_ids:
+                    conditions.append("osm_id = ANY(%s)")
+                    params.append(osm_ids)
+                
+                where_clause = " OR ".join(conditions)
+                
+                # First get the total count
+                cursor.execute(f"""
+                    SELECT COUNT(*) as total
+                    FROM chicago_ways
+                    WHERE {where_clause}
+                """, params)
+                total_count = cursor.fetchone()[0]
+                
+                # Calculate pagination
+                offset = (page - 1) * page_size
+                total_pages = (total_count + page_size - 1) // page_size
+                
+                # Get paginated results ordered by centroid for spatial clustering
+                cursor.execute(f"""
+                    SELECT 
+                        gid, 
+                        osm_id, 
+                        name, 
+                        ST_AsGeoJSON(the_geom) AS geometry
+                    FROM chicago_ways
+                    WHERE {where_clause}
+                    ORDER BY ST_Y(ST_Centroid(the_geom)), ST_X(ST_Centroid(the_geom))
+                    LIMIT %s OFFSET %s
+                """, params + [page_size, offset])
+            
+            rows = fetchall(cursor)
+
+        return Response({
+            'type': 'FeatureCollection',
+            'properties': {
+                'total_count': total_count,
+                'page': page,
+                'page_size': page_size,
+                'total_pages': total_pages,
+                'showing_count': len(rows),
+                'search_type': 'nearby' if nearby_gid else 'tag' if tags_dict else 'id',
+                'nearby_gid': nearby_gid if nearby_gid else None
+            },
+            'features': [
+                {
+                    'type': 'Feature',
+                    'geometry': json.loads(row['geometry']),
+                    'properties': {
+                        'gid': row['gid'],
+                        'osm_id': row['osm_id'],
+                        'name': row['name'],
+                        'tags': row.get('tags', None),
+                        'distance': round(row['distance'], 2) if 'distance' in row else None
+                    }
+                }
+                for row in rows
+            ]
+        })
+
+
+class ChicagoWaysAdmin(LoginRequiredMixin, TemplateView):
+    """Admin page for visualizing chicago_ways by gid, osm_id, or OSM tags."""
+    title = 'Ways'
+    template_name = 'mbm/chicago_ways_admin.html'

@@ -27,6 +27,14 @@
           </div>
         {% endfor %}
       {% endif %}
+      <ul class="nav nav-tabs mt-3">
+        <li class="nav-item">
+          <a class="nav-link active font-weight-bold" href="{% url 'mellow-route-list' %}">Neighborhoods</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'chicago-ways-admin' %}">Ways</a>
+        </li>
+      </ul>
       <h3 class="py-3">
         {{ view.title }}
         <a

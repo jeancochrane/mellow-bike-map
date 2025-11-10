@@ -1,0 +1,723 @@
+{% extends "mbm/base.html" %}
+{% load static %}
+
+{% block title %}{{ view.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+<style>
+  #map {
+    height: 500px;
+    width: 100%;
+    margin-top: 20px;
+  }
+  /* Apply grayscale filter to map tiles */
+  .leaflet-tile-pane {
+    filter: grayscale(100%) brightness(1.2);
+  }
+  /* Glow effect for the selected way in nearby searches */
+  .glow-way {
+    filter: drop-shadow(0 0 8px #ffff00) drop-shadow(0 0 12px #ffff00);
+  }
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  #id-input {
+    font-family: monospace;
+    min-height: 100px;
+  }
+  .info-text {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+  .results-info {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+  }
+  .results-info.success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+  }
+  .results-info.error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+  }
+  .results-info.info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+  }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+  <div class="row">
+    <div class="col-12">
+      <ul class="nav nav-tabs mt-3">
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'mellow-route-list' %}">Neighborhoods</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active font-weight-bold" href="{% url 'chicago-ways-admin' %}">Ways</a>
+        </li>
+      </ul>
+      <h3 class="py-3">{{ view.title }}</h3>
+      
+      <ul class="nav nav-tabs" id="search-tabs" role="tablist">
+        <li class="nav-item">
+          <a class="nav-link active" id="by-tag-tab" data-toggle="tab" href="#by-tag" role="tab" aria-controls="by-tag" aria-selected="true">By Tag</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" id="by-id-tab" data-toggle="tab" href="#by-id" role="tab" aria-controls="by-id" aria-selected="false">By ID</a>
+        </li>
+      </ul>
+      
+      <div class="tab-content" id="search-tabs-content">
+        <div class="tab-pane fade show active" id="by-tag" role="tabpanel" aria-labelledby="by-tag-tab">
+          <div class="mt-3">
+            <p>Visualize ways that match all specific OSM tags.</p>
+            <div class="row">
+              <div class="col-12">
+                <div class="form-group">
+                  <textarea 
+                    id="tags-input" 
+                    class="form-control" 
+                    placeholder="Example: highway=cycleway, surface=paved"
+                  ></textarea>
+                  <div class="info-text">
+                    Enter OSM tag key=value pairs separated by commas (e.g., "highway=cycleway" or "footway=>sidewalk"). Both = and => formats are supported.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="tab-pane fade" id="by-id" role="tabpanel" aria-labelledby="by-id-tab">
+          <div class="mt-3">
+            <p>Enter chicago_ways GID and/or OSM_ID values to visualize them on the map.</p>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="gid-input">GID values:</label>
+                  <textarea 
+                    id="gid-input" 
+                    class="form-control" 
+                    placeholder="Example: 123, 456, 789 or one per line"
+                  ></textarea>
+                  <div class="info-text">
+                    Enter GID values (positive integers) separated by commas or newlines.
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="osm-id-input">OSM_ID values:</label>
+                  <textarea 
+                    id="osm-id-input" 
+                    class="form-control" 
+                    placeholder="Example: 1020099876, -123456 or one per line"
+                  ></textarea>
+                  <div class="info-text">
+                    Enter OSM_ID values (can be negative) separated by commas or newlines. Note that one OSM_ID may match multiple chicago_ways rows.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <button id="visualize-btn" class="btn btn-primary">Visualize</button>
+        <button id="clear-btn" class="btn btn-secondary">Clear</button>
+      </div>
+
+      <div id="results-info" class="results-info" style="display: none;"></div>
+      
+      <div id="pagination-controls" style="display: none; margin-top: 1rem;">
+        <div class="d-flex justify-content-between align-items-center">
+          <button id="prev-page-btn" class="btn btn-secondary" disabled>Previous</button>
+          <span id="pagination-info"></span>
+          <button id="next-page-btn" class="btn btn-secondary" disabled>Next</button>
+        </div>
+      </div>
+
+      <div id="map"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script>
+  let map = null;
+  let waysLayer = null;
+  let currentPage = 1;
+  let totalPages = 1;
+  let currentSearchParams = {};
+
+  // Initialize the map
+  document.addEventListener('DOMContentLoaded', function() {
+    map = L.map('map').setView([41.88, -87.7], 11);
+    
+    // Add basemap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Event listeners
+    document.getElementById('visualize-btn').addEventListener('click', function() { visualizeWays(1); });
+    document.getElementById('clear-btn').addEventListener('click', clearMap);
+    document.getElementById('prev-page-btn').addEventListener('click', goToPreviousPage);
+    document.getElementById('next-page-btn').addEventListener('click', goToNextPage);
+    
+    // Allow Ctrl+Enter key in textareas to submit
+    document.getElementById('gid-input').addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        visualizeWays(1);
+      }
+    });
+    document.getElementById('osm-id-input').addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        visualizeWays(1);
+      }
+    });
+    document.getElementById('tags-input').addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        visualizeWays(1);
+      }
+    });
+  });
+
+  function parseInput(input) {
+    // Split by commas and newlines, trim whitespace, filter empty strings
+    return input
+      .split(/[\n,]/)
+      .map(s => s.trim())
+      .filter(s => s !== '' && /^-?\d+$/.test(s))
+      .map(s => parseInt(s, 10));
+  }
+
+  function showMessage(message, type) {
+    const resultsDiv = document.getElementById('results-info');
+    resultsDiv.textContent = message;
+    resultsDiv.className = 'results-info ' + type;
+    resultsDiv.style.display = 'block';
+  }
+
+  function hideMessage() {
+    document.getElementById('results-info').style.display = 'none';
+  }
+
+  function visualizeWays(page = 1) {
+    const gidInput = document.getElementById('gid-input').value;
+    const osmIdInput = document.getElementById('osm-id-input').value;
+    const tagsInput = document.getElementById('tags-input').value.trim();
+    
+    const gids = parseInput(gidInput);
+    const osm_ids = parseInput(osmIdInput);
+
+    if (gids.length === 0 && osm_ids.length === 0 && !tagsInput) {
+      showMessage('Please enter at least one valid GID, OSM_ID, or tag', 'error');
+      return;
+    }
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (gids.length > 0) {
+      params.append('gids', gids.join(','));
+    }
+    if (osm_ids.length > 0) {
+      params.append('osm_ids', osm_ids.join(','));
+    }
+    if (tagsInput) {
+      params.append('tags', tagsInput);
+    }
+    params.append('page', page);
+    
+    // Store current search params for pagination
+    currentSearchParams = {
+      gids: gids,
+      osm_ids: osm_ids,
+      tags: tagsInput
+    };
+    currentPage = page;
+
+    // Fetch data from API
+    showMessage('Loading...', 'info');
+    
+    fetch('{% url "chicago-ways-geometry" %}?' + params.toString())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.features.length === 0) {
+          showMessage('No chicago_ways found for the given IDs', 'error');
+          return;
+        }
+
+        // Remove existing layer if present
+        if (waysLayer) {
+          map.removeLayer(waysLayer);
+        }
+
+        // Create color palette for different ways
+        const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#95a5a6'];
+        
+        // Assign colors to features based on their index
+        let colorIndex = 0;
+        data.features.forEach(feature => {
+          feature.properties._color = colors[colorIndex % colors.length];
+          colorIndex++;
+        });
+        
+        // Find the center way for nearby searches
+        const dataProps = data.properties;
+        let centerWay = null;
+        if (dataProps.search_type === 'nearby') {
+          centerWay = data.features.find(f => f.properties.gid === dataProps.nearby_gid);
+        }
+        
+        // Add new layer
+        waysLayer = L.geoJSON(data, {
+          style: function(feature) {
+            // Give the center way (the one that was clicked) a glow effect
+            if (dataProps.search_type === 'nearby' && feature.properties.gid === dataProps.nearby_gid) {
+              return {
+                color: '#ffff00',
+                weight: 6,
+                opacity: 1,
+                className: 'glow-way'
+              };
+            }
+            return {
+              color: feature.properties._color,
+              weight: 4,
+              opacity: 0.8
+            };
+          },
+          onEachFeature: function(feature, layer) {
+            const featureProps = feature.properties;
+            let popupContent = `
+              <strong>GID:</strong> ${featureProps.gid}<br>
+              <strong>OSM_ID:</strong> ${featureProps.osm_id}<br>
+              <strong>Name:</strong> ${featureProps.name || '(unnamed)'}
+            `;
+            
+            // Add distance if available (for nearby searches)
+            if (featureProps.distance !== null && featureProps.distance !== undefined) {
+              popupContent += `<br><strong>Distance:</strong> ${featureProps.distance}m`;
+            }
+            
+            // Add tags to popup if they exist
+            if (featureProps.tags) {
+              popupContent += '<br><strong>Tags:</strong><br>';
+              const tags = featureProps.tags;
+              const tagLines = [];
+              for (const [key, value] of Object.entries(tags)) {
+                tagLines.push(`&nbsp;&nbsp;${key} = ${value}`);
+              }
+              popupContent += tagLines.join('<br>');
+            }
+            
+            // Add button to show nearby ways
+            popupContent += `<br><br><button class="btn btn-sm btn-primary" onclick="visualizeNearbyWays(${featureProps.gid})">Show nearby ways (100m)</button>`;
+            
+            layer.bindPopup(popupContent);
+          }
+        }).addTo(map);
+
+        // Fit map to show proper area
+        if (dataProps.search_type === 'nearby' && centerWay) {
+          // For nearby searches, zoom to 100m radius around the center way
+          const centerLatLng = L.geoJSON(centerWay).getBounds().getCenter();
+          // 100 meters in degrees is roughly 0.0009 (at mid-latitudes)
+          const radiusInDegrees = 0.0009;
+          const bounds = L.latLngBounds(
+            [centerLatLng.lat - radiusInDegrees, centerLatLng.lng - radiusInDegrees],
+            [centerLatLng.lat + radiusInDegrees, centerLatLng.lng + radiusInDegrees]
+          );
+          map.fitBounds(bounds, { padding: [20, 20] });
+        } else {
+          map.fitBounds(waysLayer.getBounds());
+        }
+
+        // Handle pagination
+        const props = dataProps;
+        totalPages = props.total_pages;
+        
+        // Update pagination info
+        const uniqueOsmIds = new Set(data.features.map(f => f.properties.osm_id)).size;
+        let message = '';
+        if (props.search_type === 'nearby') {
+          message = `Showing ${props.showing_count} of ${props.total_count} ways within 100m of GID ${props.nearby_gid}`;
+        } else {
+          message = `Showing ${props.showing_count} of ${props.total_count} chicago_ways row(s) (${uniqueOsmIds} unique OSM_ID(s))`;
+        }
+        if (totalPages > 1) {
+          message += ` - Page ${props.page} of ${totalPages}`;
+        }
+        showMessage(message, 'success');
+        
+        // Show/hide pagination controls
+        if (totalPages > 1) {
+          document.getElementById('pagination-controls').style.display = 'block';
+          document.getElementById('pagination-info').textContent = `Page ${props.page} of ${totalPages}`;
+          
+          // Enable/disable buttons
+          document.getElementById('prev-page-btn').disabled = (props.page <= 1);
+          document.getElementById('next-page-btn').disabled = (props.page >= totalPages);
+        } else {
+          document.getElementById('pagination-controls').style.display = 'none';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error loading chicago_ways: ' + error.message, 'error');
+      });
+  }
+
+  function clearMap() {
+    // Clear inputs
+    document.getElementById('gid-input').value = '';
+    document.getElementById('osm-id-input').value = '';
+    document.getElementById('tags-input').value = '';
+    
+    // Remove layer
+    if (waysLayer) {
+      map.removeLayer(waysLayer);
+      waysLayer = null;
+    }
+    
+    // Hide message and pagination
+    hideMessage();
+    document.getElementById('pagination-controls').style.display = 'none';
+    
+    // Reset pagination state
+    currentPage = 1;
+    totalPages = 1;
+    currentSearchParams = {};
+    
+    // Reset map view
+    map.setView([41.88, -87.7], 11);
+  }
+  
+  function goToPreviousPage() {
+    if (currentPage > 1) {
+      visualizeWaysFromParams(currentPage - 1);
+    }
+  }
+  
+  function goToNextPage() {
+    if (currentPage < totalPages) {
+      visualizeWaysFromParams(currentPage + 1);
+    }
+  }
+  
+  function visualizeNearbyWays(gid) {
+    // Clear inputs
+    document.getElementById('gid-input').value = '';
+    document.getElementById('osm-id-input').value = '';
+    document.getElementById('tags-input').value = '';
+    
+    // Store search params for pagination
+    currentSearchParams = {
+      nearby_gid: gid
+    };
+    currentPage = 1;
+    
+    // Fetch nearby ways
+    const params = new URLSearchParams();
+    params.append('nearby_gid', gid);
+    params.append('page', 1);
+    
+    showMessage('Loading nearby ways...', 'info');
+    
+    fetch('{% url "chicago-ways-geometry" %}?' + params.toString())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.features.length === 0) {
+          showMessage('No nearby ways found', 'error');
+          return;
+        }
+
+        // Remove existing layer if present
+        if (waysLayer) {
+          map.removeLayer(waysLayer);
+        }
+
+        // Create color palette for different ways
+        const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#95a5a6'];
+        
+        // Assign colors to features based on their index
+        let colorIndex = 0;
+        data.features.forEach(feature => {
+          feature.properties._color = colors[colorIndex % colors.length];
+          colorIndex++;
+        });
+        
+        // Find the center way for nearby searches
+        const dataProps = data.properties;
+        let centerWay = null;
+        if (dataProps.search_type === 'nearby') {
+          centerWay = data.features.find(f => f.properties.gid === dataProps.nearby_gid);
+        }
+        
+        // Add new layer
+        waysLayer = L.geoJSON(data, {
+          style: function(feature) {
+            // Give the center way (the one that was clicked) a glow effect
+            if (dataProps.search_type === 'nearby' && feature.properties.gid === dataProps.nearby_gid) {
+              return {
+                color: '#ffff00',
+                weight: 6,
+                opacity: 1,
+                className: 'glow-way'
+              };
+            }
+            return {
+              color: feature.properties._color,
+              weight: 4,
+              opacity: 0.8
+            };
+          },
+          onEachFeature: function(feature, layer) {
+            const featureProps = feature.properties;
+            let popupContent = `
+              <strong>GID:</strong> ${featureProps.gid}<br>
+              <strong>OSM_ID:</strong> ${featureProps.osm_id}<br>
+              <strong>Name:</strong> ${featureProps.name || '(unnamed)'}
+            `;
+            
+            // Add distance if available (for nearby searches)
+            if (featureProps.distance !== null && featureProps.distance !== undefined) {
+              popupContent += `<br><strong>Distance:</strong> ${featureProps.distance}m`;
+            }
+            
+            // Add tags to popup if they exist
+            if (featureProps.tags) {
+              popupContent += '<br><strong>Tags:</strong><br>';
+              const tags = featureProps.tags;
+              const tagLines = [];
+              for (const [key, value] of Object.entries(tags)) {
+                tagLines.push(`&nbsp;&nbsp;${key} = ${value}`);
+              }
+              popupContent += tagLines.join('<br>');
+            }
+            
+            // Add button to show nearby ways
+            popupContent += `<br><br><button class="btn btn-sm btn-primary" onclick="visualizeNearbyWays(${featureProps.gid})">Show nearby ways (100m)</button>`;
+            
+            layer.bindPopup(popupContent);
+          }
+        }).addTo(map);
+
+        // Fit map to show proper area
+        if (dataProps.search_type === 'nearby' && centerWay) {
+          // For nearby searches, zoom to 100m radius around the center way
+          const centerLatLng = L.geoJSON(centerWay).getBounds().getCenter();
+          // 100 meters in degrees is roughly 0.0009 (at mid-latitudes)
+          const radiusInDegrees = 0.0009;
+          const bounds = L.latLngBounds(
+            [centerLatLng.lat - radiusInDegrees, centerLatLng.lng - radiusInDegrees],
+            [centerLatLng.lat + radiusInDegrees, centerLatLng.lng + radiusInDegrees]
+          );
+          map.fitBounds(bounds, { padding: [20, 20] });
+        } else {
+          map.fitBounds(waysLayer.getBounds());
+        }
+
+        // Handle pagination
+        const props = dataProps;
+        totalPages = props.total_pages;
+        
+        // Update pagination info
+        let message = `Showing ${props.showing_count} of ${props.total_count} ways within 100m of GID ${props.nearby_gid}`;
+        if (totalPages > 1) {
+          message += ` - Page ${props.page} of ${totalPages}`;
+        }
+        showMessage(message, 'success');
+        
+        // Show/hide pagination controls
+        if (totalPages > 1) {
+          document.getElementById('pagination-controls').style.display = 'block';
+          document.getElementById('pagination-info').textContent = `Page ${props.page} of ${totalPages}`;
+          
+          // Enable/disable buttons
+          document.getElementById('prev-page-btn').disabled = (props.page <= 1);
+          document.getElementById('next-page-btn').disabled = (props.page >= totalPages);
+        } else {
+          document.getElementById('pagination-controls').style.display = 'none';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error loading nearby ways: ' + error.message, 'error');
+      });
+  }
+  
+  function visualizeWaysFromParams(page) {
+    // Rebuild the search with stored parameters
+    const params = new URLSearchParams();
+    if (currentSearchParams.nearby_gid) {
+      params.append('nearby_gid', currentSearchParams.nearby_gid);
+    } else if (currentSearchParams.gids && currentSearchParams.gids.length > 0) {
+      params.append('gids', currentSearchParams.gids.join(','));
+    }
+    if (currentSearchParams.osm_ids && currentSearchParams.osm_ids.length > 0) {
+      params.append('osm_ids', currentSearchParams.osm_ids.join(','));
+    }
+    if (currentSearchParams.tags) {
+      params.append('tags', currentSearchParams.tags);
+    }
+    params.append('page', page);
+    
+    currentPage = page;
+    
+    // Fetch data from API
+    showMessage('Loading...', 'info');
+    
+    fetch('{% url "chicago-ways-geometry" %}?' + params.toString())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.features.length === 0) {
+          showMessage('No chicago_ways found for the given IDs', 'error');
+          return;
+        }
+
+        // Remove existing layer if present
+        if (waysLayer) {
+          map.removeLayer(waysLayer);
+        }
+
+        // Create color palette for different ways
+        const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#95a5a6'];
+        
+        // Assign colors to features based on their index
+        let colorIndex = 0;
+        data.features.forEach(feature => {
+          feature.properties._color = colors[colorIndex % colors.length];
+          colorIndex++;
+        });
+        
+        // Find the center way for nearby searches
+        const dataProps = data.properties;
+        let centerWay = null;
+        if (dataProps.search_type === 'nearby') {
+          centerWay = data.features.find(f => f.properties.gid === dataProps.nearby_gid);
+        }
+        
+        // Add new layer
+        waysLayer = L.geoJSON(data, {
+          style: function(feature) {
+            // Give the center way (the one that was clicked) a glow effect
+            if (dataProps.search_type === 'nearby' && feature.properties.gid === dataProps.nearby_gid) {
+              return {
+                color: '#ffff00',
+                weight: 6,
+                opacity: 1,
+                className: 'glow-way'
+              };
+            }
+            return {
+              color: feature.properties._color,
+              weight: 4,
+              opacity: 0.8
+            };
+          },
+          onEachFeature: function(feature, layer) {
+            const featureProps = feature.properties;
+            let popupContent = `
+              <strong>GID:</strong> ${featureProps.gid}<br>
+              <strong>OSM_ID:</strong> ${featureProps.osm_id}<br>
+              <strong>Name:</strong> ${featureProps.name || '(unnamed)'}
+            `;
+            
+            // Add distance if available (for nearby searches)
+            if (featureProps.distance !== null && featureProps.distance !== undefined) {
+              popupContent += `<br><strong>Distance:</strong> ${featureProps.distance}m`;
+            }
+            
+            // Add tags to popup if they exist
+            if (featureProps.tags) {
+              popupContent += '<br><strong>Tags:</strong><br>';
+              const tags = featureProps.tags;
+              const tagLines = [];
+              for (const [key, value] of Object.entries(tags)) {
+                tagLines.push(`&nbsp;&nbsp;${key} = ${value}`);
+              }
+              popupContent += tagLines.join('<br>');
+            }
+            
+            // Add button to show nearby ways
+            popupContent += `<br><br><button class="btn btn-sm btn-primary" onclick="visualizeNearbyWays(${featureProps.gid})">Show nearby ways (100m)</button>`;
+            
+            layer.bindPopup(popupContent);
+          }
+        }).addTo(map);
+
+        // Fit map to show proper area
+        if (dataProps.search_type === 'nearby' && centerWay) {
+          // For nearby searches, zoom to 100m radius around the center way
+          const centerLatLng = L.geoJSON(centerWay).getBounds().getCenter();
+          // 100 meters in degrees is roughly 0.0009 (at mid-latitudes)
+          const radiusInDegrees = 0.0009;
+          const bounds = L.latLngBounds(
+            [centerLatLng.lat - radiusInDegrees, centerLatLng.lng - radiusInDegrees],
+            [centerLatLng.lat + radiusInDegrees, centerLatLng.lng + radiusInDegrees]
+          );
+          map.fitBounds(bounds, { padding: [20, 20] });
+        } else {
+          map.fitBounds(waysLayer.getBounds());
+        }
+
+        // Handle pagination
+        const props = dataProps;
+        totalPages = props.total_pages;
+        
+        // Update pagination info
+        const uniqueOsmIds = new Set(data.features.map(f => f.properties.osm_id)).size;
+        let message = '';
+        if (props.search_type === 'nearby') {
+          message = `Showing ${props.showing_count} of ${props.total_count} ways within 100m of GID ${props.nearby_gid}`;
+        } else {
+          message = `Showing ${props.showing_count} of ${props.total_count} chicago_ways row(s) (${uniqueOsmIds} unique OSM_ID(s))`;
+        }
+        if (totalPages > 1) {
+          message += ` - Page ${props.page} of ${totalPages}`;
+        }
+        showMessage(message, 'success');
+        
+        // Update pagination controls
+        document.getElementById('pagination-info').textContent = `Page ${props.page} of ${totalPages}`;
+        document.getElementById('prev-page-btn').disabled = (props.page <= 1);
+        document.getElementById('next-page-btn').disabled = (props.page >= totalPages);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showMessage('Error loading chicago_ways: ' + error.message, 'error');
+      });
+  }
+</script>
+{% endblock %}
+
