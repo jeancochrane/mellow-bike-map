@@ -2,7 +2,7 @@ import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
 import { getUserPreferences, saveUserPreferences } from './storage.js'
-import { directionsList } from './turnbyturn.js'
+import { directionsList, describeUnnamedStreet } from './turnbyturn.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -591,10 +591,10 @@ export default class App {
       // Build the direction text
       let directionText = ''
       if (index === 0) {
-        let streetName = direction.name || 'an unknown street'
+        let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags)
         directionText = `Head ${direction.cardinal} on ${streetName} for ${formatDistance(direction.distance)}`
       } else {
-        let streetName = direction.name || 'an unknown street'
+        let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags)
         directionText = `${direction.maneuver} onto ${streetName} and head ${direction.cardinal} for ${formatDistance(direction.distance)}`
       }
       
@@ -627,7 +627,7 @@ export default class App {
             const osmWaysInfo = formatOsmWaysInfo(chicagoWay.osmData)
             
             // Format the instruction for this chicago_way
-            const chicagoWayName = chicagoWay.name || 'an unknown street'
+            const chicagoWayName = chicagoWay.name || describeUnnamedStreet(chicagoWay.osmData?.osm_tags)
             const instruction = `${chicagoWay.maneuver} ${chicagoWay.cardinal} on ${chicagoWayName} for ${Math.round(chicagoWay.distance)}m`
             
             // Get the feature index for this chicago_way

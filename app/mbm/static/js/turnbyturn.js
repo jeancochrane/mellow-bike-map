@@ -1,6 +1,24 @@
 // This should probably all be moved to python but is a first draft of
 // what turn-by-turn directions will look like
 
+const describeUnnamedStreet = (osmTags) => {
+  if (!osmTags) return 'an unknown street'
+  
+  if (osmTags.highway === 'service' && osmTags.service === 'alley') {
+    return 'an alley'
+  }
+  
+  if (osmTags.footway === 'crossing') {
+    return 'a crosswalk'
+  }
+  
+  if (osmTags.highway === 'footway' && osmTags.footway === 'sidewalk') {
+    return 'a sidewalk'
+  }
+  
+  return 'an unknown street'
+}
+
 const headingToEnglishManeuver = (heading, previousHeading) => {
   const maneuvers = {
     0: { maneuver: "Continue", cardinal: "north" },
@@ -122,7 +140,7 @@ const serializeDirections = (directions) => {
   }
   
   const first = directions.shift()
-  let firstStreetName = first.name || 'an unknown street'
+  let firstStreetName = first.name || describeUnnamedStreet(first.osmData?.osm_tags)
   // Add OSM debug info for unnamed streets
   if (!first.name && first.osmData) {
     firstStreetName += ' ' + formatOsmDebugInfo(first.osmData)
@@ -130,7 +148,7 @@ const serializeDirections = (directions) => {
   lines.push(`Head ${first.cardinal} on ${firstStreetName} for ${Math.round(first.distance)} meters`)
   
   for (const direction of directions) {
-    let streetName = direction.name || 'an unknown street'
+    let streetName = direction.name || describeUnnamedStreet(direction.osmData?.osm_tags)
     // Add OSM debug info for unnamed streets
     if (!direction.name && direction.osmData) {
       streetName += ' ' + formatOsmDebugInfo(direction.osmData)
@@ -143,4 +161,4 @@ const serializeDirections = (directions) => {
   return lines
 }
 
-export { serializeDirections, directionsList }
+export { serializeDirections, directionsList, describeUnnamedStreet }
