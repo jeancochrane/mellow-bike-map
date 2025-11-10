@@ -84,7 +84,8 @@ const directionsList = (features) => {
     // Determine if this is a slight turn that can be collapsed
     const isSlightTurn = (maneuver === 'Turn slightly to the left' || maneuver === 'Turn slightly to the right')
     const sameNamedStreet = effectiveName === previousEffectiveName
-    const shouldCollapseSlightTurn = isSlightTurn && sameNamedStreet
+    const isNamedStreet = !!name  // Only collapse slight turns for actual named streets
+    const shouldCollapseSlightTurn = isSlightTurn && sameNamedStreet && isNamedStreet
     
     // If the street name changed or there's a turn to be made, add a new direction to the list
     // Exception: collapse slight turns on the same named street
