@@ -323,7 +323,7 @@ def healthcheck(request):
     return HttpResponse("")
 
 
-class ChicagoWaysGeometry(APIView):
+class ChicagoWaysGeometry(LoginRequiredMixin, APIView):
     """API endpoint to retrieve chicago_ways geometries by gid, osm_id, or OSM tags."""
     renderer_classes = [JSONRenderer]
 
