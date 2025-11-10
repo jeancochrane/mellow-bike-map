@@ -40,7 +40,7 @@ const headingToEnglishManeuver = (heading, previousHeading) => {
 
 const directionsList = (features) => {
   const directions = []
-  let previousHeading, previousName
+  let previousHeading, previousEffectiveName
   for (let i = 0; i < features.length; i++) {
     const feature = features[i]
     const name = feature.properties.name
@@ -70,14 +70,16 @@ const directionsList = (features) => {
     }
     const direction = { name, distance, maneuver, heading, cardinal, type, osmData, osmDataChicagoWays: [chicagoWay], featureIndices: [i] }
 
+    const effectiveName = name || describeUnnamedStreet(osmData.osm_tags)
+
     // Determine if this is a slight turn that can be collapsed
     const isSlightTurn = (maneuver === 'Turn slightly to the left' || maneuver === 'Turn slightly to the right')
-    const sameNamedStreet = name && previousName && name === previousName
+    const sameNamedStreet = effectiveName === previousEffectiveName
     const shouldCollapseSlightTurn = isSlightTurn && sameNamedStreet
     
     // If the street name changed or there's a turn to be made, add a new direction to the list
     // Exception: collapse slight turns on the same named street
-    const streetNameChanged = previousName && name !== previousName
+    const streetNameChanged = previousEffectiveName && effectiveName !== previousEffectiveName
     const turnRequired = (maneuver !== 'Continue' || !previousHeading) // "Continue"
     if ((streetNameChanged || turnRequired) && !shouldCollapseSlightTurn) {
       directions.push(direction)
@@ -103,7 +105,7 @@ const directionsList = (features) => {
     }
 
     previousHeading = heading
-    previousName = name
+    previousEffectiveName = effectiveName
   }
   return directions
 }
