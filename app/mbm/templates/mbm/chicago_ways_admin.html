@@ -80,7 +80,7 @@
       <div class="tab-content" id="search-tabs-content">
         <div class="tab-pane fade show active" id="by-tag" role="tabpanel" aria-labelledby="by-tag-tab">
           <div class="mt-3">
-            <p>Visualize ways that match all specific OSM tags.</p>
+            <p>Visualize ways that match all specified OSM tags.</p>
             <div class="row">
               <div class="col-12">
                 <div class="form-group">
@@ -331,7 +331,7 @@
             }
             
             // Add button to show nearby ways
-            popupContent += `<br><br><button class="btn btn-sm btn-primary" onclick="visualizeNearbyWays(${featureProps.gid})">Show nearby ways (100m)</button>`;
+            popupContent += `<br><br><button class="btn btn-sm btn-primary" onclick="visualizeNearbyWays(${featureProps.gid})">Show nearby ways</button>`;
             
             layer.bindPopup(popupContent);
           }
