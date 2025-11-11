@@ -1,7 +1,7 @@
 import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
-import { getUserPreferences, saveUserPreferences } from './storage.js'
+import { getUserLocations, getUserPreferences, saveUserPreferences } from './storage.js'
 import { directionsList, describeUnnamedStreet } from './turnbyturn.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
@@ -180,34 +180,44 @@ export default class App {
   // When addresses are provided in the URL, we don't have coordinates returned
   // from Google Maps API as we do when selecting addresses from autocomplete,
   // so we need to geocode the addresses by calling the Google Maps API.
+  // If the address matches a saved location name, use the saved coordinates instead.
   geocodeAddressesAndRunSearch(fromAddress, toAddress) {
     const geocoder = new google.maps.Geocoder()
+    const savedLocations = getUserLocations() || {}
     
-    // Geocode the source address
-    geocoder.geocode({ address: fromAddress }, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        const sourceLat = results[0].geometry.location.lat()
-        const sourceLng = results[0].geometry.location.lng()
-        this.setSourceLocation(sourceLat, sourceLng, fromAddress)
-        
-        // Once source is set, geocode the target
-        geocoder.geocode({ address: toAddress }, (results, status) => {
-          if (status === 'OK' && results[0]) {
-            const targetLat = results[0].geometry.location.lat()
-            const targetLng = results[0].geometry.location.lng()
-            this.setTargetLocation(targetLat, targetLng, toAddress)
-            
-            // Auto-submit the search
-            $('#input-elements').submit()
-          } else {
-            console.error('Geocode failed for target address:', status)
-            alert('Could not find the destination address: ' + toAddress)
-          }
-        })
-      } else {
-        console.error('Geocode failed for source address:', status)
-        alert('Could not find the start address: ' + fromAddress)
+    // Helper function to resolve an address (either from saved locations or geocoding)
+    const resolveAddress = (address, callback) => {
+      // Check if this matches a saved location name
+      if (savedLocations[address]) {
+        const location = savedLocations[address]
+        callback(location.lat, location.lng, address, true)
+        return
       }
+      
+      // Otherwise, geocode it
+      geocoder.geocode({ address: address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const lat = results[0].geometry.location.lat()
+          const lng = results[0].geometry.location.lng()
+          callback(lat, lng, address, false)
+        } else {
+          console.error('Geocode failed for address:', address, status)
+          alert('Could not find the address: ' + address)
+        }
+      })
+    }
+    
+    // Resolve the source address
+    resolveAddress(fromAddress, (sourceLat, sourceLng, sourceAddress, isSaved) => {
+      this.setSourceLocation(sourceLat, sourceLng, sourceAddress)
+      
+      // Once source is set, resolve the target
+      resolveAddress(toAddress, (targetLat, targetLng, targetAddress, isSaved) => {
+        this.setTargetLocation(targetLat, targetLng, targetAddress)
+        
+        // Auto-submit the search
+        $('#input-elements').submit()
+      })
     })
   }
 
