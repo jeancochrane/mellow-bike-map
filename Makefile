@@ -12,7 +12,6 @@ db/import/chicago.table: db/raw/chicago-filtered.osm
 		FROM osm_ways \
 		WHERE osm_ways.osm_id = chicago_ways.osm_id \
 		AND osm_ways.tags @> 'oneway:bicycle => no'" && \
-	PGPASSWORD=postgres psql -U postgres -h postgres -d mbm -f /app/db/label-alleys.sql && \
 	touch $@
 
 db/import/chicago_parks.table: db/chicago_parks.geojson
