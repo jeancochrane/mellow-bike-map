@@ -171,6 +171,35 @@ export default class App {
     if (this.fromAddress && this.toAddress) {
       this.geocodeAddressesAndRunSearch(this.fromAddress, this.toAddress)
     }
+
+    // Position directions container based on screen size
+    this.positionDirectionsContainer()
+    $(window).on('resize', () => {
+      this.positionDirectionsContainer()
+    })
+  }
+
+  positionDirectionsContainer() {
+    const $directionsContainer = $('#directions-container')
+    const $controlsContainer = $('#controls-container')
+    const $mapColumn = $('.col-12.col-md-9')
+    const isMobileScreen = $(window).outerWidth() <= 768
+
+    if ($directionsContainer.length === 0) {
+      return
+    }
+
+    if (isMobileScreen) {
+      // On mobile, move directions below the map
+      if ($directionsContainer.parent()[0] !== $mapColumn[0]) {
+        $mapColumn.append($directionsContainer)
+      }
+    } else {
+      // On desktop, move directions into the sidebar (after the form)
+      if ($directionsContainer.parent()[0] !== $controlsContainer[0]) {
+        $controlsContainer.append($directionsContainer)
+      }
+    }
   }
 
   // When addresses are provided in the URL, we don't have coordinates returned
@@ -750,9 +779,10 @@ export default class App {
         // Highlight the chicago_ways on the map
         this.highlightChicagoWays(direction.featureIndices)
         
-        // Scroll to the map smoothly
+        // Scroll to the map smoothly (only on mobile)
+        const isMobileScreen = $(window).outerWidth() <= 768
         const mapElement = document.getElementById('map')
-        if (mapElement) {
+        if (mapElement && isMobileScreen) {
           mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }
       }
@@ -770,9 +800,10 @@ export default class App {
       if (chicagoWayIndex !== undefined) {
         this.highlightChicagoWays([chicagoWayIndex])
         
-        // Scroll to the map smoothly
+        // Scroll to the map smoothly (only on mobile)
+        const isMobileScreen = $(window).outerWidth() <= 768
         const mapElement = document.getElementById('map')
-        if (mapElement) {
+        if (mapElement && isMobileScreen) {
           mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }
         return
@@ -788,9 +819,10 @@ export default class App {
         .done((data) => {
           this.highlightOsmWay(data)
           
-          // Scroll to the map smoothly
+          // Scroll to the map smoothly (only on mobile)
+          const isMobileScreen = $(window).outerWidth() <= 768
           const mapElement = document.getElementById('map')
-          if (mapElement) {
+          if (mapElement && isMobileScreen) {
             mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }
         })
@@ -802,6 +834,9 @@ export default class App {
     
     // Show the directions container
     $directionsContainer.show()
+    
+    // Reposition the container based on screen size
+    this.positionDirectionsContainer()
   }
 
   hideDirections() {

@@ -33,6 +33,26 @@ a {
     width: 100%;
 }
 
+/* Make controls-container scrollable on desktop */
+@media (min-width: 768px) {
+    #controls-container {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        max-height: calc(100vh - 60px); /* Adjust based on navbar height */
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    /* Ensure form container stays at top */
+    #controls-container > .container-fluid {
+        flex-shrink: 0;
+        margin: 0 !important; /* Override m-auto class to prevent centering */
+        align-self: flex-start;
+    }
+}
+
 .info {
   padding: 6px 8px;
   background: white;
@@ -117,14 +137,10 @@ a {
   }
 }
 
+/* Directions container styling - positioned by JavaScript based on screen size */
 #directions-container {
   margin-top: 15px;
   padding: 15px;
-  background: white;
-  background: rgba(255,255,255,0.95);
-  box-shadow: 0 0 15px rgba(0,0,0,0.2);
-  border-radius: 5px;
-  border-left: 4px solid #000000;
 }
 
 #directions-container h5 {
