@@ -760,30 +760,56 @@ export default class App {
       const direction = directions[directionIndex]
       
       if (direction && direction.featureIndices) {
-        // Remove selected class and styles from all direction items
-        $('.direction-item').removeClass('selected').css({
-          'background-color': '',
-          'border-left-color': ''
-        })
+        // Check if this item is already selected
+        const isAlreadySelected = $clickedItem.hasClass('selected')
         
-        // Get the color for this direction
-        const color = $clickedItem.data('color')
-        const lightColor = this.getLightColor(color)
-        
-        // Add selected class and color-based styles to the clicked item
-        $clickedItem.addClass('selected').css({
-          'background-color': lightColor,
-          'border-left-color': color
-        })
-        
-        // Highlight the chicago_ways on the map
-        this.highlightChicagoWays(direction.featureIndices)
-        
-        // Scroll to the map smoothly (only on mobile)
-        const isMobileScreen = $(window).outerWidth() <= 768
-        const mapElement = document.getElementById('map')
-        if (mapElement && isMobileScreen) {
-          mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        if (isAlreadySelected) {
+          // Unhighlight: remove selected class and styles, remove highlight layers, show full route
+          $clickedItem.removeClass('selected').css({
+            'background-color': '',
+            'border-left-color': ''
+          })
+          
+          // Remove highlight layers
+          if (this.highlightLayer) {
+            this.map.removeLayer(this.highlightLayer)
+            this.highlightLayer = null
+          }
+          if (this.highlightGlowLayer) {
+            this.map.removeLayer(this.highlightGlowLayer)
+            this.highlightGlowLayer = null
+          }
+          
+          // Fit map to show the full route
+          if (this.routeLayer) {
+            this.map.fitBounds(this.routeLayer.getBounds())
+          }
+        } else {
+          // Remove selected class and styles from all direction items
+          $('.direction-item').removeClass('selected').css({
+            'background-color': '',
+            'border-left-color': ''
+          })
+          
+          // Get the color for this direction
+          const color = $clickedItem.data('color')
+          const lightColor = this.getLightColor(color)
+          
+          // Add selected class and color-based styles to the clicked item
+          $clickedItem.addClass('selected').css({
+            'background-color': lightColor,
+            'border-left-color': color
+          })
+          
+          // Highlight the chicago_ways on the map
+          this.highlightChicagoWays(direction.featureIndices)
+          
+          // Scroll to the map smoothly (only on mobile)
+          const isMobileScreen = $(window).outerWidth() <= 768
+          const mapElement = document.getElementById('map')
+          if (mapElement && isMobileScreen) {
+            mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
         }
       }
     })
