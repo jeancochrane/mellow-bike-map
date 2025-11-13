@@ -308,6 +308,13 @@
           },
           onEachFeature: function(feature, layer) {
             const featureProps = feature.properties;
+            // Get center coordinates from the feature geometry
+            const featureGeoJSON = L.geoJSON(feature);
+            const center = featureGeoJSON.getBounds().getCenter();
+            const lat = center.lat.toFixed(6);
+            const lng = center.lng.toFixed(6);
+            const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            
             let popupContent = `
               <strong>GID:</strong> ${featureProps.gid}<br>
               <strong>OSM_ID:</strong> ${featureProps.osm_id}<br>
@@ -329,6 +336,9 @@
               }
               popupContent += tagLines.join('<br>');
             }
+            
+            // Add Google Maps link
+            popupContent += `<br><br><a href="${googleMapsUrl}" target="_blank" class="btn btn-sm btn-secondary">View on Google Maps</a>`;
             
             // Add button to show nearby ways
             popupContent += `<br><br><button class="btn btn-sm btn-primary" onclick="visualizeNearbyWays(${featureProps.gid})">Show nearby ways</button>`;
@@ -498,6 +508,13 @@
           },
           onEachFeature: function(feature, layer) {
             const featureProps = feature.properties;
+            // Get center coordinates from the feature geometry
+            const featureGeoJSON = L.geoJSON(feature);
+            const center = featureGeoJSON.getBounds().getCenter();
+            const lat = center.lat.toFixed(6);
+            const lng = center.lng.toFixed(6);
+            const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            
             let popupContent = `
               <strong>GID:</strong> ${featureProps.gid}<br>
               <strong>OSM_ID:</strong> ${featureProps.osm_id}<br>
@@ -519,6 +536,9 @@
               }
               popupContent += tagLines.join('<br>');
             }
+            
+            // Add Google Maps link
+            popupContent += `<br><br><a href="${googleMapsUrl}" target="_blank" class="btn btn-sm btn-secondary">View on Google Maps</a>`;
             
             // Add button to show nearby ways
             popupContent += `<br><br><button class="btn btn-sm btn-primary" onclick="visualizeNearbyWays(${featureProps.gid})">Show nearby ways (100m)</button>`;
@@ -647,6 +667,13 @@
           },
           onEachFeature: function(feature, layer) {
             const featureProps = feature.properties;
+            // Get center coordinates from the feature geometry
+            const featureGeoJSON = L.geoJSON(feature);
+            const center = featureGeoJSON.getBounds().getCenter();
+            const lat = center.lat.toFixed(6);
+            const lng = center.lng.toFixed(6);
+            const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            
             let popupContent = `
               <strong>GID:</strong> ${featureProps.gid}<br>
               <strong>OSM_ID:</strong> ${featureProps.osm_id}<br>
@@ -668,6 +695,9 @@
               }
               popupContent += tagLines.join('<br>');
             }
+            
+            // Add Google Maps link
+            popupContent += `<br><br><a href="${googleMapsUrl}" target="_blank" class="btn btn-sm btn-secondary">View on Google Maps</a>`;
             
             // Add button to show nearby ways
             popupContent += `<br><br><button class="btn btn-sm btn-primary" onclick="visualizeNearbyWays(${featureProps.gid})">Show nearby ways (100m)</button>`;
