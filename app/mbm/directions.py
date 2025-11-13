@@ -17,7 +17,7 @@ class RouteProperties(TypedDict, total=False):
 
 class GeoJSONFeature(TypedDict):
     type: Literal["Feature"]
-    geometry: Dict[str, Any]  # or a more specific TypedDict/Union later
+    geometry: Dict[str, Any]
     properties: RouteProperties
 
 def nearest_45(x: float) -> int:
@@ -56,7 +56,7 @@ def heading_to_english_maneuver(
     heading: float, 
     previous_heading: Optional[float]
 ) -> Dict[str, str]:
-    maneuvers = {
+    degrees = {
         0: {'maneuver': 'Continue', 'cardinal': 'north'},
         45: {'maneuver': 'Turn slightly to the right', 'cardinal': 'northeast'},
         90: {'maneuver': 'Turn right', 'cardinal': 'east'},
@@ -69,11 +69,11 @@ def heading_to_english_maneuver(
     
     if previous_heading is not None:
         angle = nearest_45(((heading - previous_heading) + 360) % 360)
-        maneuver = maneuvers.get(angle, {}).get('maneuver', 'Continue')
+        maneuver = degrees.get(angle, {}).get('maneuver', 'Continue')
     else:
         maneuver = 'Continue'
     
-    cardinal = maneuvers.get(nearest_45(heading), {}).get('cardinal', 'north')
+    cardinal = degrees.get(nearest_45(heading), {}).get('cardinal', 'north')
     
     return {'maneuver': maneuver, 'cardinal': cardinal}
 
