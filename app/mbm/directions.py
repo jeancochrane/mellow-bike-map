@@ -61,6 +61,60 @@ def heading_to_english_maneuver(
     return {'maneuver': maneuver, 'cardinal': cardinal}
 
 
+def _should_merge_segment(
+    maneuver: str,
+    effective_name: str,
+    previous_effective_name: Optional[str],
+    name: Optional[str],
+    previous_heading: Optional[float]
+) -> bool:
+    # Determine if this is a slight turn that can be collapsed
+    is_slight_turn = (maneuver == 'Turn slightly to the left' or 
+                     maneuver == 'Turn slightly to the right')
+    same_named_street = effective_name == previous_effective_name
+    is_named_street = bool(name)  # Only collapse slight turns for actual named streets
+    should_collapse_slight_turn = is_slight_turn and same_named_street and is_named_street
+    
+    # If the street name changed or there's a turn to be made, add a new direction to the list
+    # Exception: collapse slight turns on the same named street
+    street_name_changed = bool(previous_effective_name and effective_name != previous_effective_name)
+    turn_required = (maneuver != 'Continue' or previous_heading is None)
+    
+    # Collapse if it's NOT the case that (name changed or turn required) AND it's not a slight turn to collapse
+    return not ((street_name_changed or turn_required) and not should_collapse_slight_turn)
+
+
+def _merge_with_previous_direction(
+    directions: List[Dict[str, Any]],
+    distance: float,
+    chicago_way: Dict[str, Any],
+    feature_index: int,
+    name: Optional[str],
+    effective_name: str,
+    osm_data: Dict[str, Any]
+) -> None:
+    if not directions:
+        return
+    
+    # Add distance to previous direction
+    directions[-1]['distance'] += distance
+    # Add this chicago_way's data to the array
+    directions[-1]['osmDataChicagoWays'].append(chicago_way)
+    # Track the feature index
+    directions[-1]['featureIndices'].append(feature_index)
+    
+    # Sometimes only some chicago_ways of a street are named, so check if the
+    # previous chicago_way is named and backfill the name if not
+    if name and not directions[-1]['name']:
+        directions[-1]['name'] = name
+        directions[-1]['effectiveName'] = effective_name
+    
+    # For unnamed streets, preserve OSM data from the current chicago_way if previous doesn't have a name
+    if not name and osm_data and not directions[-1]['name']:
+        directions[-1]['osmData'] = osm_data
+        directions[-1]['effectiveName'] = effective_name
+
+
 def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     directions = []
     previous_heading = None
@@ -73,7 +127,6 @@ def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         distance = props.get('distance', 0)
         route_type = props.get('type')
         
-        # Include OSM debugging data
         osm_data = {
             'osm_id': props.get('osm_id'),
             'tag_id': props.get('tag_id'),
@@ -91,22 +144,20 @@ def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         maneuver = maneuver_info['maneuver']
         cardinal = maneuver_info['cardinal']
         
-        # Calculate effective name (includes description for unnamed streets)
         effective_name = name or describe_unnamed_street(osm_data.get('osm_tags'), osm_data.get('park_name'))
         
-        # Create chicago_way object with instruction info
         chicago_way = {
             'osmData': osm_data,
             'maneuver': maneuver,
             'cardinal': cardinal,
             'distance': distance,
             'name': name,
-            'effectiveName': effective_name,  # Includes description for unnamed streets
+            'effectiveName': effective_name,
         }
         
         direction = {
             'name': name,
-            'effectiveName': effective_name,  # Includes description for unnamed streets
+            'effectiveName': effective_name,
             'distance': distance,
             'maneuver': maneuver,
             'heading': heading,
@@ -117,39 +168,12 @@ def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             'featureIndices': [i],
         }
         
-        # Determine if this is a slight turn that can be collapsed
-        is_slight_turn: bool = (maneuver == 'Turn slightly to the left' or 
-                               maneuver == 'Turn slightly to the right')
-        same_named_street: bool = effective_name == previous_effective_name
-        is_named_street: bool = bool(name)  # Only collapse slight turns for actual named streets
-        should_collapse_slight_turn: bool = is_slight_turn and same_named_street and is_named_street
-        
-        # If the street name changed or there's a turn to be made, add a new direction to the list
-        # Exception: collapse slight turns on the same named street
-        street_name_changed: bool = bool(previous_effective_name and effective_name != previous_effective_name)
-        turn_required: bool = (maneuver != 'Continue' or previous_heading is None)
-        
-        if (street_name_changed or turn_required) and not should_collapse_slight_turn:
-            directions.append(direction)
+        if _should_merge_segment(maneuver, effective_name, previous_effective_name, name, previous_heading):
+            _merge_with_previous_direction(
+                directions, distance, chicago_way, i, name, effective_name, osm_data
+            )
         else:
-            # Otherwise this is just a quirk of our data and the line segments should be combined
-            if directions:
-                directions[-1]['distance'] += distance
-                # Add this chicago_way's data to the array
-                directions[-1]['osmDataChicagoWays'].append(chicago_way)
-                # Track the feature index
-                directions[-1]['featureIndices'].append(i)
-            
-            # Sometimes only some chicago_ways of a street are named, so check if the
-            # previous chicago_way is named and backfill the name if not
-            if name and directions and not directions[-1]['name']:
-                directions[-1]['name'] = name
-                directions[-1]['effectiveName'] = effective_name
-            
-            # For unnamed streets, preserve OSM data from the current chicago_way if previous doesn't have a name
-            if not name and osm_data and directions and not directions[-1]['name']:
-                directions[-1]['osmData'] = osm_data
-                directions[-1]['effectiveName'] = effective_name
+            directions.append(direction)
         
         previous_heading = heading
         previous_effective_name = effective_name
