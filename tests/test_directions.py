@@ -3,7 +3,8 @@ from typing import List
 import pytest
 from mbm.directions import (
     Direction,
-    heading_to_english_maneuver,
+    directions_list,
+    _heading_to_english_maneuver,
     _should_merge_segments,
     _merge_with_previous_direction,
 )
@@ -11,20 +12,20 @@ from mbm.directions import (
 
 class TestHeadingToEnglishManeuver:
     def test_no_previous_heading_returns_continue_with_cardinal(self):
-        result = heading_to_english_maneuver(heading=90.0, previous_heading=None)
+        result = _heading_to_english_maneuver(heading=90.0, previous_heading=None)
         assert result == {'maneuver': 'Continue', 'cardinal': 'east'}
 
     def test_slight_right_when_heading_changes_small_amount(self):
-        result = heading_to_english_maneuver(heading=30.0, previous_heading=0.0)
+        result = _heading_to_english_maneuver(heading=30.0, previous_heading=0.0)
         assert result['maneuver'] == 'Turn slightly to the right'
         assert result['cardinal'] == 'northeast'
 
     def test_cardinal_rounds_to_nearest_direction(self):
-        result = heading_to_english_maneuver(heading=268.0, previous_heading=180.0)
+        result = _heading_to_english_maneuver(heading=268.0, previous_heading=180.0)
         assert result['cardinal'] == 'west'
 
     def test_wraparound_angle_keeps_continue(self):
-        result = heading_to_english_maneuver(heading=10.0, previous_heading=350.0)
+        result = _heading_to_english_maneuver(heading=10.0, previous_heading=350.0)
         assert result['maneuver'] == 'Continue'
         assert result['cardinal'] == 'north'
 
@@ -444,3 +445,74 @@ class TestMergeWithPreviousDirection:
 
         assert directions[0]['osmData'] == original_osm_data
         assert directions[0]['effectiveName'] == 'Main Street'
+
+
+class TestDirectionsList:
+    def test_directions_list(self):
+        features = [
+            {
+                'type': 'Feature',
+                'geometry': {},
+                'properties': {
+                    'name': 'Main Street',
+                    'type': 'route',
+                    'distance': 100.0,
+                    'heading': 0.0,
+                    'gid': 11,
+                },
+            },
+            {
+                'type': 'Feature',
+                'geometry': {},
+                'properties': {
+                    'name': 'Main Street',
+                    'type': 'route',
+                    'distance': 200.0,
+                    'heading': 30.0,
+                    'gid': 12,
+                },
+            },
+            {
+                'type': 'Feature',
+                'geometry': {},
+                'properties': {
+                    'name': 'Oak Avenue',
+                    'type': 'route',
+                    'distance': 50.0,
+                    'heading': 90.0,
+                    'gid': 13,
+                },
+            },
+            {
+                'type': 'Feature',
+                'geometry': {},
+                'properties': {
+                    'name': 'Oak Avenue',
+                    'type': 'route',
+                    'distance': 50.0,
+                    'heading': 95.0,
+                    'gid': 14,
+                },
+            },
+        ]
+
+        directions = directions_list(features)
+
+        assert len(directions) == 2
+
+        first_direction = directions[0]
+        assert first_direction['distance'] == 300.0
+        assert first_direction['featureIndices'] == [0, 1]
+        first_segment_indices = [
+            segment['featureIndex'] for segment in first_direction['directionSegments']
+        ]
+        assert first_segment_indices == [0, 1]
+        assert first_direction['directionSegments'][1]['maneuver'] == 'Turn slightly to the right'
+
+        second_direction = directions[1]
+        assert second_direction['distance'] == 100.0
+        assert second_direction['featureIndices'] == [2, 3]
+        second_segment_indices = [
+            segment['featureIndex'] for segment in second_direction['directionSegments']
+        ]
+        assert second_segment_indices == [2, 3]

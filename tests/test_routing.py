@@ -1,5 +1,5 @@
 import pytest
-from mbm import views
+from mbm.routing import _format_distance
 
 
 @pytest.mark.parametrize('dist_in_meters,expected', [
@@ -9,8 +9,7 @@ from mbm import views
     (1609, ('1.0 miles', '6 minutes'))
 ])
 def test_format_distance(dist_in_meters, expected):
-    route = views.Route()
-    distance, time = route.format_distance(dist_in_meters)
+    distance, time = _format_distance(dist_in_meters)
     expected_dist, expected_time = expected
     assert distance == expected_dist
     assert time == expected_time

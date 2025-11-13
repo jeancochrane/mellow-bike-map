@@ -1,25 +1,5 @@
-from typing import TypedDict, Literal, Dict, List, Optional, Any
-
-class RouteProperties(TypedDict, total=False):
-    name: str
-    type: str
-    distance: float
-    heading: float
-    gid: int
-    osm_id: int
-    tag_id: int
-    oneway: str
-    rule: str
-    priority: int
-    maxspeed_forward: int
-    maxspeed_backward: int
-    osm_tags: Dict[str, str]
-    park_name: str
-
-class GeoJSONFeature(TypedDict):
-    type: Literal["Feature"]
-    geometry: Dict[str, Any]
-    properties: RouteProperties
+from typing import TypedDict, Dict, List, Optional, Any
+from mbm.types import GeoJSONFeature, RouteProperties
 
 class DirectionSegment(TypedDict):
     gid: Optional[int]
@@ -43,11 +23,79 @@ class Direction(TypedDict):
     osmData: Dict[str, Any]
     featureIndices: List[int]
 
-def nearest_45(x: float) -> int:
+def directions_list(features: List[GeoJSONFeature]) -> List[Direction]:
+    directions: List[Direction] = []
+    previous_heading = None
+    previous_effective_name = None
+    
+    for i, feature in enumerate(features):
+        props: RouteProperties = feature['properties']
+        name = props.get('name')
+        heading: float = props.get('heading', 0.0) or 0.0
+        distance: float = props.get('distance', 0)
+        route_type: Optional[str] = props.get('type')
+        osm_tags: Optional[Dict[str, str]] = props.get('osm_tags')
+        park_name: Optional[str] = props.get('park_name')
+        
+        osm_data = {
+            'gid': props.get('gid'),
+            'osm_id': props.get('osm_id'),
+            'tag_id': props.get('tag_id'),
+            'oneway': props.get('oneway'),
+            'rule': props.get('rule'),
+            'priority': props.get('priority'),
+            'maxspeed_forward': props.get('maxspeed_forward'),
+            'maxspeed_backward': props.get('maxspeed_backward'),
+            'length_m': distance,
+            'osm_tags': osm_tags,
+            'park_name': park_name,
+        }
+        
+        maneuver_info = _heading_to_english_maneuver(heading, previous_heading)
+        maneuver = maneuver_info['maneuver']
+        cardinal = maneuver_info['cardinal']
+        
+        effective_name = name or _describe_unnamed_street(osm_tags, park_name)
+        
+        direction_segment: DirectionSegment = {
+            'gid': props.get('gid'),
+            'osmData': osm_data,
+            'maneuver': maneuver,
+            'cardinal': cardinal,
+            'distance': distance,
+            'name': name,
+            'effectiveName': effective_name,
+            'featureIndex': i,
+        }
+        
+        direction: Direction = {
+            'directionSegments': [direction_segment],
+            'name': name,
+            'effectiveName': effective_name,
+            'distance': distance,
+            'maneuver': maneuver,
+            'heading': heading,
+            'cardinal': cardinal,
+            'type': props.get('type'),
+            'osmData': osm_data,
+            'featureIndices': [i],
+        }
+        
+        if _should_merge_segments(maneuver, effective_name, previous_effective_name, name):
+            _merge_with_previous_direction(directions, direction_segment)
+        else:
+            directions.append(direction)
+        
+        previous_heading = heading
+        previous_effective_name = effective_name
+    
+    return directions
+
+def _nearest_45(x: float) -> int:
     """Round an angle to the nearest 45-degree increment (0-360)."""
     return (round(x / 45) * 45) % 360
 
-def describe_unnamed_street(
+def _describe_unnamed_street(
     osm_tags: Optional[Dict[str, str]], 
     park_name: Optional[str]
 ) -> str:
@@ -75,7 +123,7 @@ def describe_unnamed_street(
     return description
 
 
-def heading_to_english_maneuver(
+def _heading_to_english_maneuver(
     heading: float, 
     previous_heading: Optional[float]
 ) -> Dict[str, str]:
@@ -91,12 +139,12 @@ def heading_to_english_maneuver(
     }
     
     if previous_heading is not None:
-        angle = nearest_45(((heading - previous_heading) + 360) % 360)
+        angle = _nearest_45(((heading - previous_heading) + 360) % 360)
         maneuver = degrees.get(angle, {}).get('maneuver', 'Continue')
     else:
         maneuver = 'Continue'
     
-    cardinal = degrees.get(nearest_45(heading), {}).get('cardinal', 'north')
+    cardinal = degrees.get(_nearest_45(heading), {}).get('cardinal', 'north')
     
     return {'maneuver': maneuver, 'cardinal': cardinal}
 
@@ -148,71 +196,3 @@ def _merge_with_previous_direction(
         previous_direction['osmData'] = osm_data
         previous_direction['effectiveName'] = effective_name
 
-
-def directions_list(features: List[GeoJSONFeature]) -> List[Direction]:
-    directions: List[Direction] = []
-    previous_heading = None
-    previous_effective_name = None
-    
-    for i, feature in enumerate(features):
-        props: RouteProperties = feature['properties']
-        name = props.get('name')
-        heading: float = props.get('heading', 0.0) or 0.0
-        distance: float = props.get('distance', 0)
-        route_type: Optional[str] = props.get('type')
-        osm_tags: Optional[Dict[str, str]] = props.get('osm_tags')
-        park_name: Optional[str] = props.get('park_name')
-        
-        osm_data = {
-            'gid': props.get('gid'),
-            'osm_id': props.get('osm_id'),
-            'tag_id': props.get('tag_id'),
-            'oneway': props.get('oneway'),
-            'rule': props.get('rule'),
-            'priority': props.get('priority'),
-            'maxspeed_forward': props.get('maxspeed_forward'),
-            'maxspeed_backward': props.get('maxspeed_backward'),
-            'length_m': distance,
-            'osm_tags': osm_tags,
-            'park_name': park_name,
-        }
-        
-        maneuver_info = heading_to_english_maneuver(heading, previous_heading)
-        maneuver = maneuver_info['maneuver']
-        cardinal = maneuver_info['cardinal']
-        
-        effective_name = name or describe_unnamed_street(osm_tags, park_name)
-        
-        direction_segment: DirectionSegment = {
-            'gid': props.get('gid'),
-            'osmData': osm_data,
-            'maneuver': maneuver,
-            'cardinal': cardinal,
-            'distance': distance,
-            'name': name,
-            'effectiveName': effective_name,
-            'featureIndex': i,
-        }
-        
-        direction: Direction = {
-            'directionSegments': [direction_segment],
-            'name': name,
-            'effectiveName': effective_name,
-            'distance': distance,
-            'maneuver': maneuver,
-            'heading': heading,
-            'cardinal': cardinal,
-            'type': props.get('type'),
-            'osmData': osm_data,
-            'featureIndices': [i],
-        }
-        
-        if _should_merge_segments(maneuver, effective_name, previous_effective_name, name):
-            _merge_with_previous_direction(directions, direction_segment)
-        else:
-            directions.append(direction)
-        
-        previous_heading = heading
-        previous_effective_name = effective_name
-    
-    return directions
