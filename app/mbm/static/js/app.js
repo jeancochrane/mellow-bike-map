@@ -902,6 +902,13 @@ export default class App {
           color: color,
           opacity: 0.3
         }
+      },
+      onEachFeature: function (feature, layer) {
+        // Bind popup to allow tooltips on highlighted segments
+        layer.bindPopup(
+          `<strong>Name:</strong> ${feature.properties.name}<br>` +
+          `<strong>Type:</strong> ${feature.properties.type ? feature.properties.type : 'non-mellow street'}`
+        )
       }
     }).addTo(this.map)
     
@@ -914,6 +921,13 @@ export default class App {
           color: color,
           opacity: 1
         }
+      },
+      onEachFeature: function (feature, layer) {
+        // Bind popup to allow tooltips on highlighted segments
+        layer.bindPopup(
+          `<strong>Name:</strong> ${feature.properties.name}<br>` +
+          `<strong>Type:</strong> ${feature.properties.type ? feature.properties.type : 'non-mellow street'}`
+        )
       }
     }).addTo(this.map)
 
