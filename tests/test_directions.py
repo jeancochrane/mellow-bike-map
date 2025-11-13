@@ -32,8 +32,7 @@ class TestShouldMergeSegments:
             maneuver='Turn slightly to the right',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name='Main Street',
-            name='Main Street',
-            previous_heading=0.0
+            name='Main Street'
         )
         assert result is True
     
@@ -42,8 +41,7 @@ class TestShouldMergeSegments:
             maneuver='Turn slightly to the left',
             new_segment_effective_name='Oak Avenue',
             previous_segment_effective_name='Oak Avenue',
-            name='Oak Avenue',
-            previous_heading=90.0
+            name='Oak Avenue'
         )
         assert result is True
     
@@ -52,8 +50,7 @@ class TestShouldMergeSegments:
             maneuver='Turn slightly to the right',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name='Oak Avenue',
-            name='Main Street',
-            previous_heading=0.0
+            name='Main Street'
         )
         assert result is False
     
@@ -62,8 +59,7 @@ class TestShouldMergeSegments:
             maneuver='Turn slightly to the right',
             new_segment_effective_name='an unknown street',
             previous_segment_effective_name='an unknown street',
-            name=None,
-            previous_heading=0.0
+            name=None
         )
         assert result is False
     
@@ -72,8 +68,7 @@ class TestShouldMergeSegments:
             maneuver='Continue',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name='Main Street',
-            name='Main Street',
-            previous_heading=0.0
+            name='Main Street'
         )
         assert result is True
     
@@ -82,8 +77,7 @@ class TestShouldMergeSegments:
             maneuver='Continue',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name='Oak Avenue',
-            name='Main Street',
-            previous_heading=0.0
+            name='Main Street'
         )
         assert result is False
     
@@ -92,8 +86,7 @@ class TestShouldMergeSegments:
             maneuver='Turn right',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name='Main Street',
-            name='Main Street',
-            previous_heading=0.0
+            name='Main Street'
         )
         assert result is False
     
@@ -102,8 +95,7 @@ class TestShouldMergeSegments:
             maneuver='Turn left',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name='Main Street',
-            name='Main Street',
-            previous_heading=0.0
+            name='Main Street'
         )
         assert result is False
     
@@ -112,8 +104,7 @@ class TestShouldMergeSegments:
             maneuver='Take a sharp right turn',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name='Main Street',
-            name='Main Street',
-            previous_heading=0.0
+            name='Main Street'
         )
         assert result is False
     
@@ -122,8 +113,7 @@ class TestShouldMergeSegments:
             maneuver='Turn around',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name='Main Street',
-            name='Main Street',
-            previous_heading=0.0
+            name='Main Street'
         )
         assert result is False
     
@@ -132,8 +122,7 @@ class TestShouldMergeSegments:
             maneuver='Continue',
             new_segment_effective_name='Oak Avenue',
             previous_segment_effective_name='Main Street',
-            name='Oak Avenue',
-            previous_heading=0.0
+            name='Oak Avenue'
         )
         assert result is False
     
@@ -142,8 +131,7 @@ class TestShouldMergeSegments:
             maneuver='Continue',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name=None,
-            name='Main Street',
-            previous_heading=None
+            name='Main Street'
         )
         assert result is False
     
@@ -152,8 +140,7 @@ class TestShouldMergeSegments:
             maneuver='Turn slightly to the right',
             new_segment_effective_name='an unknown street',
             previous_segment_effective_name='an unknown street',
-            name=None,
-            previous_heading=0.0
+            name=None
         )
         assert result is False
     
@@ -162,8 +149,7 @@ class TestShouldMergeSegments:
             maneuver='Turn slightly to the right',
             new_segment_effective_name='an unknown street',
             previous_segment_effective_name='an alley',
-            name=None,
-            previous_heading=0.0
+            name=None
         )
         assert result is False
     
@@ -172,8 +158,7 @@ class TestShouldMergeSegments:
             maneuver='Continue',
             new_segment_effective_name='an unknown street',
             previous_segment_effective_name='an unknown street',
-            name=None,
-            previous_heading=0.0
+            name=None
         )
         assert result is True
     
@@ -182,8 +167,7 @@ class TestShouldMergeSegments:
             maneuver='Turn slightly to the right',
             new_segment_effective_name='Main Street',
             previous_segment_effective_name=None,
-            name='Main Street',
-            previous_heading=None
+            name='Main Street'
         )
         assert result is False
 
@@ -471,4 +455,3 @@ class TestMergeWithPreviousDirection:
         # OSM data should not be updated when previous has a name
         assert directions[0]['osmData'] == original_osm_data
         assert directions[0]['effectiveName'] == 'Main Street'
-
