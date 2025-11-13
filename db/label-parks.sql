@@ -25,8 +25,12 @@ FROM (
     SELECT 
         cp.park,
         cp.wkb_geometry,
-        -- Remove everything in parentheses, convert to title case, and add " Park"
-        INITCAP(TRIM(REGEXP_REPLACE(cp.park, '\s*\([^)]*\)', '', 'g'))) || ' Park' as humanized_name
+        -- Remove everything in parentheses, convert to title case, and add " Park" to the end of the name if not already present. Will be present for park names like "PARK NO. 399", will not be for the majority of parks, like "MAPLEWOOD".
+        CASE 
+            WHEN UPPER(TRIM(REGEXP_REPLACE(cp.park, '\s*\([^)]*\)', '', 'g'))) LIKE '%PARK%' 
+            THEN INITCAP(TRIM(REGEXP_REPLACE(cp.park, '\s*\([^)]*\)', '', 'g')))
+            ELSE INITCAP(TRIM(REGEXP_REPLACE(cp.park, '\s*\([^)]*\)', '', 'g'))) || ' Park'
+        END as humanized_name
     FROM chicago_parks cp
     WHERE cp.park IS NOT NULL AND cp.park != ''
 ) AS parks
