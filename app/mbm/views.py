@@ -14,6 +14,7 @@ from rest_framework.exceptions import ParseError
 
 from mbm import forms
 from mbm.models import MellowRoute, fetchall
+from mbm.directions import directions_list
 
 
 # osm2pgrouting tag IDs for indexing specific types of streets. For docs, see:
@@ -192,35 +193,42 @@ class Route(APIView):
         dist_in_meters = sum(row['length_m'] for row in rows)
         distance, time = self.format_distance(dist_in_meters)
 
+        # Build features list
+        features = [
+            {
+                'type': 'Feature',
+                'geometry': json.loads(row['geometry']),
+                'properties': {
+                    'name': row['name'],
+                    'type': row['type'],
+                    'distance': row['length_m'],
+                    'heading': row['heading'],
+                    # OSM debugging data
+                    'osm_id': row['osm_id'],
+                    'tag_id': row['tag_id'],
+                    'oneway': row['oneway'],
+                    'rule': row['rule'],
+                    'priority': row['priority'],
+                    'maxspeed_forward': row['maxspeed_forward'],
+                    'maxspeed_backward': row['maxspeed_backward'],
+                    'osm_tags': row['tags'],
+                    'park_name': row['park_name'],
+                }
+            }
+            for row in rows
+        ]
+
+        # Generate turn-by-turn directions
+        directions = directions_list(features)
+
         return {
             'type': 'FeatureCollection',
             'properties': {
                 'distance': distance,
                 'time': time,
             },
-            'features': [
-                {
-                    'type': 'Feature',
-                    'geometry': json.loads(row['geometry']),
-                    'properties': {
-                        'name': row['name'],
-                        'type': row['type'],
-                        'distance': row['length_m'],
-                        'heading': row['heading'],
-                        # OSM debugging data
-                        'osm_id': row['osm_id'],
-                        'tag_id': row['tag_id'],
-                        'oneway': row['oneway'],
-                        'rule': row['rule'],
-                        'priority': row['priority'],
-                        'maxspeed_forward': row['maxspeed_forward'],
-                        'maxspeed_backward': row['maxspeed_backward'],
-                        'osm_tags': row['tags'],
-                        'park_name': row['park_name'],
-                    }
-                }
-                for row in rows
-            ]
+            'features': features,
+            'directions': directions,
         }
 
     def format_distance(self, dist_in_meters):
