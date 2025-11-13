@@ -1,5 +1,29 @@
 import pytest
-from mbm.directions import _should_merge_segments, _merge_with_previous_direction
+from mbm.directions import (
+    heading_to_english_maneuver,
+    _should_merge_segments,
+    _merge_with_previous_direction,
+)
+
+
+class TestHeadingToEnglishManeuver:
+    def test_no_previous_heading_returns_continue_with_cardinal(self):
+        result = heading_to_english_maneuver(heading=90.0, previous_heading=None)
+        assert result == {'maneuver': 'Continue', 'cardinal': 'east'}
+
+    def test_slight_right_when_heading_changes_small_amount(self):
+        result = heading_to_english_maneuver(heading=30.0, previous_heading=0.0)
+        assert result['maneuver'] == 'Turn slightly to the right'
+        assert result['cardinal'] == 'northeast'
+
+    def test_cardinal_rounds_to_nearest_direction(self):
+        result = heading_to_english_maneuver(heading=268.0, previous_heading=180.0)
+        assert result['cardinal'] == 'west'
+
+    def test_wraparound_angle_keeps_continue(self):
+        result = heading_to_english_maneuver(heading=10.0, previous_heading=350.0)
+        assert result['maneuver'] == 'Continue'
+        assert result['cardinal'] == 'north'
 
 
 class TestShouldMergeSegments:
