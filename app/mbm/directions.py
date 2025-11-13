@@ -1,21 +1,14 @@
-"""
-Turn-by-turn directions generation for bike routes.
-
-This module converts route features into human-readable turn-by-turn directions.
-"""
+from typing import Dict, List, Optional, Any
 
 
-def describe_unnamed_street(osm_tags, park_name):
-    """
-    Generate a description for an unnamed street based on OSM tags and park context.
-    
-    Args:
-        osm_tags: Dictionary of OSM tags (e.g., {'highway': 'service', 'service': 'alley'})
-        park_name: Name of the park if the street is within a park, None otherwise
-    
-    Returns:
-        String description of the street
-    """
+def nearest_45(x: float) -> int:
+    """Round an angle to the nearest 45-degree increment (0-360)."""
+    return (round(x / 45) * 45) % 360
+
+def describe_unnamed_street(
+    osm_tags: Optional[Dict[str, str]], 
+    park_name: Optional[str]
+) -> str:
     if not osm_tags or not isinstance(osm_tags, dict):
         return 'an unknown street'
     
@@ -42,17 +35,10 @@ def describe_unnamed_street(osm_tags, park_name):
     return description
 
 
-def heading_to_english_maneuver(heading, previous_heading):
-    """
-    Convert heading angles to English maneuver instructions.
-    
-    Args:
-        heading: Current heading in degrees (0-360)
-        previous_heading: Previous heading in degrees (0-360), or None for first segment
-    
-    Returns:
-        Dictionary with 'maneuver' and 'cardinal' keys
-    """
+def heading_to_english_maneuver(
+    heading: float, 
+    previous_heading: Optional[float]
+) -> Dict[str, str]:
     maneuvers = {
         0: {'maneuver': 'Continue', 'cardinal': 'north'},
         45: {'maneuver': 'Turn slightly to the right', 'cardinal': 'northeast'},
@@ -63,9 +49,6 @@ def heading_to_english_maneuver(heading, previous_heading):
         270: {'maneuver': 'Turn left', 'cardinal': 'west'},
         315: {'maneuver': 'Turn slightly to the left', 'cardinal': 'northwest'},
     }
-    
-    def nearest_45(x):
-        return (round(x / 45) * 45) % 360
     
     if previous_heading is not None:
         angle = nearest_45(((heading - previous_heading) + 360) % 360)
@@ -78,31 +61,7 @@ def heading_to_english_maneuver(heading, previous_heading):
     return {'maneuver': maneuver, 'cardinal': cardinal}
 
 
-def directions_list(features):
-    """
-    Process route features into a list of direction objects.
-    
-    Args:
-        features: List of GeoJSON feature dictionaries with properties:
-            - name: Street name (may be None)
-            - heading: Heading in degrees
-            - distance: Distance in meters
-            - type: Route type (path, street, route, etc.)
-            - osm_id, tag_id, oneway, rule, priority, maxspeed_forward, 
-              maxspeed_backward, osm_tags, park_name: OSM debugging data
-    
-    Returns:
-        List of direction dictionaries, each containing:
-            - name: Street name (may be None)
-            - distance: Total distance in meters
-            - maneuver: Maneuver instruction
-            - heading: Heading in degrees
-            - cardinal: Cardinal direction
-            - type: Route type
-            - osmData: OSM data for the direction
-            - osmDataChicagoWays: List of chicago_way objects for this direction
-            - featureIndices: List of feature indices that make up this direction
-    """
+def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     directions = []
     previous_heading = None
     previous_effective_name = None
@@ -159,16 +118,16 @@ def directions_list(features):
         }
         
         # Determine if this is a slight turn that can be collapsed
-        is_slight_turn = (maneuver == 'Turn slightly to the left' or 
-                         maneuver == 'Turn slightly to the right')
-        same_named_street = effective_name == previous_effective_name
-        is_named_street = bool(name)  # Only collapse slight turns for actual named streets
-        should_collapse_slight_turn = is_slight_turn and same_named_street and is_named_street
+        is_slight_turn: bool = (maneuver == 'Turn slightly to the left' or 
+                               maneuver == 'Turn slightly to the right')
+        same_named_street: bool = effective_name == previous_effective_name
+        is_named_street: bool = bool(name)  # Only collapse slight turns for actual named streets
+        should_collapse_slight_turn: bool = is_slight_turn and same_named_street and is_named_street
         
         # If the street name changed or there's a turn to be made, add a new direction to the list
         # Exception: collapse slight turns on the same named street
-        street_name_changed = previous_effective_name and effective_name != previous_effective_name
-        turn_required = (maneuver != 'Continue' or previous_heading is None)
+        street_name_changed: bool = bool(previous_effective_name and effective_name != previous_effective_name)
+        turn_required: bool = (maneuver != 'Continue' or previous_heading is None)
         
         if (street_name_changed or turn_required) and not should_collapse_slight_turn:
             directions.append(direction)
