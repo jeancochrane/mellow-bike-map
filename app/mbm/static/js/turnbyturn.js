@@ -8,6 +8,8 @@ const describeUnnamedStreet = (osmTags, parkName) => {
   
   if (osmTags.highway === 'service' && osmTags.service === 'alley') {
     description = 'an alley'
+  } else if (osmTags.highway === 'service') {
+    description = 'an access road'
   } else if (osmTags.footway === 'crossing') {
     description = 'a crosswalk'
   } else if (osmTags.highway === 'footway' && osmTags.footway === 'sidewalk') {
