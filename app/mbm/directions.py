@@ -5,6 +5,7 @@ class RouteProperties(TypedDict, total=False):
     type: str
     distance: float
     heading: float
+    gid: int
     osm_id: int
     tag_id: int
     oneway: str
@@ -19,6 +20,28 @@ class GeoJSONFeature(TypedDict):
     type: Literal["Feature"]
     geometry: Dict[str, Any]
     properties: RouteProperties
+
+class DirectionSegment(TypedDict):
+    gid: Optional[int]
+    osmData: Dict[str, Any]
+    maneuver: str
+    cardinal: str
+    distance: float
+    name: Optional[str]
+    effectiveName: str
+    featureIndex: int
+
+class Direction(TypedDict):
+    directionSegments: List[DirectionSegment]
+    name: Optional[str]
+    effectiveName: str
+    distance: float
+    maneuver: str
+    heading: float
+    cardinal: str
+    type: Optional[str]
+    osmData: Dict[str, Any]
+    featureIndices: List[int]
 
 def nearest_45(x: float) -> int:
     """Round an angle to the nearest 45-degree increment (0-360)."""
@@ -100,35 +123,34 @@ def _should_merge_segments(
 
 
 def _merge_with_previous_direction(
-    directions: List[Dict[str, Any]],
-    distance: float,
-    chicago_way: Dict[str, Any],
-    feature_index: int,
-    name: Optional[str],
-    effective_name: str,
-    osm_data: Dict[str, Any]
+    directions: List[Direction],
+    direction_segment: DirectionSegment,
 ) -> None:
     if not directions:
         return
-    
-    directions[-1]['distance'] += distance
-    directions[-1]['osmDataChicagoWays'].append(chicago_way)
-    directions[-1]['featureIndices'].append(feature_index)
+
+    previous_direction = directions[-1]
+    previous_direction['distance'] += direction_segment['distance']
+    previous_direction['directionSegments'].append(direction_segment)
+    previous_direction['featureIndices'].append(direction_segment['featureIndex'])
+    name = direction_segment.get('name')
+    effective_name = direction_segment['effectiveName']
+    osm_data = direction_segment['osmData']
     
     # Sometimes only some chicago_ways of a street are named, so check if the
     # previous chicago_way is named and backfill the name if not
-    if name and not directions[-1]['name']:
-        directions[-1]['name'] = name
-        directions[-1]['effectiveName'] = effective_name
+    if name and not previous_direction['name']:
+        previous_direction['name'] = name
+        previous_direction['effectiveName'] = effective_name
     
     # For unnamed streets, preserve OSM data from the current chicago_way if previous doesn't have a name
-    if not name and osm_data and not directions[-1]['name']:
-        directions[-1]['osmData'] = osm_data
-        directions[-1]['effectiveName'] = effective_name
+    if not name and osm_data and not previous_direction['name']:
+        previous_direction['osmData'] = osm_data
+        previous_direction['effectiveName'] = effective_name
 
 
-def directions_list(features: List[GeoJSONFeature]) -> List[Dict[str, Any]]:
-    directions: List[Dict[str, Any]] = []
+def directions_list(features: List[GeoJSONFeature]) -> List[Direction]:
+    directions: List[Direction] = []
     previous_heading = None
     previous_effective_name = None
     
@@ -136,13 +158,13 @@ def directions_list(features: List[GeoJSONFeature]) -> List[Dict[str, Any]]:
         props: RouteProperties = feature['properties']
         name = props.get('name')
         heading: float = props.get('heading', 0.0) or 0.0
-        distance = props.get('distance', 0)
-        route_type = props.get('type')
-        
+        distance: float = props.get('distance', 0)
+        route_type: Optional[str] = props.get('type')
         osm_tags: Optional[Dict[str, str]] = props.get('osm_tags')
         park_name: Optional[str] = props.get('park_name')
         
         osm_data = {
+            'gid': props.get('gid'),
             'osm_id': props.get('osm_id'),
             'tag_id': props.get('tag_id'),
             'oneway': props.get('oneway'),
@@ -161,32 +183,32 @@ def directions_list(features: List[GeoJSONFeature]) -> List[Dict[str, Any]]:
         
         effective_name = name or describe_unnamed_street(osm_tags, park_name)
         
-        chicago_way = {
+        direction_segment: DirectionSegment = {
+            'gid': props.get('gid'),
             'osmData': osm_data,
             'maneuver': maneuver,
             'cardinal': cardinal,
             'distance': distance,
             'name': name,
             'effectiveName': effective_name,
+            'featureIndex': i,
         }
         
-        direction = {
+        direction: Direction = {
+            'directionSegments': [direction_segment],
             'name': name,
             'effectiveName': effective_name,
             'distance': distance,
             'maneuver': maneuver,
             'heading': heading,
             'cardinal': cardinal,
-            'type': route_type,
+            'type': props.get('type'),
             'osmData': osm_data,
-            'osmDataChicagoWays': [chicago_way],
             'featureIndices': [i],
         }
         
         if _should_merge_segments(maneuver, effective_name, previous_effective_name, name):
-            _merge_with_previous_direction(
-                directions, distance, chicago_way, i, name, effective_name, osm_data
-            )
+            _merge_with_previous_direction(directions, direction_segment)
         else:
             directions.append(direction)
         

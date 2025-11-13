@@ -117,6 +117,7 @@ class Route(APIView):
             cursor.execute(f"""
                 SELECT
                     way.name,
+                    way.gid,
                     way.length_m,
                     ST_AsGeoJSON(oriented.the_geom) AS geometry,
                     -- Calculate the angle between each segment of the route so we can generate turn-by-turn directions
@@ -203,6 +204,7 @@ class Route(APIView):
                     'type': row['type'],
                     'distance': row['length_m'],
                     'heading': row['heading'],
+                    'gid': row['gid'],
                     # OSM debugging data
                     'osm_id': row['osm_id'],
                     'tag_id': row['tag_id'],
