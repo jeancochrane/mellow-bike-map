@@ -1,5 +1,24 @@
-from typing import Dict, List, Optional, Any
+from typing import TypedDict, Literal, Dict, List, Optional, Any
 
+class RouteProperties(TypedDict, total=False):
+    name: str
+    type: str
+    distance: float
+    heading: float
+    osm_id: int
+    tag_id: int
+    oneway: str
+    rule: str
+    priority: int
+    maxspeed_forward: int
+    maxspeed_backward: int
+    osm_tags: Dict[str, str]
+    park_name: str
+
+class GeoJSONFeature(TypedDict):
+    type: Literal["Feature"]
+    geometry: Dict[str, Any]  # or a more specific TypedDict/Union later
+    properties: RouteProperties
 
 def nearest_45(x: float) -> int:
     """Round an angle to the nearest 45-degree increment (0-360)."""
@@ -112,17 +131,20 @@ def _merge_with_previous_direction(
         directions[-1]['effectiveName'] = effective_name
 
 
-def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def directions_list(features: List[GeoJSONFeature]) -> List[Dict[str, Any]]:
     directions: List[Dict[str, Any]] = []
     previous_heading = None
     previous_effective_name = None
     
     for i, feature in enumerate(features):
-        props = feature.get('properties', {})
+        props: RouteProperties = feature['properties']
         name = props.get('name')
-        heading = props.get('heading')
+        heading: float = props.get('heading', 0.0) or 0.0
         distance = props.get('distance', 0)
         route_type = props.get('type')
+        
+        osm_tags: Optional[Dict[str, str]] = props.get('osm_tags')
+        park_name: Optional[str] = props.get('park_name')
         
         osm_data = {
             'osm_id': props.get('osm_id'),
@@ -133,15 +155,15 @@ def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             'maxspeed_forward': props.get('maxspeed_forward'),
             'maxspeed_backward': props.get('maxspeed_backward'),
             'length_m': distance,
-            'osm_tags': props.get('osm_tags'),
-            'park_name': props.get('park_name'),
+            'osm_tags': osm_tags,
+            'park_name': park_name,
         }
         
         maneuver_info = heading_to_english_maneuver(heading, previous_heading)
         maneuver = maneuver_info['maneuver']
         cardinal = maneuver_info['cardinal']
         
-        effective_name = name or describe_unnamed_street(osm_data.get('osm_tags'), osm_data.get('park_name'))
+        effective_name = name or describe_unnamed_street(osm_tags, park_name)
         
         chicago_way = {
             'osmData': osm_data,
