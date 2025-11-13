@@ -42,12 +42,10 @@ def describe_unnamed_street(
     elif osm_tags.get('highway') == 'footway' and osm_tags.get('footway') == 'sidewalk':
         description = 'a sidewalk'
     elif park_name:
-        # If inside a park and no specific description, call it a path
         description = 'a path'
     else:
         description = 'an unknown street'
     
-    # Add park name if the street is within a park
     if park_name:
         description += f' inside {park_name}'
     
@@ -85,22 +83,20 @@ def _should_merge_segments(
     new_segment_effective_name: str,
     previous_segment_effective_name: Optional[str],
     name: Optional[str],
-    previous_heading: Optional[float]
 ) -> bool:
-    # Determine if this is a slight turn that can be collapsed
+    # Merge continues and slight turns when two segments have the same street name
     is_slight_turn = (maneuver == 'Turn slightly to the left' or 
-                     maneuver == 'Turn slightly to the right')
+                     maneuver == 'Turn slightly to the right' or maneuver == 'Continue')
+    is_named_street = bool(name)
     same_named_street = new_segment_effective_name == previous_segment_effective_name
-    is_named_street = bool(name)  # Only collapse slight turns for actual named streets
-    should_collapse_slight_turn = is_slight_turn and same_named_street and is_named_street
+    if is_slight_turn and is_named_street and same_named_street:
+        return True
     
-    # If the street name changed or there's a turn to be made, add a new direction to the list
-    # Exception: collapse slight turns on the same named street
-    street_name_changed = bool(previous_segment_effective_name and new_segment_effective_name != previous_segment_effective_name)
-    turn_required = (maneuver != 'Continue' or previous_heading is None)
+    # Merge continues on unnamed streets
+    if maneuver == 'Continue' and not is_named_street:
+        return True
     
-    # Collapse if it's NOT the case that (name changed or turn required) AND it's not a slight turn to collapse
-    return not ((street_name_changed or turn_required) and not should_collapse_slight_turn)
+    return False
 
 
 def _merge_with_previous_direction(
@@ -187,7 +183,7 @@ def directions_list(features: List[GeoJSONFeature]) -> List[Dict[str, Any]]:
             'featureIndices': [i],
         }
         
-        if _should_merge_segments(maneuver, effective_name, previous_effective_name, name, previous_heading):
+        if _should_merge_segments(maneuver, effective_name, previous_effective_name, name):
             _merge_with_previous_direction(
                 directions, distance, chicago_way, i, name, effective_name, osm_data
             )
@@ -198,4 +194,3 @@ def directions_list(features: List[GeoJSONFeature]) -> List[Dict[str, Any]]:
         previous_effective_name = effective_name
     
     return directions
-

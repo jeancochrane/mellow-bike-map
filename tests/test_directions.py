@@ -123,16 +123,6 @@ class TestShouldMergeSegments:
         )
         assert result is False
     
-    def test_continue_no_previous_heading_should_not_merge(self):
-        result = _should_merge_segments(
-            maneuver='Continue',
-            new_segment_effective_name='Main Street',
-            previous_segment_effective_name='Main Street',
-            name='Main Street',
-            previous_heading=None
-        )
-        assert result is False
-    
     def test_slight_turn_same_unnamed_street_should_not_merge(self):
         result = _should_merge_segments(
             maneuver='Turn slightly to the right',
