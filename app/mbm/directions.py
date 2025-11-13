@@ -61,23 +61,23 @@ def heading_to_english_maneuver(
     return {'maneuver': maneuver, 'cardinal': cardinal}
 
 
-def _should_merge_segment(
+def _should_merge_segments(
     maneuver: str,
-    effective_name: str,
-    previous_effective_name: Optional[str],
+    new_segment_effective_name: str,
+    previous_segment_effective_name: Optional[str],
     name: Optional[str],
     previous_heading: Optional[float]
 ) -> bool:
     # Determine if this is a slight turn that can be collapsed
     is_slight_turn = (maneuver == 'Turn slightly to the left' or 
                      maneuver == 'Turn slightly to the right')
-    same_named_street = effective_name == previous_effective_name
+    same_named_street = new_segment_effective_name == previous_segment_effective_name
     is_named_street = bool(name)  # Only collapse slight turns for actual named streets
     should_collapse_slight_turn = is_slight_turn and same_named_street and is_named_street
     
     # If the street name changed or there's a turn to be made, add a new direction to the list
     # Exception: collapse slight turns on the same named street
-    street_name_changed = bool(previous_effective_name and effective_name != previous_effective_name)
+    street_name_changed = bool(previous_segment_effective_name and new_segment_effective_name != previous_segment_effective_name)
     turn_required = (maneuver != 'Continue' or previous_heading is None)
     
     # Collapse if it's NOT the case that (name changed or turn required) AND it's not a slight turn to collapse
@@ -96,11 +96,8 @@ def _merge_with_previous_direction(
     if not directions:
         return
     
-    # Add distance to previous direction
     directions[-1]['distance'] += distance
-    # Add this chicago_way's data to the array
     directions[-1]['osmDataChicagoWays'].append(chicago_way)
-    # Track the feature index
     directions[-1]['featureIndices'].append(feature_index)
     
     # Sometimes only some chicago_ways of a street are named, so check if the
@@ -116,7 +113,7 @@ def _merge_with_previous_direction(
 
 
 def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    directions = []
+    directions: List[Dict[str, Any]] = []
     previous_heading = None
     previous_effective_name = None
     
@@ -168,7 +165,7 @@ def directions_list(features: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             'featureIndices': [i],
         }
         
-        if _should_merge_segment(maneuver, effective_name, previous_effective_name, name, previous_heading):
+        if _should_merge_segments(maneuver, effective_name, previous_effective_name, name, previous_heading):
             _merge_with_previous_direction(
                 directions, distance, chicago_way, i, name, effective_name, osm_data
             )
