@@ -2,6 +2,8 @@
 """
 Fuzz routing/direction generation by sampling random vertex pairs and reporting
 on segments that still display as "Unnamed street" in the resulting directions.
+
+N.B.: Vibecoded.
 """
 
 from __future__ import annotations
@@ -283,7 +285,7 @@ def print_summary(report: Dict[str, object], verbose: bool) -> None:
     print('\nTop "Unnamed street" tag sets:')
     if unnamed_tag_counter:
         for idx, (tag_key, count) in enumerate(
-            unnamed_tag_counter.most_common(5),
+            unnamed_tag_counter.most_common(10),
             start=1,
         ):
             total_ways = count_chicago_ways_for_tag_key(tag_key)

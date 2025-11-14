@@ -110,9 +110,17 @@ def _describe_unnamed_street(
         description = 'an access road'
     elif osm_tags.get('footway') == 'crossing':
         description = 'a crosswalk'
+    elif osm_tags.get('highway') == 'cycleway':
+        description = 'a bike path'
+    elif osm_tags.get('bicycle') == 'designated':
+        description = 'a bike path'
+    elif osm_tags.get('highway') == 'pedestrian':
+        description = 'a pedestrian path'
     elif osm_tags.get('highway') == 'footway' or osm_tags.get('footway') == 'sidewalk':
         description = 'a sidewalk'
     elif osm_tags.get('highway') == 'pedestrian' and osm_tags.get('bicycle') == 'yes':
+        description = 'a mixed-use path'
+    elif osm_tags.get('highway') == 'path' and osm_tags.get('bicycle') == 'permissive':
         description = 'a mixed-use path'
     elif park_name:
         description = 'a path'
