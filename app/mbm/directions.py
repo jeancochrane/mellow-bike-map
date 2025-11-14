@@ -95,6 +95,9 @@ def _nearest_45(x: float) -> int:
     """Round an angle to the nearest 45-degree increment (0-360)."""
     return (round(x / 45) * 45) % 360
 
+# Relevant docs:
+# https://wiki.openstreetmap.org/wiki/Key:highway
+# https://wiki.openstreetmap.org/wiki/Tag:highway
 def _describe_unnamed_street(
     osm_tags: Optional[Dict[str, str]], 
     park_name: Optional[str]
