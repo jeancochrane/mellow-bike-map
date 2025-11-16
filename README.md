@@ -37,6 +37,14 @@ docker-compose up
 
 The app will be available on http://localhost:8000.
 
+### Testing
+
+To run the test suite:
+
+```
+docker compose run --rm app sh -c "python -m pytest /app/tests"
+```
+
 ## Mapping
 
 To begin mapping, make sure you've created an admin user with
