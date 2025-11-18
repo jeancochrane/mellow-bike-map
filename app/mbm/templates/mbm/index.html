@@ -30,14 +30,6 @@
         <i class="fa fa-fw fa-info-circle text-muted"></i>
       </i>
     </div>
-    <div class="form-check">
-      <input type="checkbox" class="form-check-input" id="hide-search-box" name="hide-search-box" />
-      <label class="form-check-label" for="hide-search-box">Hide search box</label>
-    </div>
-    <div class="form-check">
-      <input type="checkbox" class="form-check-input" id="hide-legend-box" name="hide-legend-box" />
-      <label class="form-check-label" for="hide-legend-box">Hide legend</label>
-    </div>
   </div>
 {% endblock %}
 
@@ -65,6 +57,28 @@
           </div>
           <span id="route-estimate" class="text-muted"></span>
         </form>
+        <div class="d-md-none">
+          <button
+            id="hide"
+            class="btn btn-outline-secondary mb-2 w-100"
+            type="button"
+            aria-expanded="false"
+            aria-controls="input-elements"
+            data-state="hidden"
+          >
+            &or; Search for a route
+          </button>
+          <button
+            id="hide-legend"
+            class="btn btn-outline-secondary mb-2 w-100"
+            type="button"
+            aria-expanded="true"
+            aria-controls="map"
+            data-state="shown"
+          >
+            &and; Hide legend
+          </button>
+        </div>
       </div>
     </div>
     <div class="col-12 col-md-9">
