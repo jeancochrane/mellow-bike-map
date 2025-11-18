@@ -48,7 +48,7 @@ export default class App {
     $('[data-toggle="tooltip"]').tooltip()
 
     // Prevent settings dropdown from closing when clicking on checkboxes
-    $('#settings-dropdown').on('click', function(e) {
+    $('#settings-dropdown-menu').on('click', function(e) {
       e.stopPropagation();
     });
 

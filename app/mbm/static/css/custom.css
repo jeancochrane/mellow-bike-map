@@ -118,42 +118,39 @@ a {
 }
 
 /* Settings dropdown styling */
-#settings-dropdown {
+#settings-dropdown-menu {
   min-width: 250px;
   padding: 0;
   position: absolute;
   will-change: transform;
 }
 
-#settings-dropdown .form-check {
+#settings-dropdown-menu .form-check {
   margin-bottom: 0.75rem;
 }
 
-#settings-dropdown .form-check:last-child {
+#settings-dropdown-menu .form-check:last-child {
   margin-bottom: 0;
 }
 
-#settings-dropdown .form-check-label {
+#settings-dropdown-menu .form-check-label {
   cursor: pointer;
   user-select: none;
 }
 
-/* Prevent dropdown from closing when clicking inside */
-#settings-dropdown {
+#settings-dropdown-menu {
   pointer-events: auto;
 }
 
-#settingsDropdown {
+#settings-dropdown-toggle {
   font-size: 1.1rem;
 }
 
-/* Ensure consistent spacing for all navbar links */
 .navbar-nav .nav-link {
   padding-left: 0.75rem;
   padding-right: 0.75rem;
 }
 
-/* Ensure dropdown parent doesn't cause reflow */
 .nav-item.dropdown {
   position: relative;
 }
