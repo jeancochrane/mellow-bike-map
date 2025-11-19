@@ -14,10 +14,22 @@ export default class App {
     this.calmRoutesData = null
     this.markers = { 'source': null, 'target': null }
 
-    this.visibleRouteTypes = {
-      'path': true, // Off-street bike paths (very calm)
-      'street': true, // Mellow streets (calm)
-      'route': true // Main streets, often with bike lanes (less calm)
+    this.routeTypes = {
+      'path': {
+        color: '#e17fa8',
+        description: 'Off-street bike paths (very calm)',
+        visible: true
+      },
+      'street': {
+        color: '#77b7a2',
+        description: 'Mellow streets (calm)',
+        visible: true
+      },
+      'route': {
+        color: '#e18a7e',
+        description: 'Main streets, often with bike lanes (less calm)',
+        visible: true
+      }
     }
 
     // Start the app once the DOM is ready
@@ -192,7 +204,8 @@ export default class App {
       },
       interactive: false,
       filter: (feature) => {
-        return this.visibleRouteTypes[feature.properties.type] === true
+        const routeType = this.routeTypes[feature.properties.type]
+        return routeType ? routeType.visible === true : false
       }
     }).addTo(this.map)
   }
@@ -202,23 +215,20 @@ export default class App {
     const legend = L.control({ position: 'bottomright' })
     legend.onAdd = (map) => {
       let div = L.DomUtil.create('div', 'info legend hideable-legend')
-      const routeTypes = [
-        ['path', 'Off-street bike paths (very calm)'],
-        ['street', 'Mellow streets (calm)'],
-        ['route', 'Main streets, often with bike lanes (less calm)']
-      ]
-      for (const routeType of routeTypes) {
-        const type = routeType[0]
-        const color = this.getLineColor(type)
-        const description = routeType[1]
+      const routeEntries = Object.entries(this.routeTypes)
+      for (const [type, { color, description, visible }] of routeEntries) {
+        const lineColor = color || '#7ea4e1'
         
         // Create a container for each legend item
         const item = L.DomUtil.create('div', 'legend-item', div)
         item.setAttribute('data-route-type', type)
+        if (!visible) {
+          item.classList.add('legend-item-inactive')
+        }
         
         // Create the color box
         const colorBox = L.DomUtil.create('i', '', item)
-        colorBox.style.background = color
+        colorBox.style.background = lineColor
         
         // Create the text label
         const label = L.DomUtil.create('span', '', item)
@@ -240,22 +250,20 @@ export default class App {
   }
 
   getLineColor(type) {
-    switch (type) {
-      case 'street': return '#77b7a2'
-      case 'route': return '#e18a7e'
-      case 'path': return '#e17fa8'
-      default: return '#7ea4e1'
-    }
+    const routeType = this.routeTypes[type]
+    return routeType ? routeType.color : '#7ea4e1'
   }
 
   // Toggle the visibility of a route type
   toggleCalmRouteTypeVisibility(type) {
-    this.visibleRouteTypes[type] = !this.visibleRouteTypes[type]
+    const routeType = this.routeTypes[type]
+    if (!routeType) { return }
+    routeType.visible = !routeType.visible
     
     // Update the legend item appearance
     const legendItem = document.querySelector(`.legend-item[data-route-type="${type}"]`)
     if (legendItem) {
-      if (this.visibleRouteTypes[type]) {
+      if (routeType.visible) {
         legendItem.classList.remove('legend-item-inactive')
       } else {
         legendItem.classList.add('legend-item-inactive')
