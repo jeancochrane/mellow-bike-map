@@ -37,6 +37,15 @@ docker-compose up
 
 The app will be available on http://localhost:8000.
 
+### Testing
+
+To run frontend tests, from project root:
+
+```
+cd app
+npm test
+```
+
 ## Mapping
 
 To begin mapping, make sure you've created an admin user with
