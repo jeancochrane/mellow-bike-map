@@ -11,6 +11,7 @@ export default class App {
 
     this.directionsRouteLayer = null
     this.calmRoutesLayer = null
+    this.calmRoutesData = null
     this.markers = { 'source': null, 'target': null }
 
     this.visibleRouteTypes = {
@@ -96,7 +97,7 @@ export default class App {
       this.userLocationsCheckbox.dispatchEvent(new Event('change'))
     }
 
-    // Load the routes layer from the backend
+    // Load the routes layer (first call hits backend, subsequent reloads reuse cache)
     this.loadCalmRoutes()
 
     // Define behavior for the search button
@@ -160,24 +161,40 @@ export default class App {
     })
   }
 
-  // Fetch the layer of annotated routes from the backend and display it on the map
+  // Fetch (once) and render the annotated routes layer, caching the data after the initial request
   loadCalmRoutes() {
+    if (this.calmRoutesData) {
+      this.renderCalmRoutesLayer(this.calmRoutesData)
+      return
+    }
+
     // Start spinner while we retrieve initial route map
     this.map.spin(true)
     $.getJSON(this.routeListUrl).done((data) => {
-      this.calmRoutesLayer = L.geoJSON(data, {
-        style: (feature) => {
-          return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
-        },
-        interactive: false,
-        filter: (feature) => {
-          return this.visibleRouteTypes[feature.properties.type] === true
-        }
-      }).addTo(this.map)
-      this.map.spin(false)
+      this.calmRoutesData = data
+      this.renderCalmRoutesLayer(data)
     }).fail(function (jqxhr, textStatus, error) {
       console.log(textStatus + ': ' + error)
+    }).always(() => {
+      this.map.spin(false)
     })
+  }
+
+  renderCalmRoutesLayer(data) {
+    if (this.calmRoutesLayer) {
+      this.map.removeLayer(this.calmRoutesLayer)
+      this.calmRoutesLayer = null
+    }
+
+    this.calmRoutesLayer = L.geoJSON(data, {
+      style: (feature) => {
+        return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
+      },
+      interactive: false,
+      filter: (feature) => {
+        return this.visibleRouteTypes[feature.properties.type] === true
+      }
+    }).addTo(this.map)
   }
 
   // Create a legend
