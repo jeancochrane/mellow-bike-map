@@ -21,6 +21,7 @@ from mbm import views
 
 urlpatterns = [
     path('', views.Home.as_view(), name='home'),
+    path('montreal/', views.Montreal.as_view(), name='montreal'),
     path('about/', views.About.as_view(), name='about'),
     path('api/route/', views.Route.as_view(), name='route'),
     path('api/routes/', cache_page(60 * 60 * 24)(views.RouteList.as_view()), name='route-list'),

@@ -4,8 +4,16 @@ import Geolocation from './geolocation.js'
 import { getUserPreferences, saveUserPreferences } from './storage.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
+
+const initialMapCenters = {
+  'chicago': [41.87, -87.62],
+  'montreal': [45.50, -73.57]
+}
+
 export default class App {
-  constructor(routeListUrl, routeUrl) {
+  constructor(city, routeListUrl, routeUrl) {
+    this.city = city
+    this.initialMapCenter = initialMapCenters[city]
     this.routeListUrl = routeListUrl
     this.routeUrl = routeUrl
 
@@ -248,7 +256,7 @@ export default class App {
 
     // Load basemap
     const streets = new L.Google('ROADMAP', { mapOptions: { styles: googleStyles } })
-    map.addLayer(streets).setView([41.87, -87.62], 11)
+    map.addLayer(streets).setView(this.initialMapCenter, 11)
 
     return map
   }
@@ -260,13 +268,14 @@ export default class App {
     const source = this.sourceLocation
     const target = this.targetLocation
     const enableV2 = $('#enable-v2').is(':checked')
+    const city = this.city
     if (source === '') {
       alert('Source is required for search')
     } else if (target == '') {
       alert('Target is required for search')
     } else {
       this.map.spin(true)
-      $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
+      $.getJSON(this.routeUrl + '?' + $.param({ source, target, city, enable_v2: enableV2 })).done((data) => {
         if (this.routeLayer) {
           this.map.removeLayer(this.routeLayer)
         }

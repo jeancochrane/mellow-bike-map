@@ -4,7 +4,7 @@ FROM python:3.8
 # (see: https://github.com/nodesource/distributions/blob/master/README.md)
 RUN curl -sL https://deb.nodesource.com/setup_22.x | bash -
 
-RUN apt-get update && apt-get install -y --no-install-recommends nodejs gdal-bin
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs gdal-bin npm
 
 # Inside the container, create an app directory and switch into it
 RUN mkdir -p /app/app
