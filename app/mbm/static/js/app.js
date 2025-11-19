@@ -169,11 +169,11 @@ export default class App {
     const targetCoordsFromUrl = this.parseCoordinateParam(targetCoordsParam)
 
     if (sourceCoordsFromUrl) {
-      const sourceDisplay = this.fromAddress || sourceCoordsParam || this.coordsToString(sourceCoordsFromUrl)
+      const sourceDisplay = this.fromAddress || sourceCoordsParam
       this.setSourceLocation(sourceCoordsFromUrl.lat, sourceCoordsFromUrl.lng, sourceDisplay)
     }
     if (targetCoordsFromUrl) {
-      const targetDisplay = this.toAddress || targetCoordsParam || this.coordsToString(targetCoordsFromUrl)
+      const targetDisplay = this.toAddress || targetCoordsParam
       this.setTargetLocation(targetCoordsFromUrl.lat, targetCoordsFromUrl.lng, targetDisplay)
     }
 
@@ -299,10 +299,6 @@ export default class App {
     const lng = parseFloat(parts[1])
     if (Number.isNaN(lat) || Number.isNaN(lng)) { return null }
     return { lat, lng }
-  }
-
-  coordsToString(coords) {
-    return `${coords.lat},${coords.lng}`
   }
 
   updateUrlWithParams(params) {
