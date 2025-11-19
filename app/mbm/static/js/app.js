@@ -246,6 +246,27 @@ export default class App {
     }
   }
 
+  updateUrlWithParams(params) {
+    const basePath = '/'
+    const query = params.toString()
+    const newUrl = query ? `${basePath}?${query}` : basePath
+    window.history.pushState({}, '', newUrl)
+  }
+
+  clearAddressQueryParams() {
+    const params = new URLSearchParams(window.location.search)
+    params.delete('sourceAddress')
+    params.delete('targetAddress')
+    this.updateUrlWithParams(params)
+  }
+
+  setAddressQueryParams(fromAddr, toAddr) {
+    const params = new URLSearchParams(window.location.search)
+    params.set('sourceAddress', fromAddr)
+    params.set('targetAddress', toAddr)
+    this.updateUrlWithParams(params)
+  }
+
   // Clear the form and remove plotted directions from the map
   // Inputs are automatically reset because the button that triggers this has `type="reset"`
   reset() {
@@ -256,9 +277,7 @@ export default class App {
     this.hideRouteEstimate()
     this.sourceAddressString = ''
     this.targetAddressString = ''
-    // Clear the URL back to home, preserving query params
-    const queryString = window.location.search
-    window.history.pushState({}, '', `/${queryString}`)
+    this.clearAddressQueryParams()
   }
 
   // Set up the base leaflet map and styles
@@ -316,15 +335,12 @@ export default class App {
       // Update URL with from/to addresses
       // Use the stored address strings, or fall back to the input values
       const fromAddr = this.sourceAddressString
-      const toAddr = this.targetAddressString 
-      
+      const toAddr = this.targetAddressString
+
       if (fromAddr && toAddr) {
-        // Preserve existing query parameters
-        const queryString = window.location.search
-        const newUrl = `/from/${encodeURIComponent(fromAddr)}/to/${encodeURIComponent(toAddr)}/${queryString}`
-        window.history.pushState({}, '', newUrl)
+        this.setAddressQueryParams(fromAddr, toAddr)
       }
-      
+
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
         if (this.routeLayer) {
