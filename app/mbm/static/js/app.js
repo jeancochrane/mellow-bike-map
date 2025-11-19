@@ -321,6 +321,17 @@ export default class App {
     }
   }
 
+  escapeHtml(value = '') {
+    const htmlEscapes = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }
+    return value.replace(/[&<>"']/g, (char) => htmlEscapes[char])
+  }
+
   updateUrlWithParams(params) {
     const basePath = '/'
     const query = params.toString()
@@ -478,8 +489,9 @@ export default class App {
       const { input } = this.directionsFormElements[markerName]
 
       if (addressString) {
-        // Update the marker's popup
-        this.markers[markerName].unbindPopup().bindPopup(addressString)
+        const escapedAddress = this.escapeHtml(addressString)
+        // Update the marker's popup with escaped HTML
+        this.markers[markerName].unbindPopup().bindPopup(escapedAddress)
         // Update the user-facing text input field
         input.value = addressString
       }
