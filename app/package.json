@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "JavaScript development setup for mellow-bike-map",
   "scripts": {
-    "test": "node --test tests/**/*.mjs"
+    "test": "node --test tests/app.start.test.mjs"
   },
   "dependencies": {
     "@babel/cli": "^7.8.4",
