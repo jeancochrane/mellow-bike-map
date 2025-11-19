@@ -158,7 +158,11 @@ export default class App {
       this.setSourceOrTargetLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
     })
 
-    const urlParams = new URLSearchParams(window.location.search)
+    this.applyInitialQueryParams(window.location.search)
+  }
+
+  async applyInitialQueryParams(searchString = '') {
+    const urlParams = new URLSearchParams(searchString)
     const sourceCoordsParam = urlParams.get('sourceCoordinates')
     const targetCoordsParam = urlParams.get('targetCoordinates')
     const sourceCoordsFromUrl = this.parseCoordinateParam(sourceCoordsParam)
@@ -176,14 +180,16 @@ export default class App {
     const hasSourceInput = Boolean(this.fromAddress) || Boolean(sourceCoordsFromUrl)
     const hasTargetInput = Boolean(this.toAddress) || Boolean(targetCoordsFromUrl)
     if ((hasSourceInput && !hasTargetInput) || (!hasSourceInput && hasTargetInput)) {
-        alert("Can't load route: start location and destination each require an address or coordinates.")
-        return
+      alert("Can't load route: start and end locations each require an address or coordinates.")
+      return false
     }
 
     const submitIfReady = () => {
       if (this.sourceLocation && this.targetLocation) {
-        $('#input-elements').submit()
+        this.submitSearchForm()
+        return true
       }
+      return false
     }
 
     const geocodeJobs = []
@@ -205,10 +211,19 @@ export default class App {
     }
 
     if (geocodeJobs.length) {
-      Promise.all(geocodeJobs).then(submitIfReady).catch(() => {})
-    } else {
-      submitIfReady()
+      try {
+        await Promise.all(geocodeJobs)
+      } catch (err) {
+        return false
+      }
     }
+
+    submitIfReady()
+    return true
+  }
+
+  submitSearchForm() {
+    $('#input-elements').submit()
   }
 
   geocodeAddress(address) {

@@ -2,6 +2,9 @@
   "name": "mellow-bike-map",
   "version": "0.0.0",
   "description": "JavaScript development setup for mellow-bike-map",
+  "scripts": {
+    "test": "node --test tests/**/*.mjs"
+  },
   "dependencies": {
     "@babel/cli": "^7.8.4",
     "@babel/core": "^7.9.6",
