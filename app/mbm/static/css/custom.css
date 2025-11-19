@@ -57,6 +57,7 @@ a {
 .legend-item {
   margin-bottom: 4px;
   transition: opacity 0.3s ease;
+  cursor: pointer;
 }
 
 .legend-item:hover {

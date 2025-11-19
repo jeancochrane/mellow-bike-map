@@ -214,7 +214,6 @@ export default class App {
         
         // Create a container for each legend item
         const item = L.DomUtil.create('div', 'legend-item', div)
-        item.style.cursor = 'pointer'
         item.setAttribute('data-route-type', type)
         
         // Create the color box
