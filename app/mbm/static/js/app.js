@@ -21,6 +21,7 @@ export default class App {
     this.targetLocation = ''
     this.sourceAddressString = ''
     this.targetAddressString = ''
+    this.geocoder = null
   }
 
   start() {
@@ -157,43 +158,72 @@ export default class App {
       this.setSourceOrTargetLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
     })
 
-    // If from/to addresses are provided in the URL, geocode them and auto-run search
-    if (this.fromAddress && this.toAddress) {
-      this.geocodeAddressesAndRunSearch(this.fromAddress, this.toAddress)
+    const urlParams = new URLSearchParams(window.location.search)
+    const sourceCoordsParam = urlParams.get('sourceCoordinates')
+    const targetCoordsParam = urlParams.get('targetCoordinates')
+    const sourceCoordsFromUrl = this.parseCoordinateParam(sourceCoordsParam)
+    const targetCoordsFromUrl = this.parseCoordinateParam(targetCoordsParam)
+
+    if (sourceCoordsFromUrl) {
+      const sourceDisplay = this.fromAddress || sourceCoordsParam || this.coordsToString(sourceCoordsFromUrl)
+      this.setSourceLocation(sourceCoordsFromUrl.lat, sourceCoordsFromUrl.lng, sourceDisplay)
+    }
+    if (targetCoordsFromUrl) {
+      const targetDisplay = this.toAddress || targetCoordsParam || this.coordsToString(targetCoordsFromUrl)
+      this.setTargetLocation(targetCoordsFromUrl.lat, targetCoordsFromUrl.lng, targetDisplay)
+    }
+
+    const hasSourceInput = Boolean(this.fromAddress) || Boolean(sourceCoordsFromUrl)
+    const hasTargetInput = Boolean(this.toAddress) || Boolean(targetCoordsFromUrl)
+    if ((hasSourceInput && !hasTargetInput) || (!hasSourceInput && hasTargetInput)) {
+        alert("Can't load route: start location and destination each require an address or coordinates.")
+        return
+    }
+
+    const submitIfReady = () => {
+      if (this.sourceLocation && this.targetLocation) {
+        $('#input-elements').submit()
+      }
+    }
+
+    const geocodeJobs = []
+    const addJob = (kind, address, setter) => {
+      geocodeJobs.push(
+        this.geocodeAddress(address).then(({ lat, lng }) => setter(lat, lng)).catch((status) => {
+          console.error(`Geocode failed for ${kind} address:`, status)
+          alert(`Could not find the ${kind} address: ` + address)
+          throw status
+        })
+      )
+    }
+
+    if (!sourceCoordsFromUrl && this.fromAddress) {
+      addJob('start', this.fromAddress, (lat, lng) => this.setSourceLocation(lat, lng, this.fromAddress))
+    }
+    if (!targetCoordsFromUrl && this.toAddress) {
+      addJob('destination', this.toAddress, (lat, lng) => this.setTargetLocation(lat, lng, this.toAddress))
+    }
+
+    if (geocodeJobs.length) {
+      Promise.all(geocodeJobs).then(submitIfReady).catch(() => {})
+    } else {
+      submitIfReady()
     }
   }
 
-  // When addresses are provided in the URL, we don't have coordinates returned
-  // from Google Maps API as we do when selecting addresses from autocomplete,
-  // so we need to geocode the addresses by calling the Google Maps API.
-  geocodeAddressesAndRunSearch(fromAddress, toAddress) {
-    const geocoder = new google.maps.Geocoder()
-    
-    // Geocode the source address
-    geocoder.geocode({ address: fromAddress }, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        const sourceLat = results[0].geometry.location.lat()
-        const sourceLng = results[0].geometry.location.lng()
-        this.setSourceLocation(sourceLat, sourceLng, fromAddress)
-        
-        // Once source is set, geocode the target
-        geocoder.geocode({ address: toAddress }, (results, status) => {
-          if (status === 'OK' && results[0]) {
-            const targetLat = results[0].geometry.location.lat()
-            const targetLng = results[0].geometry.location.lng()
-            this.setTargetLocation(targetLat, targetLng, toAddress)
-            
-            // Auto-submit the search
-            $('#input-elements').submit()
-          } else {
-            console.error('Geocode failed for target address:', status)
-            alert('Could not find the destination address: ' + toAddress)
-          }
-        })
-      } else {
-        console.error('Geocode failed for source address:', status)
-        alert('Could not find the start address: ' + fromAddress)
-      }
+  geocodeAddress(address) {
+    if (!this.geocoder) {
+      this.geocoder = new google.maps.Geocoder()
+    }
+    return new Promise((resolve, reject) => {
+      this.geocoder.geocode({ address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location
+          resolve({ lat: location.lat(), lng: location.lng() })
+        } else {
+          reject(status)
+        }
+      })
     })
   }
 
@@ -244,6 +274,20 @@ export default class App {
       case 'path': return '#e17fa8'
       default: return '#7ea4e1'
     }
+  }
+
+  parseCoordinateParam(value) {
+    if (!value) { return null }
+    const parts = value.split(',')
+    if (parts.length !== 2) { return null }
+    const lat = parseFloat(parts[0])
+    const lng = parseFloat(parts[1])
+    if (Number.isNaN(lat) || Number.isNaN(lng)) { return null }
+    return { lat, lng }
+  }
+
+  coordsToString(coords) {
+    return `${coords.lat},${coords.lng}`
   }
 
   updateUrlWithParams(params) {
