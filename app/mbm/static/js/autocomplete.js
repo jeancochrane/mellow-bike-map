@@ -12,7 +12,7 @@ const initAutocomplete = (inputElement, markerName, app) => {
   // Define bounds for Chicagoland
   const chicagoBounds = new google.maps.LatLngBounds(
     new google.maps.LatLng(41.45, -88.3),
-    new google.maps.LatLng(42.2, -87.5)
+    new google.maps.LatLng(42.2, -87.3)
   )
 
   // Create the autocomplete object with Chicagoland bounds and strict bounds enforcement
