@@ -36,14 +36,6 @@ class Home(TemplateView):
     title = 'Home'
     template_name = 'mbm/index.html'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        from_query = self.request.GET.get('sourceAddress', '')
-        to_query = self.request.GET.get('targetAddress', '')
-        context['from_address'] = from_query
-        context['to_address'] = to_query
-        return context
-
 
 class About(TemplateView):
     title = 'About'

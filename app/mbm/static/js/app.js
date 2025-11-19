@@ -163,22 +163,35 @@ export default class App {
 
   async applyInitialQueryParams(searchString = '') {
     const urlParams = new URLSearchParams(searchString)
+    const sourceAddressParam = urlParams.get('sourceAddress')
+    const targetAddressParam = urlParams.get('targetAddress')
     const sourceCoordsParam = urlParams.get('sourceCoordinates')
     const targetCoordsParam = urlParams.get('targetCoordinates')
     const sourceCoordsFromUrl = this.parseCoordinateParam(sourceCoordsParam)
     const targetCoordsFromUrl = this.parseCoordinateParam(targetCoordsParam)
+    const sourceAddress = sourceAddressParam || this.fromAddress
+    const targetAddress = targetAddressParam || this.toAddress
+
+    if (sourceAddressParam) {
+      this.sourceAddressString = sourceAddressParam
+      this.prefillAddressInput('source', sourceAddressParam)
+    }
+    if (targetAddressParam) {
+      this.targetAddressString = targetAddressParam
+      this.prefillAddressInput('target', targetAddressParam)
+    }
 
     if (sourceCoordsFromUrl) {
-      const sourceDisplay = this.fromAddress || sourceCoordsParam
+      const sourceDisplay = sourceAddress || sourceCoordsParam
       this.setSourceLocation(sourceCoordsFromUrl.lat, sourceCoordsFromUrl.lng, sourceDisplay)
     }
     if (targetCoordsFromUrl) {
-      const targetDisplay = this.toAddress || targetCoordsParam
+      const targetDisplay = targetAddress || targetCoordsParam
       this.setTargetLocation(targetCoordsFromUrl.lat, targetCoordsFromUrl.lng, targetDisplay)
     }
 
-    const hasSourceInput = Boolean(this.fromAddress) || Boolean(sourceCoordsFromUrl)
-    const hasTargetInput = Boolean(this.toAddress) || Boolean(targetCoordsFromUrl)
+    const hasSourceInput = Boolean(sourceAddress) || Boolean(sourceCoordsFromUrl)
+    const hasTargetInput = Boolean(targetAddress) || Boolean(targetCoordsFromUrl)
     if ((hasSourceInput && !hasTargetInput) || (!hasSourceInput && hasTargetInput)) {
       alert("Can't load route: start and end locations each require an address or coordinates.")
       return false
@@ -203,11 +216,11 @@ export default class App {
       )
     }
 
-    if (!sourceCoordsFromUrl && this.fromAddress) {
-      addJob('start', this.fromAddress, (lat, lng) => this.setSourceLocation(lat, lng, this.fromAddress))
+    if (!sourceCoordsFromUrl && sourceAddress) {
+      addJob('start', sourceAddress, (lat, lng) => this.setSourceLocation(lat, lng, sourceAddress))
     }
-    if (!targetCoordsFromUrl && this.toAddress) {
-      addJob('destination', this.toAddress, (lat, lng) => this.setTargetLocation(lat, lng, this.toAddress))
+    if (!targetCoordsFromUrl && targetAddress) {
+      addJob('destination', targetAddress, (lat, lng) => this.setTargetLocation(lat, lng, targetAddress))
     }
 
     if (geocodeJobs.length) {
@@ -299,6 +312,13 @@ export default class App {
     const lng = parseFloat(parts[1])
     if (Number.isNaN(lat) || Number.isNaN(lng)) { return null }
     return { lat, lng }
+  }
+
+  prefillAddressInput(name, value) {
+    const element = this.directionsFormElements[name]
+    if (element && element.input) {
+      element.input.value = value
+    }
   }
 
   updateUrlWithParams(params) {
