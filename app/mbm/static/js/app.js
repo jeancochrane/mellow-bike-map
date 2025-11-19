@@ -253,17 +253,29 @@ export default class App {
     window.history.pushState({}, '', newUrl)
   }
 
-  clearAddressQueryParams() {
+  clearRouteQueryParams() {
     const params = new URLSearchParams(window.location.search)
     params.delete('sourceAddress')
     params.delete('targetAddress')
+    params.delete('sourceCoordinates')
+    params.delete('targetCoordinates')
     this.updateUrlWithParams(params)
   }
 
-  setAddressQueryParams(fromAddr, toAddr) {
+  setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords) {
     const params = new URLSearchParams(window.location.search)
     params.set('sourceAddress', fromAddr)
     params.set('targetAddress', toAddr)
+    if (sourceCoords) {
+      params.set('sourceCoordinates', sourceCoords)
+    } else {
+      params.delete('sourceCoordinates')
+    }
+    if (targetCoords) {
+      params.set('targetCoordinates', targetCoords)
+    } else {
+      params.delete('targetCoordinates')
+    }
     this.updateUrlWithParams(params)
   }
 
@@ -277,7 +289,7 @@ export default class App {
     this.hideRouteEstimate()
     this.sourceAddressString = ''
     this.targetAddressString = ''
-    this.clearAddressQueryParams()
+    this.clearRouteQueryParams()
   }
 
   // Set up the base leaflet map and styles
@@ -336,9 +348,11 @@ export default class App {
       // Use the stored address strings, or fall back to the input values
       const fromAddr = this.sourceAddressString
       const toAddr = this.targetAddressString
+      const sourceCoords = this.sourceLocation
+      const targetCoords = this.targetLocation
 
       if (fromAddr && toAddr) {
-        this.setAddressQueryParams(fromAddr, toAddr)
+        this.setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords)
       }
 
       this.map.spin(true)
