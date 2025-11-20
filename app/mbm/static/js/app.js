@@ -9,9 +9,13 @@ export default class App {
     this.routeListUrl = routeListUrl
     this.routeUrl = routeUrl
 
+    // The layer that displays the route between the source and target locations
     this.directionsRouteLayer = null
+
+    // The layer that displays the calm routes on the map: "off-street bike paths", "mellow streets", and "main streets, often with bike lanes"
     this.calmRoutesLayer = null
     this.calmRoutesData = null
+
     this.markers = { 'source': null, 'target': null }
 
     this.routeTypes = {
