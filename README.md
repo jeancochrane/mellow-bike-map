@@ -37,6 +37,20 @@ docker-compose up
 
 The app will be available on http://localhost:8000.
 
+### Testing
+
+To run the test suite:
+
+```
+docker compose run --rm app sh -c "python -m pytest /app/tests"
+```
+
+To fuzz turn-by-turn directions (to find routes that don't work, tag sets that look iffy for bikes, and streets that show up as unnamed in directions):
+
+```
+docker compose run --rm app sh -c "python /app/scripts/fuzz_directions.py --runs 5"
+```
+
 ## Mapping
 
 To begin mapping, make sure you've created an admin user with

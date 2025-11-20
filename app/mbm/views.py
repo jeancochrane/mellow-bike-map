@@ -14,27 +14,24 @@ from rest_framework.exceptions import ParseError
 
 from mbm import forms
 from mbm.models import MellowRoute, fetchall
+from mbm.directions import directions_list
+from mbm.routing import calculate_route
 
 
 # osm2pgrouting tag IDs for indexing specific types of streets. For docs, see:
 # https://github.com/pgRouting/osm2pgrouting/blob/8491929fc4037d308f271e84d59bb96da3c28aa2/mapconfig_for_bicycles.xml
 
-RESIDENTIAL_STREET_TAG_IDS = (
-    507,  # living_street
-    509,  # residential
-)
-
-CYCLEWAY_TAG_IDS = (
-    101,  # cycleway:track
-    201,  # cycleway:right:track
-    301,  # cycleway:left:track
-    501,  # highway:cycleway
-)
-
 
 class Home(TemplateView):
     title = 'Home'
     template_name = 'mbm/index.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Pass from/to addresses from URL if they exist
+        context['from_address'] = kwargs.get('from_address', '')
+        context['to_address'] = kwargs.get('to_address', '')
+        return context
 
 
 class About(TemplateView):
@@ -105,61 +102,8 @@ class Route(APIView):
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
     def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
-        with connection.cursor() as cursor:
-            cursor.execute(f"""
-                SELECT
-                    way.name,
-                    way.length_m,
-                    ST_AsGeoJSON(way.the_geom) AS geometry,
-                    mellow.type
-                FROM pgr_dijkstra(
-                    'WITH mellow AS (
-                        SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
-                        FROM mbm_mellowroute
-                    )
-                    SELECT
-                        way.gid AS id,
-                        way.source,
-                        way.target,
-                        CASE
-                            WHEN mellow.type = ''path'' THEN way.cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.cost * 0.75
-                            ELSE way.cost
-                        END AS cost,
-                        CASE
-                            WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
-                            ELSE way.reverse_cost
-                        END AS reverse_cost
-                    FROM chicago_ways AS way
-                    LEFT JOIN mellow
-                    USING(osm_id)
-                    ',
-                    %s,
-                    %s
-                ) AS path
-                JOIN chicago_ways AS way
-                ON path.edge = way.gid
-                LEFT JOIN (
-                    SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
-                    FROM mbm_mellowroute
-                ) as mellow
-                USING(osm_id)
-            """, [source_vertex_id, target_vertex_id])
-            rows = fetchall(cursor)
-
-        # Calculate total distance in miles and time in minutes based on
-        # the total length of the route in meters
-        dist_in_meters = sum(row['length_m'] for row in rows)
-        distance, time = self.format_distance(dist_in_meters)
+        features, distance, time = calculate_route(source_vertex_id, target_vertex_id, enable_v2)
+        directions = directions_list(features)
 
         return {
             'type': 'FeatureCollection',
@@ -167,41 +111,92 @@ class Route(APIView):
                 'distance': distance,
                 'time': time,
             },
+            'features': features,
+            'directions': directions,
+        }
+
+
+
+class OsmWay(APIView):
+    """
+    API endpoint to fetch the complete geometry of an OSM way by osm_id.
+    This returns the full street/path geometry from the osm_ways table,
+    which may extend beyond the route segments.
+    """
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        osm_id = request.GET.get('osm_id')
+        
+        if not osm_id:
+            raise ParseError('Request is missing required parameter: osm_id')
+        
+        try:
+            osm_id = int(osm_id)
+        except (ValueError, TypeError):
+            raise ParseError('osm_id must be an integer')
+        
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    osm_id,
+                    name,
+                    ST_AsGeoJSON(the_geom) AS geometry
+                FROM osm_ways
+                WHERE osm_id = %s
+            """, [osm_id])
+            
+            row = cursor.fetchone()
+            
+            if not row:
+                return Response({
+                    'error': f'No OSM way found with osm_id {osm_id}'
+                }, status=404)
+            
+            columns = [col[0] for col in cursor.description]
+            result = dict(zip(columns, row))
+        
+        return Response({
+            'type': 'Feature',
+            'geometry': json.loads(result['geometry']),
+            'properties': {
+                'osm_id': result['osm_id'],
+                'name': result['name']
+            }
+        })
+
+
+class ParkBoundaries(LoginRequiredMixin, APIView):
+    """
+    API endpoint to fetch Chicago park boundaries as GeoJSON.
+    """
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    park,
+                    ST_AsGeoJSON(wkb_geometry) AS geometry
+                FROM chicago_parks
+                WHERE park IS NOT NULL
+                ORDER BY park
+            """)
+            rows = fetchall(cursor)
+        
+        return Response({
+            'type': 'FeatureCollection',
             'features': [
                 {
                     'type': 'Feature',
                     'geometry': json.loads(row['geometry']),
                     'properties': {
-                        'name': row['name'],
-                        'type': row['type']
+                        'name': row['park']
                     }
                 }
                 for row in rows
             ]
-        }
-
-    def format_distance(self, dist_in_meters):
-        """
-        Given a distance in meters, return a tuple (distance, time)
-        where `distance` is a string representing a distance in miles and
-        `time` is a string representing an estimated travelime in minutes.
-        """
-        meters_per_mi = 1609.344
-        dist_in_mi = dist_in_meters / meters_per_mi
-        formatted_dist = round(dist_in_mi, 1)
-        # Don't worry about single-mile case since we always report at least
-        # one decimal (i.e. "1.0 miles")
-        dist_unit_str = 'miles'
-        distance = f'{formatted_dist} {dist_unit_str}'
-
-        # Assume 8mph as a naive guess of speed
-        mi_per_min = 10 / 60
-        time_in_min = dist_in_mi / mi_per_min
-        formatted_time = '<1' if time_in_min < 1 else str(round(time_in_min))
-        time_unit_str = 'minute' if formatted_time in ['<1', '1'] else 'minutes'
-        time = f'{formatted_time} {time_unit_str}'
-
-        return distance, time
+        })
 
 
 class MellowRouteList(LoginRequiredMixin, ListView):

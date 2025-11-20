@@ -33,6 +33,26 @@ a {
     width: 100%;
 }
 
+/* Make controls-container scrollable on desktop */
+@media (min-width: 768px) {
+    #controls-container {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        max-height: calc(100vh - 60px); /* Adjust based on navbar height */
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    
+    /* Ensure form container stays at top */
+    #controls-container > .container-fluid {
+        flex-shrink: 0;
+        margin: 0 !important; /* Override m-auto class to prevent centering */
+        align-self: flex-start;
+    }
+}
+
 .info {
   padding: 6px 8px;
   background: white;
@@ -115,4 +135,185 @@ a {
   100% {
     transform: scale(0.8);
   }
+}
+
+/* Directions container styling - positioned by JavaScript based on screen size */
+#directions-container {
+  margin-top: 15px;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#directions-container h5 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #000000;
+  font-weight: 600;
+}
+
+#directions-list {
+  margin-bottom: 0;
+  padding-left: 20px;
+}
+
+#directions-list li {
+  margin-bottom: 10px;
+  line-height: 1.5;
+  color: #333;
+  display: flex;
+  align-items: flex-start;
+}
+
+#directions-list li:last-child {
+  margin-bottom: 0;
+}
+
+.direction-item {
+  cursor: pointer;
+  padding: 8px;
+  margin-left: -8px;
+  margin-right: -8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, border-left 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.direction-item:hover {
+  background-color: #f0f0f0;
+}
+
+.direction-item:active {
+  background-color: #e0e0e0;
+}
+
+.direction-item.selected {
+  /* Background and border colors will be set via inline styles based on route type */
+}
+
+.direction-icon-wrapper {
+  flex-shrink: 0;
+  margin-right: 10px;
+  margin-top: 2px;
+}
+
+.direction-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.direction-text {
+  flex: 1;
+}
+
+.direction-debug-info {
+  margin-top: 5px;
+  padding: 8px;
+  background-color: #f5f5f5;
+  border-left: 3px solid #ccc;
+  font-size: 0.85em;
+  color: #666;
+  font-family: 'Courier New', monospace;
+  cursor: default;
+}
+
+.direction-debug-info .debug-label {
+  font-weight: bold;
+  color: #444;
+}
+
+.osm-way-button {
+  font-size: 0.75em;
+  padding: 2px 6px;
+  margin-left: 8px;
+  background-color: #9b59b6;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  transition: background-color 0.2s ease;
+}
+
+.osm-way-button:hover {
+  background-color: #8e44ad;
+}
+
+.osm-way-button:active {
+  background-color: #7d3c98;
+}
+
+/* Style for chicago_way highlight buttons */
+.osm-way-button[data-chicago-way-index] {
+  background-color: #3498db;
+}
+
+.osm-way-button[data-chicago-way-index]:hover {
+  background-color: #2980b9;
+}
+
+.osm-way-button[data-chicago-way-index]:active {
+  background-color: #21618c;
+}
+
+/* Glow effect for highlighted chicago_ways */
+.highlight-chicago-way {
+  filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 12px currentColor);
+}
+
+/* Glow effect for highlighted OSM ways */
+.highlight-osm-way {
+  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 10px currentColor);
+}
+
+/* Settings dropdown styling */
+#settings-dropdown {
+  min-width: 250px;
+  padding: 0;
+  position: absolute;
+  will-change: transform;
+}
+
+#settings-dropdown .form-check {
+  margin-bottom: 0.75rem;
+}
+
+#settings-dropdown .form-check:last-child {
+  margin-bottom: 0;
+}
+
+#settings-dropdown .form-check-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Prevent dropdown from closing when clicking inside */
+#settings-dropdown {
+  pointer-events: auto;
+}
+
+#settingsDropdown {
+  font-size: 1.1rem;
+}
+
+/* Ensure consistent spacing for all navbar links */
+.navbar-nav .nav-link {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+/* Ensure dropdown parent doesn't cause reflow */
+.nav-item.dropdown {
+  position: relative;
+}
+
+.navbar .dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: auto;
+  z-index: 1000;
+  margin-top: 0;
 }
