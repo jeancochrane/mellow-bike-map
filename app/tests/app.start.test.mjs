@@ -92,14 +92,23 @@ test('geocodes a missing destination before submitting', async () => {
   assert.equal(getSubmitCount(), 1)
 })
 
-test('alerts if only one of source or target location is provided in query params but not the other', async () => {
-  const { app } = createApp({ toAddress: 'End' })
-  let alertMessage = ''
-  global.alert = (message) => { alertMessage = message }
+test('prefills single-sided query params without auto-submitting', async () => {
+  const { app, getSubmitCount } = createApp()
+  const geocodeCalls = []
+  let alertCount = 0
+  global.alert = () => { alertCount += 1 }
+  app.geocodeAddress = (address) => {
+    geocodeCalls.push(address)
+    return Promise.resolve({ lat: 10, lng: 20 })
+  }
 
-  await app.applyInitialQueryParams('?targetCoordinates=3,4')
+  await app.applyInitialQueryParams('?sourceAddress=Solo Start')
 
-  assert.match(alertMessage, /start and end locations/)
+  assert.deepEqual(geocodeCalls, ['Solo Start'])
+  assert.equal(app.sourceLocation, '10,20')
+  assert.equal(app.sourceAddressString, 'Solo Start')
+  assert.equal(getSubmitCount(), 0)
+  assert.equal(alertCount, 0)
 })
 
 test('shows coordinate strings when no address is provided', async () => {

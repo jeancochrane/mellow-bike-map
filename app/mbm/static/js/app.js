@@ -22,6 +22,16 @@ export default class App {
     this.sourceAddressString = ''
     this.targetAddressString = ''
     this.geocoder = null
+    this.directionsFormElements = {
+      source: {
+        input: null,
+        autocomplete: null
+      },
+      target: {
+        input: null,
+        autocomplete: null
+      }
+    }
   }
 
   start() {
@@ -188,13 +198,6 @@ export default class App {
     if (targetCoordsFromUrl) {
       const targetDisplay = targetAddress || targetCoordsParam
       this.setTargetLocation(targetCoordsFromUrl.lat, targetCoordsFromUrl.lng, targetDisplay)
-    }
-
-    const hasSourceInput = Boolean(sourceAddress) || Boolean(sourceCoordsFromUrl)
-    const hasTargetInput = Boolean(targetAddress) || Boolean(targetCoordsFromUrl)
-    if ((hasSourceInput && !hasTargetInput) || (!hasSourceInput && hasTargetInput)) {
-      alert("Can't load route: start and end locations each require an address or coordinates.")
-      return false
     }
 
     const submitIfReady = () => {
