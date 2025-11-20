@@ -181,7 +181,7 @@ test('search populates query params after manual submission', async () => {
 
 test('manual search preserves unrelated query parameters', async () => {
   const historyCalls = []
-  global.window.location.search = '?utm_source=chatgpt.com'
+  global.window.location.search = '?utm_source=duckduckgo.com'
   global.window.history.pushState = (_state, _title, url) => {
     historyCalls.push(url)
     const queryIndex = url.indexOf('?')
@@ -209,5 +209,5 @@ test('manual search preserves unrelated query parameters', async () => {
   assert.equal(params.get('targetAddress'), 'End')
   assert.equal(params.get('sourceCoordinates'), '10,20')
   assert.equal(params.get('targetCoordinates'), '30,40')
-  assert.equal(params.get('utm_source'), 'chatgpt.com')
+  assert.equal(params.get('utm_source'), 'duckduckgo.com')
 })
