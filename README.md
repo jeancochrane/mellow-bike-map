@@ -39,11 +39,10 @@ The app will be available on http://localhost:8000.
 
 ### Testing
 
-To run frontend tests, from project root:
+To run frontend tests:
 
 ```
-cd app
-npm test
+docker compose run --rm app sh -c "npm test"
 ```
 
 ## Mapping
