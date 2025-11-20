@@ -4,6 +4,35 @@
 
 {% block title %}{{ view.title }}{% endblock %}
 
+{% block settings_dropdown %}
+  <div class="px-3 py-2">
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" id="enable-v2" name="enable-v2" />
+      <label class="form-check-label" for="enable-v2">Use v2 routing</label>
+      <i
+        data-toggle="tooltip"
+        data-placement="left"
+        title="V2 routing uses a new experimental algorithm that considers all residential streets to be mellow streets."
+        style="cursor: pointer"
+      >
+        <i class="fa fa-fw fa-info-circle text-muted"></i>
+      </i>
+    </div>
+    <div class="form-check">
+      <input type="checkbox" class="form-check-input" id="enable-user-locations" name="enable-user-locations" />
+      <label class="form-check-label" for="enable-user-locations">Enable saved locations</label>
+      <i
+        data-toggle="tooltip"
+        data-placement="left"
+        title="When this is checked, double-clicking or double-tapping on the map will no longer zoom in and will instead open a dialog to save a location at that point."
+        style="cursor: pointer"
+      >
+        <i class="fa fa-fw fa-info-circle text-muted"></i>
+      </i>
+    </div>
+  </div>
+{% endblock %}
+
 {% block extra_css %}
   {% leaflet_css %}
   <link rel="stylesheet" href="{% static 'css/spin.css' %}" />
@@ -26,58 +55,30 @@
             <button id="submit" type="submit" class="btn btn-primary btn-block mt-1">Search</button>
             <button id="reset-search" type="reset" class="btn btn-secondary btn-block mb-2">Reset search</button>
           </div>
-          <div class="form-group">
-            <div>
-              <input type="checkbox" id="enable-v2" name="enable-v2" />
-              <label for="enable-v2" style="padding-left: 5px">Use v2 routing</label>
-              <i
-                data-toggle="tooltip"
-                data-placement="top"
-                title="V2 routing uses a new experimental algorithm that considers all residential streets to be mellow streets."
-                style="cursor: pointer"
-              >
-                <i class="fa fa-fw fa-info-circle text-muted"></i>
-              </i>
-            </div>
-            <div>
-              <input type="checkbox" id="enable-user-locations" name="enable-user-locations" />
-              <label for="enable-user-locations" style="padding-left: 5px">Enable saved locations</label>
-              <i
-                data-toggle="tooltip"
-                data-placement="top"
-                title="When this is checked, double-clicking or double-tapping on the map will no longer zoom in and will instead open a dialog to save a location at that point."
-                style="cursor: pointer"
-              >
-                <i class="fa fa-fw fa-info-circle text-muted"></i>
-              </i>
-            </div>
-          </div>
           <span id="route-estimate" class="text-muted"></span>
         </form>
-        <button
-          id="hide"
-          class="btn btn-outline-secondary mb-2"
-          type="button"
-          data-toggle="collapse"
-          href=".hideable"
-          role="button"
-          aria-expanded="true"
-          aria-controls="input-elements navbar-tagline"
-          data-state="hidden"
-        >
-          &or; Search for a route
-        </button>
-        <button
-          id="hide-legend"
-          class="btn btn-outline-secondary mb-2"
-          type="button"
-          role="button"
-          aria-expanded="true"
-          aria-controls="hideable-legend"
-          data-state="shown"
-        >
-          &and; Hide legend
-        </button>
+        <div class="d-md-none">
+          <button
+            id="hide"
+            class="btn btn-outline-secondary mb-2 w-100"
+            type="button"
+            aria-expanded="false"
+            aria-controls="input-elements"
+            data-state="hidden"
+          >
+            &or; Search for a route
+          </button>
+          <button
+            id="hide-legend"
+            class="btn btn-outline-secondary mb-2 w-100"
+            type="button"
+            aria-expanded="true"
+            aria-controls="map"
+            data-state="shown"
+          >
+            &and; Hide legend
+          </button>
+        </div>
       </div>
     </div>
     <div class="col-12 col-md-9">
