@@ -118,6 +118,9 @@ test('skips submission when geocoding fails', async () => {
   const { app, getSubmitCount } = createApp({ fromAddress: 'Start', toAddress: 'End' })
   const alerts = []
   global.alert = (message) => { alerts.push(message) }
+  const consoleErrors = []
+  const originalConsoleError = console.error
+  console.error = (...args) => { consoleErrors.push(args) }
   app.geocodeAddress = (address) => {
     if (address === 'End') {
       return Promise.reject('ZERO_RESULTS')
@@ -127,9 +130,13 @@ test('skips submission when geocoding fails', async () => {
 
   const result = await app.applyInitialQueryParams('')
 
+  console.error = originalConsoleError // Restore original console.error
   assert.equal(result, false)
   assert.equal(getSubmitCount(), 0)
   assert.ok(alerts.some((msg) => msg.includes('destination')))
+  assert.equal(consoleErrors.length, 1)
+  assert.equal(consoleErrors[0][0], 'Geocode failed for destination address:')
+  assert.equal(consoleErrors[0][1], 'ZERO_RESULTS')
 })
 
 test('does not auto-submit when query params are empty', async () => {
