@@ -123,6 +123,21 @@ test('shows coordinate strings when no address is provided', async () => {
   assert.equal(getSubmitCount(), 1)
 })
 
+test('does not geocode when coordinates provided in query params', async () => {
+  const { app } = createApp()
+  let geocodeCount = 0
+  app.geocodeAddress = () => {
+    geocodeCount += 1
+    return Promise.resolve({ lat: 1, lng: 2 })
+  }
+
+  await app.applyInitialQueryParams('?sourceCoordinates=41.9,-87.6&targetCoordinates=42.0,-87.7')
+
+  assert.equal(geocodeCount, 0)
+  assert.equal(app.sourceLocation, '41.9,-87.6')
+  assert.equal(app.targetLocation, '42,-87.7')
+})
+
 test('skips submission when geocoding fails', async () => {
   const { app, getSubmitCount } = createApp({ fromAddress: 'Start', toAddress: 'End' })
   const alerts = []
