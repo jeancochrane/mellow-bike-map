@@ -5,9 +5,11 @@ import { getUserPreferences, saveUserPreferences } from './storage.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
-  constructor(routeListUrl, routeUrl) {
+  constructor(routeListUrl, routeUrl, fromAddress = '', toAddress = '') {
     this.routeListUrl = routeListUrl
     this.routeUrl = routeUrl
+    this.fromAddress = fromAddress
+    this.toAddress = toAddress
 
     this.routeLayer = null
     this.allRoutesLayer = null
@@ -17,6 +19,19 @@ export default class App {
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
     this.sourceLocation = ''
     this.targetLocation = ''
+    this.sourceAddressString = ''
+    this.targetAddressString = ''
+    this.geocoder = null
+    this.directionsFormElements = {
+      source: {
+        input: null,
+        autocomplete: null
+      },
+      target: {
+        input: null,
+        autocomplete: null
+      }
+    }
   }
 
   start() {
@@ -152,6 +167,97 @@ export default class App {
       const latlng = this.geolocation.marker.getLatLng()
       this.setSourceOrTargetLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
     })
+
+    this.applyInitialQueryParams(window.location.search)
+  }
+
+  async applyInitialQueryParams(searchString = '') {
+    const urlParams = new URLSearchParams(searchString)
+    const sourceAddressParam = urlParams.get('sourceAddress')
+    const targetAddressParam = urlParams.get('targetAddress')
+    const sourceCoordsParam = urlParams.get('sourceCoordinates')
+    const targetCoordsParam = urlParams.get('targetCoordinates')
+    const sourceCoordsFromUrl = this.parseCoordinateParam(sourceCoordsParam)
+    const targetCoordsFromUrl = this.parseCoordinateParam(targetCoordsParam)
+    const sourceAddress = sourceAddressParam || this.fromAddress
+    const targetAddress = targetAddressParam || this.toAddress
+
+    if (sourceAddressParam) {
+      this.sourceAddressString = sourceAddressParam
+      this.prefillAddressInput('source', sourceAddressParam)
+    }
+    if (targetAddressParam) {
+      this.targetAddressString = targetAddressParam
+      this.prefillAddressInput('target', targetAddressParam)
+    }
+
+    if (sourceCoordsFromUrl) {
+      const sourceHasAddress = Boolean(sourceAddress)
+      const sourceDisplay = sourceHasAddress ? sourceAddress : sourceCoordsParam
+      this.setSourceLocation(sourceCoordsFromUrl.lat, sourceCoordsFromUrl.lng, sourceDisplay)
+    }
+    if (targetCoordsFromUrl) {
+      const targetHasAddress = Boolean(targetAddress)
+      const targetDisplay = targetHasAddress ? targetAddress : targetCoordsParam
+      this.setTargetLocation(targetCoordsFromUrl.lat, targetCoordsFromUrl.lng, targetDisplay)
+    }
+
+    const submitIfReady = () => {
+      if (this.sourceLocation && this.targetLocation) {
+        this.submitSearchForm()
+        return true
+      }
+      return false
+    }
+
+    const geocodeJobs = []
+    const addJob = (kind, address, setter) => {
+      geocodeJobs.push(
+        this.geocodeAddress(address).then(({ lat, lng }) => setter(lat, lng)).catch((status) => {
+          console.error(`Geocode failed for ${kind} address:`, status)
+          alert(`Could not find the ${kind} address: ` + address)
+          throw status
+        })
+      )
+    }
+
+    if (!sourceCoordsFromUrl && sourceAddress) {
+      addJob('start', sourceAddress, (lat, lng) => this.setSourceLocation(lat, lng, sourceAddress))
+    }
+    if (!targetCoordsFromUrl && targetAddress) {
+      addJob('destination', targetAddress, (lat, lng) => this.setTargetLocation(lat, lng, targetAddress))
+    }
+
+    if (geocodeJobs.length) {
+      try {
+        await Promise.all(geocodeJobs)
+      } catch (err) {
+        return false
+      }
+    }
+
+    submitIfReady()
+    return true
+  }
+
+  submitSearchForm() {
+    $('#input-elements').submit()
+  }
+
+  geocodeAddress(address) {
+    if (!this.geocoder) {
+      this.geocoder = new google.maps.Geocoder()
+    }
+    return new Promise((resolve, reject) => {
+      this.geocoder.geocode({ address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location
+          resolve({ lat: location.lat(), lng: location.lng() })
+        } else {
+          reject(status)
+        }
+      })
+    })
   }
 
   // Fetch the layer of annotated routes from the backend and display it on the map
@@ -203,6 +309,94 @@ export default class App {
     }
   }
 
+  parseCoordinateParam(value) {
+    if (!value) { return null }
+    const parts = value.split(',')
+    if (parts.length !== 2) { return null }
+    const lat = parseFloat(parts[0])
+    const lng = parseFloat(parts[1])
+    if (Number.isNaN(lat) || Number.isNaN(lng)) { return null }
+    return { lat, lng }
+  }
+
+  prefillAddressInput(name, value) {
+    const element = this.directionsFormElements[name]
+    if (element && element.input) {
+      element.input.value = value
+    }
+  }
+
+  // Try to parse the value of the input field as a coordinate string and set the location if successful
+  applyCoordinatesInput(markerName) {
+    const element = this.directionsFormElements && this.directionsFormElements[markerName]
+    if (!element || !element.input) { return }
+    const rawValue = (element.input.value || '').trim()
+    if (!rawValue) { return }
+    const coords = this.parseCoordinateParam(rawValue)
+    if (!coords) { return }
+    this.setSourceOrTargetLocation(markerName, coords.lat, coords.lng, rawValue)
+  }
+
+  escapeHtml(value = '') {
+    const htmlEscapes = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }
+    return value.replace(/[&<>"']/g, (char) => htmlEscapes[char])
+  }
+
+  updateUrlWithParams(params) {
+    const basePath = '/'
+    const query = params.toString()
+    const newUrl = query ? `${basePath}?${query}` : basePath
+    window.history.pushState({}, '', newUrl)
+  }
+
+  inputUsesCoordinates(markerName) {
+    const element = this.directionsFormElements && this.directionsFormElements[markerName]
+    if (!element || !element.input) { return false }
+    const rawValue = (element.input.value || '').trim()
+    if (!rawValue) { return false }
+    return Boolean(this.parseCoordinateParam(rawValue))
+  }
+
+  clearRouteQueryParams() {
+    const params = new URLSearchParams(window.location.search)
+    params.delete('sourceAddress')
+    params.delete('targetAddress')
+    params.delete('sourceCoordinates')
+    params.delete('targetCoordinates')
+    this.updateUrlWithParams(params)
+  }
+
+  setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords) {
+    const params = new URLSearchParams(window.location.search)
+    if (fromAddr) {
+      params.set('sourceAddress', fromAddr)
+    } else {
+      params.delete('sourceAddress')
+    }
+    if (toAddr) {
+      params.set('targetAddress', toAddr)
+    } else {
+      params.delete('targetAddress')
+    }
+    if (sourceCoords) {
+      params.set('sourceCoordinates', sourceCoords)
+    } else {
+      params.delete('sourceCoordinates')
+    }
+    if (targetCoords) {
+      params.set('targetCoordinates', targetCoords)
+    } else {
+      params.delete('targetCoordinates')
+    }
+    this.updateUrlWithParams(params)
+  }
+
   // Clear the form and remove plotted directions from the map
   // Inputs are automatically reset because the button that triggers this has `type="reset"`
   reset() {
@@ -211,6 +405,9 @@ export default class App {
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
     this.allRoutesLayer.setStyle({ opacity: 0.6 })
     this.hideRouteEstimate()
+    this.sourceAddressString = ''
+    this.targetAddressString = ''
+    this.clearRouteQueryParams()
   }
 
   // Set up the base leaflet map and styles
@@ -257,6 +454,8 @@ export default class App {
   // form, then display it on the map
   search(e) {
     e.preventDefault()
+    this.applyCoordinatesInput('source')
+    this.applyCoordinatesInput('target')
     const source = this.sourceLocation
     const target = this.targetLocation
     const enableV2 = $('#enable-v2').is(':checked')
@@ -265,6 +464,13 @@ export default class App {
     } else if (target == '') {
       alert('Target is required for search')
     } else {
+      const fromAddr = this.inputUsesCoordinates('source') ? null : this.sourceAddressString
+      const toAddr = this.inputUsesCoordinates('target') ? null : this.targetAddressString
+      const sourceCoords = this.sourceLocation
+      const targetCoords = this.targetLocation
+
+      this.setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords)
+
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
         if (this.routeLayer) {
@@ -313,8 +519,9 @@ export default class App {
       const { input } = this.directionsFormElements[markerName]
 
       if (addressString) {
-        // Update the marker's popup
-        this.markers[markerName].unbindPopup().bindPopup(addressString)
+        const escapedAddress = this.escapeHtml(addressString)
+        // Update the marker's popup with escaped HTML
+        this.markers[markerName].unbindPopup().bindPopup(escapedAddress)
         // Update the user-facing text input field
         input.value = addressString
       }
@@ -343,11 +550,13 @@ export default class App {
 
   setSourceLocation(lat, lng, addressString) {
     this.sourceLocation = this.serializeLocation(lat, lng)
+    this.sourceAddressString = addressString
     this.setMarkerLocation('source', lat, lng, addressString)
   }
 
   setTargetLocation(lat, lng, addressString) {
     this.targetLocation = this.serializeLocation(lat, lng)
+    this.targetAddressString = addressString
     this.setMarkerLocation('target', lat, lng, addressString)
   }
 

@@ -41,10 +41,13 @@ jobs:
           sudo apt-get update && sudo apt-get install -y --no-install-recommends gdal-bin
           pip install --upgrade pip
           pip install --upgrade -r app/requirements.txt
-      - name: Run tests
+      - name: Run Python tests
         run: |
           cp -R tests app/tests
           cd app && pytest
+      - name: Run JavaScript tests
+        run: |
+          cd app && npm test
   deploy:
     needs: test
     if: github.ref == 'refs/heads/master'
