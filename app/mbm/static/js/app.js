@@ -192,11 +192,13 @@ export default class App {
     }
 
     if (sourceCoordsFromUrl) {
-      const sourceDisplay = sourceAddress || sourceCoordsParam
+      const sourceHasAddress = Boolean(sourceAddress)
+      const sourceDisplay = sourceHasAddress ? sourceAddress : sourceCoordsParam
       this.setSourceLocation(sourceCoordsFromUrl.lat, sourceCoordsFromUrl.lng, sourceDisplay)
     }
     if (targetCoordsFromUrl) {
-      const targetDisplay = targetAddress || targetCoordsParam
+      const targetHasAddress = Boolean(targetAddress)
+      const targetDisplay = targetHasAddress ? targetAddress : targetCoordsParam
       this.setTargetLocation(targetCoordsFromUrl.lat, targetCoordsFromUrl.lng, targetDisplay)
     }
 
@@ -324,6 +326,17 @@ export default class App {
     }
   }
 
+  // Try to parse the value of the input field as a coordinate string and set the location if successful
+  applyCoordinatesInput(markerName) {
+    const element = this.directionsFormElements && this.directionsFormElements[markerName]
+    if (!element || !element.input) { return }
+    const rawValue = (element.input.value || '').trim()
+    if (!rawValue) { return }
+    const coords = this.parseCoordinateParam(rawValue)
+    if (!coords) { return }
+    this.setSourceOrTargetLocation(markerName, coords.lat, coords.lng, rawValue)
+  }
+
   escapeHtml(value = '') {
     const htmlEscapes = {
       '&': '&amp;',
@@ -342,6 +355,14 @@ export default class App {
     window.history.pushState({}, '', newUrl)
   }
 
+  inputUsesCoordinates(markerName) {
+    const element = this.directionsFormElements && this.directionsFormElements[markerName]
+    if (!element || !element.input) { return false }
+    const rawValue = (element.input.value || '').trim()
+    if (!rawValue) { return false }
+    return Boolean(this.parseCoordinateParam(rawValue))
+  }
+
   clearRouteQueryParams() {
     const params = new URLSearchParams(window.location.search)
     params.delete('sourceAddress')
@@ -353,8 +374,16 @@ export default class App {
 
   setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords) {
     const params = new URLSearchParams(window.location.search)
-    params.set('sourceAddress', fromAddr)
-    params.set('targetAddress', toAddr)
+    if (fromAddr) {
+      params.set('sourceAddress', fromAddr)
+    } else {
+      params.delete('sourceAddress')
+    }
+    if (toAddr) {
+      params.set('targetAddress', toAddr)
+    } else {
+      params.delete('targetAddress')
+    }
     if (sourceCoords) {
       params.set('sourceCoordinates', sourceCoords)
     } else {
@@ -425,6 +454,8 @@ export default class App {
   // form, then display it on the map
   search(e) {
     e.preventDefault()
+    this.applyCoordinatesInput('source')
+    this.applyCoordinatesInput('target')
     const source = this.sourceLocation
     const target = this.targetLocation
     const enableV2 = $('#enable-v2').is(':checked')
@@ -433,16 +464,12 @@ export default class App {
     } else if (target == '') {
       alert('Target is required for search')
     } else {
-      // Update URL with from/to addresses
-      // Use the stored address strings, or fall back to the input values
-      const fromAddr = this.sourceAddressString
-      const toAddr = this.targetAddressString
+      const fromAddr = this.inputUsesCoordinates('source') ? null : this.sourceAddressString
+      const toAddr = this.inputUsesCoordinates('target') ? null : this.targetAddressString
       const sourceCoords = this.sourceLocation
       const targetCoords = this.targetLocation
 
-      if (fromAddr && toAddr) {
-        this.setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords)
-      }
+      this.setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords)
 
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {

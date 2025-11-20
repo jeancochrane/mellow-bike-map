@@ -92,7 +92,7 @@ test('geocodes a missing destination before submitting', async () => {
   assert.equal(getSubmitCount(), 1)
 })
 
-test('prefills single-sided query params without auto-submitting', async () => {
+test('prefills just the source address and not the target address without auto-submitting', async () => {
   const { app, getSubmitCount } = createApp()
   const geocodeCalls = []
   let alertCount = 0
@@ -218,5 +218,84 @@ test('manual search preserves unrelated query parameters', async () => {
   assert.equal(params.get('targetAddress'), 'End')
   assert.equal(params.get('sourceCoordinates'), '10,20')
   assert.equal(params.get('targetCoordinates'), '30,40')
+  assert.equal(params.get('utm_source'), 'duckduckgo.com')
+})
+
+test('manual search accepts coordinate input strings', () => {
+  const { app } = createApp()
+  const getJSONUrls = []
+  const originalGetJSON = $.getJSON
+  $.getJSON = (url) => {
+    getJSONUrls.push(url)
+    return mockAjax()
+  }
+  const historyCalls = []
+  global.window.history.pushState = (_state, _title, url) => {
+    historyCalls.push(url)
+    const queryIndex = url.indexOf('?')
+    global.window.location.search = queryIndex >= 0 ? url.slice(queryIndex) : ''
+  }
+
+  app.map = {
+    spin: noop,
+    removeLayer: noop,
+    fitBounds: noop
+  }
+  app.allRoutesLayer = { setStyle: noop }
+  app.showRouteEstimate = noop
+  app.directionsFormElements.source.input = { value: '41.8,-87.6' }
+  app.directionsFormElements.target.input = { value: '41.9,-87.7' }
+
+  app.sourceLocation = ''
+  app.targetLocation = ''
+
+  app.search({ preventDefault: noop })
+
+  $.getJSON = originalGetJSON
+
+  assert.equal(app.sourceLocation, '41.8,-87.6')
+  assert.equal(app.targetLocation, '41.9,-87.7')
+  assert.equal(getJSONUrls.length, 1)
+  const params = new URLSearchParams(getJSONUrls[0].split('?')[1])
+  assert.equal(params.get('source'), '41.8,-87.6')
+  assert.equal(params.get('target'), '41.9,-87.7')
+  const lastUrl = historyCalls.at(-1)
+  const locationParams = new URLSearchParams(lastUrl.split('?')[1] || '')
+  assert.equal(locationParams.get('sourceAddress'), null)
+  assert.equal(locationParams.get('targetAddress'), null)
+  assert.equal(locationParams.get('sourceCoordinates'), '41.8,-87.6')
+  assert.equal(locationParams.get('targetCoordinates'), '41.9,-87.7')
+})
+
+test('manual coordinate search removes existing address params', () => {
+  const historyCalls = []
+  global.window.location.search = '?sourceAddress=OldStart&targetAddress=OldEnd&utm_source=duckduckgo.com'
+  global.window.history.pushState = (_state, _title, url) => {
+    historyCalls.push(url)
+    const queryIndex = url.indexOf('?')
+    global.window.location.search = queryIndex >= 0 ? url.slice(queryIndex) : ''
+  }
+
+  const { app } = createApp()
+  app.map = {
+    spin: noop,
+    removeLayer: noop,
+    fitBounds: noop
+  }
+  app.allRoutesLayer = { setStyle: noop }
+  app.showRouteEstimate = noop
+  app.directionsFormElements.source.input = { value: '42.0,-87.7' }
+  app.directionsFormElements.target.input = { value: '42.1,-87.8' }
+  app.sourceLocation = ''
+  app.targetLocation = ''
+
+  app.search({ preventDefault: noop })
+
+  const lastUrl = historyCalls.at(-1)
+  const params = new URLSearchParams(lastUrl.split('?')[1] || '')
+  assert.equal(params.get('sourceAddress'), null)
+  assert.equal(params.get('targetAddress'), null)
+  assert.equal(params.get('sourceCoordinates'), '42,-87.7')
+  assert.equal(params.get('targetCoordinates'), '42.1,-87.8')
   assert.equal(params.get('utm_source'), 'duckduckgo.com')
 })
