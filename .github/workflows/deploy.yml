@@ -55,11 +55,14 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: aws-actions/configure-aws-credentials@v5
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
           aws-region: ${{ env.AWS_REGION }}
-      - run: |
+      - name: Deploy app
+        run: |
           commit_hash=`git rev-parse HEAD`
           aws deploy create-deployment --application-name mellow-bike-map --deployment-group-name production --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
