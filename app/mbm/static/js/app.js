@@ -11,9 +11,32 @@ export default class App {
     this.fromAddress = fromAddress
     this.toAddress = toAddress
 
-    this.routeLayer = null
-    this.allRoutesLayer = null
+    // The layer that displays the route between the source and target locations
+    this.directionsRouteLayer = null
+
+    // The layer that displays the calm routes on the map: "off-street bike paths", "mellow streets", and "main streets, often with bike lanes"
+    this.calmRoutesLayer = null
+    this.calmRoutesData = null
+
     this.markers = { 'source': null, 'target': null }
+
+    this.routeTypes = {
+      'path': {
+        color: '#e17fa8',
+        description: 'Off-street bike paths (very calm)',
+        visible: true
+      },
+      'street': {
+        color: '#77b7a2',
+        description: 'Mellow streets (calm)',
+        visible: true
+      },
+      'route': {
+        color: '#e18a7e',
+        description: 'Main streets, often with bike lanes (less calm)',
+        visible: true
+      }
+    }
 
     // Start the app once the DOM is ready
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
@@ -105,8 +128,8 @@ export default class App {
       this.userLocationsCheckbox.dispatchEvent(new Event('change'))
     }
 
-    // Load the routes layer from the backend
-    this.loadAllRoutes()
+    // Load the routes layer (first call hits backend, subsequent reloads reuse cache)
+    this.loadCalmRoutes()
 
     // Define behavior for the search button
     $directionsForm.submit(this.search.bind(this))
@@ -260,21 +283,41 @@ export default class App {
     })
   }
 
-  // Fetch the layer of annotated routes from the backend and display it on the map
-  loadAllRoutes() {
+  // Fetch (once) and render the annotated routes layer, caching the data after the initial request
+  loadCalmRoutes() {
+    if (this.calmRoutesData) {
+      this.renderCalmRoutesLayer(this.calmRoutesData)
+      return
+    }
+
     // Start spinner while we retrieve initial route map
     this.map.spin(true)
     $.getJSON(this.routeListUrl).done((data) => {
-      this.allRoutesLayer = L.geoJSON(data, {
-        style: (feature) => {
-          return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
-        },
-        interactive: false,
-      }).addTo(this.map)
-      this.map.spin(false)
+      this.calmRoutesData = data
+      this.renderCalmRoutesLayer(data)
     }).fail(function (jqxhr, textStatus, error) {
       console.log(textStatus + ': ' + error)
+    }).always(() => {
+      this.map.spin(false)
     })
+  }
+
+  renderCalmRoutesLayer(data) {
+    if (this.calmRoutesLayer) {
+      this.map.removeLayer(this.calmRoutesLayer)
+      this.calmRoutesLayer = null
+    }
+
+    this.calmRoutesLayer = L.geoJSON(data, {
+      style: (feature) => {
+        return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
+      },
+      interactive: false,
+      filter: (feature) => {
+        const routeType = this.routeTypes[feature.properties.type]
+        return routeType ? routeType.visible === true : false
+      }
+    }).addTo(this.map)
   }
 
   // Create a legend
@@ -282,31 +325,72 @@ export default class App {
     const legend = L.control({ position: 'bottomright' })
     legend.onAdd = (map) => {
       let div = L.DomUtil.create('div', 'info legend hideable-legend')
-      const routeTypes = [
-        ['path', 'Off-street bike paths (very calm)'],
-        ['street', 'Mellow streets (calm)'],
-        ['route', 'Main streets, often with bike lanes (less calm)']
-      ]
-      for (const routeType of routeTypes) {
-        const color = this.getLineColor(routeType[0])
-        const description = routeType[1]
-        div.innerHTML += `<i style="background:${color}"></i>${description}`
-        if (routeType !== routeTypes[routeTypes.length - 1]) {
-          div.innerHTML += '<br>'
+      const routeEntries = Object.entries(this.routeTypes)
+      for (const [type, { color, description, visible }] of routeEntries) {
+        const lineColor = color || '#7ea4e1'
+        
+        // Create a container for each legend item
+        const item = L.DomUtil.create('div', 'legend-item', div)
+        item.setAttribute('data-route-type', type)
+        if (!visible) {
+          item.classList.add('legend-item-inactive')
         }
+        
+        // Create the color box
+        const colorBox = L.DomUtil.create('i', '', item)
+        colorBox.style.background = lineColor
+        
+        // Create the text label
+        const label = L.DomUtil.create('span', '', item)
+        label.textContent = description
+        
+        // Add click handler to container to toggle the visibility of the route type
+        L.DomEvent.on(item, 'click', (e) => {
+          L.DomEvent.stopPropagation(e)
+          this.toggleCalmRouteTypeVisibility(type)
+        })
       }
+      
+      // Prevent map interactions when clicking on legend
+      L.DomEvent.disableClickPropagation(div)
+      
       return div
     }
     return legend
   }
 
   getLineColor(type) {
-    switch (type) {
-      case 'street': return '#77b7a2'
-      case 'route': return '#e18a7e'
-      case 'path': return '#e17fa8'
-      default: return '#7ea4e1'
+    const routeType = this.routeTypes[type]
+    return routeType ? routeType.color : '#7ea4e1'
+  }
+
+  // Toggle the visibility of a route type
+  toggleCalmRouteTypeVisibility(type) {
+    const routeType = this.routeTypes[type]
+    if (!routeType) { return }
+    routeType.visible = !routeType.visible
+    
+    // Update the legend item appearance
+    const legendItem = document.querySelector(`.legend-item[data-route-type="${type}"]`)
+    if (legendItem) {
+      if (routeType.visible) {
+        legendItem.classList.remove('legend-item-inactive')
+      } else {
+        legendItem.classList.add('legend-item-inactive')
+      }
     }
+    
+    // Reload the routes layer with the new filter
+    this.reloadCalmRoutes()
+  }
+
+  // Reload all routes with current filters
+  reloadCalmRoutes() {
+    if (this.calmRoutesLayer) {
+      this.map.removeLayer(this.calmRoutesLayer)
+      this.calmRoutesLayer = null
+    }
+    this.loadCalmRoutes()
   }
 
   parseCoordinateParam(value) {
@@ -400,10 +484,10 @@ export default class App {
   // Clear the form and remove plotted directions from the map
   // Inputs are automatically reset because the button that triggers this has `type="reset"`
   reset() {
-    if (this.routeLayer) { this.map.removeLayer(this.routeLayer) }
+    if (this.directionsRouteLayer) { this.map.removeLayer(this.directionsRouteLayer) }
     if (this.markers['source']) { this.map.removeLayer(this.markers['source']) }
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
-    this.allRoutesLayer.setStyle({ opacity: 0.6 })
+    this.calmRoutesLayer.setStyle({ opacity: 0.6 })
     this.hideRouteEstimate()
     this.sourceAddressString = ''
     this.targetAddressString = ''
@@ -473,10 +557,10 @@ export default class App {
 
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
-        if (this.routeLayer) {
-          this.map.removeLayer(this.routeLayer)
+        if (this.directionsRouteLayer) {
+          this.map.removeLayer(this.directionsRouteLayer)
         }
-        this.routeLayer = L.geoJSON(data.route, {
+        this.directionsRouteLayer = L.geoJSON(data.route, {
           style: (feature) => {
             return { weight: 5, color: this.getLineColor(feature.properties.type) }
           },
@@ -488,8 +572,8 @@ export default class App {
           }
         }).addTo(this.map)
         // Lower opacity on non-route street colors
-        this.allRoutesLayer.setStyle({ opacity: 0.3 })
-        this.map.fitBounds(this.routeLayer.getBounds())
+        this.calmRoutesLayer.setStyle({ opacity: 0.3 })
+        this.map.fitBounds(this.directionsRouteLayer.getBounds())
         this.showRouteEstimate(data.route.properties.distance, data.route.properties.time)
       }).fail((jqxhr, textStatus, error) => {
         const err = textStatus + ': ' + error
