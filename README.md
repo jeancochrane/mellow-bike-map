@@ -39,10 +39,16 @@ The app will be available on http://localhost:8000.
 
 ### Testing
 
-To run the test suite:
+To run backend tests:
 
 ```
 docker compose run --rm app sh -c "python -m pytest /app/tests"
+```
+
+To run frontend tests:
+
+```
+docker compose run --rm app sh -c "npm test"
 ```
 
 ## Mapping

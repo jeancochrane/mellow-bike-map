@@ -41,10 +41,13 @@ jobs:
           sudo apt-get update && sudo apt-get install -y --no-install-recommends gdal-bin
           pip install --upgrade pip
           pip install --upgrade -r app/requirements.txt
-      - name: Run tests
+      - name: Run Python tests
         run: |
           cp -R tests app/tests
           cd app && pytest
+      - name: Run JavaScript tests
+        run: |
+          cd app && npm test
   deploy:
     needs: test
     if: github.ref == 'refs/heads/master'
@@ -56,13 +59,14 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v3
-      - uses: aws-actions/configure-aws-credentials@v1
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
-          role-session-name: GitHub-Action-Role
           aws-region: ${{ env.AWS_REGION }}
-      - run: |
-          echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
+      - name: Deploy app
+        run: |
           commit_hash=`git rev-parse HEAD`
           aws deploy create-deployment --application-name mellow-bike-map --deployment-group-name production --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
