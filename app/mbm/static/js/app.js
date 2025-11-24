@@ -574,7 +574,11 @@ export default class App {
         // Lower opacity on non-route street colors
         this.calmRoutesLayer.setStyle({ opacity: 0.3 })
         this.map.fitBounds(this.directionsRouteLayer.getBounds())
-        this.showRouteEstimate(data.route.properties.distance, data.route.properties.time)
+        this.showRouteEstimate(
+          data.route.properties.distance,
+          data.route.properties.time,
+          data.route.properties.major_streets
+        )
       }).fail((jqxhr, textStatus, error) => {
         const err = textStatus + ': ' + error
         alert('Request failed: ' + err)
@@ -656,11 +660,29 @@ export default class App {
     this.markers[name] = marker
   }
 
-  showRouteEstimate(distance, time) {
-    this.$routeEstimate.html(`<strong>${time}</strong> (${distance})`)
+  showRouteEstimate(distance, time, majorStreets = []) {
+    const viaText = this.formatViaText(majorStreets)
+    const summary = viaText ? `<strong>${time}</strong> (${distance}) ${viaText}` : `<strong>${time}</strong> (${distance})`
+    this.$routeEstimate.html(summary)
     this.$routeEstimate.show()
     this.$hideSearch.addClass('mt-1')
     this.$hideLegend.addClass('mt-1')
+  }
+
+  formatViaText(streets = []) {
+    const names = streets.slice(0, 3).filter(name => !!name)
+    if (names.length === 0) {
+      return ''
+    }
+    if (names.length === 1) {
+      return `via ${names[0]}`
+    }
+    if (names.length === 2) {
+      return `via ${names[0]} and ${names[1]}`
+    }
+    const leading = names.slice(0, -1).join(', ')
+    const last = names[names.length - 1]
+    return `via ${leading}, and ${last}`
   }
 
   hideRouteEstimate() {
