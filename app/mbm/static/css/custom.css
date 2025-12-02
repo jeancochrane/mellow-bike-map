@@ -74,6 +74,25 @@ a {
   opacity: 0.7;
 }
 
+.legend-item {
+  margin-bottom: 4px;
+  transition: opacity 0.3s ease;
+  cursor: pointer;
+}
+
+.legend-item:hover {
+  opacity: 0.8;
+}
+
+.legend-item-inactive {
+  opacity: 0.3;
+  text-decoration: line-through;
+}
+
+.legend-item-inactive i {
+  opacity: 0.2;
+}
+
 .btn-primary {
   background-color: var(--green-color);
   border: var(--dark-green-color);

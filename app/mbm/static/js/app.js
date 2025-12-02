@@ -12,13 +12,36 @@ export default class App {
     this.fromAddress = fromAddress
     this.toAddress = toAddress
 
-    this.routeLayer = null
-    this.allRoutesLayer = null
+    // The layer that displays the route between the source and target locations
+    this.directionsRouteLayer = null
+
+    // The layer that displays the calm routes on the map: "off-street bike paths", "mellow streets", and "main streets, often with bike lanes"
+    this.calmRoutesLayer = null
+    this.calmRoutesData = null
+
     this.markers = { 'source': null, 'target': null }
     this.routeData = null
     this.highlightLayer = null
     this.highlightGlowLayer = null
     this.parksLayer = null  // For debug mode: shows park boundaries
+
+    this.routeTypes = {
+      'path': {
+        color: '#e17fa8',
+        description: 'Off-street bike paths (very calm)',
+        visible: true
+      },
+      'street': {
+        color: '#77b7a2',
+        description: 'Mellow streets (calm)',
+        visible: true
+      },
+      'route': {
+        color: '#e18a7e',
+        description: 'Main streets, often with bike lanes (less calm)',
+        visible: true
+      }
+    }
 
     // Start the app once the DOM is ready
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
@@ -26,6 +49,17 @@ export default class App {
     this.targetLocation = ''
     this.sourceAddressString = ''
     this.targetAddressString = ''
+    this.geocoder = null
+    this.directionsFormElements = {
+      source: {
+        input: null,
+        autocomplete: null
+      },
+      target: {
+        input: null,
+        autocomplete: null
+      }
+    }
   }
 
   start() {
@@ -104,8 +138,8 @@ export default class App {
       this.userLocationsCheckbox.dispatchEvent(new Event('change'))
     }
 
-    // Load the routes layer from the backend
-    this.loadAllRoutes()
+    // Load the routes layer (first call hits backend, subsequent reloads reuse cache)
+    this.loadCalmRoutes()
 
     // ===== DEBUG MODE: Load park boundaries =====
     // Check if debug mode is enabled via URL parameter
@@ -167,16 +201,19 @@ export default class App {
       this.setSourceOrTargetLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
     })
 
-    // If from/to addresses are provided in the URL, geocode them and auto-run search
-    if (this.fromAddress && this.toAddress) {
-      this.geocodeAddressesAndRunSearch(this.fromAddress, this.toAddress)
-    }
-
     // Position directions container based on screen size
     this.positionDirectionsContainer()
     $(window).on('resize', () => {
       this.positionDirectionsContainer()
     })
+
+    // If from/to addresses are provided in the URL path, geocode them and auto-run search
+    if (this.fromAddress && this.toAddress) {
+      this.geocodeAddressesAndRunSearch(this.fromAddress, this.toAddress)
+    } else {
+      // Otherwise, check for query parameters
+      this.applyInitialQueryParams(window.location.search)
+    }
   }
 
   positionDirectionsContainer() {
@@ -246,20 +283,111 @@ export default class App {
     })
   }
 
-  // Fetch the layer of annotated routes from the backend and display it on the map
-  loadAllRoutes() {
+  async applyInitialQueryParams(searchString = '') {
+    const urlParams = new URLSearchParams(searchString)
+    const sourceAddressParam = urlParams.get('sourceAddress')
+    const targetAddressParam = urlParams.get('targetAddress')
+    const sourceCoordsParam = urlParams.get('sourceCoordinates')
+    const targetCoordsParam = urlParams.get('targetCoordinates')
+    const sourceCoordsFromUrl = this.parseCoordinateParam(sourceCoordsParam)
+    const targetCoordsFromUrl = this.parseCoordinateParam(targetCoordsParam)
+    const sourceAddress = sourceAddressParam || this.fromAddress
+    const targetAddress = targetAddressParam || this.toAddress
+
+    if (sourceAddressParam) {
+      this.sourceAddressString = sourceAddressParam
+      this.prefillAddressInput('source', sourceAddressParam)
+    }
+    if (targetAddressParam) {
+      this.targetAddressString = targetAddressParam
+      this.prefillAddressInput('target', targetAddressParam)
+    }
+
+    if (sourceCoordsFromUrl) {
+      const sourceHasAddress = Boolean(sourceAddress)
+      const sourceDisplay = sourceHasAddress ? sourceAddress : sourceCoordsParam
+      this.setSourceLocation(sourceCoordsFromUrl.lat, sourceCoordsFromUrl.lng, sourceDisplay)
+    }
+    if (targetCoordsFromUrl) {
+      const targetHasAddress = Boolean(targetAddress)
+      const targetDisplay = targetHasAddress ? targetAddress : targetCoordsParam
+      this.setTargetLocation(targetCoordsFromUrl.lat, targetCoordsFromUrl.lng, targetDisplay)
+    }
+
+    const submitIfReady = () => {
+      if (this.sourceLocation && this.targetLocation) {
+        this.submitSearchForm()
+        return true
+      }
+      return false
+    }
+
+    const geocodeJobs = []
+    const addJob = (kind, address, setter) => {
+      geocodeJobs.push(
+        this.geocodeAddress(address).then(({ lat, lng }) => setter(lat, lng)).catch((status) => {
+          console.error(`Geocode failed for ${kind} address:`, status)
+          alert(`Could not find the ${kind} address: ` + address)
+          throw status
+        })
+      )
+    }
+
+    if (!sourceCoordsFromUrl && sourceAddress) {
+      addJob('start', sourceAddress, (lat, lng) => this.setSourceLocation(lat, lng, sourceAddress))
+    }
+    if (!targetCoordsFromUrl && targetAddress) {
+      addJob('destination', targetAddress, (lat, lng) => this.setTargetLocation(lat, lng, targetAddress))
+    }
+
+    if (geocodeJobs.length) {
+      try {
+        await Promise.all(geocodeJobs)
+      } catch (err) {
+        return false
+      }
+    }
+
+    submitIfReady()
+    return true
+  }
+
+  submitSearchForm() {
+    $('#input-elements').submit()
+  }
+
+  geocodeAddress(address) {
+    if (!this.geocoder) {
+      this.geocoder = new google.maps.Geocoder()
+    }
+    return new Promise((resolve, reject) => {
+      this.geocoder.geocode({ address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const location = results[0].geometry.location
+          resolve({ lat: location.lat(), lng: location.lng() })
+        } else {
+          reject(status)
+        }
+      })
+    })
+  }
+
+  // Fetch (once) and render the annotated routes layer, caching the data after the initial request
+  loadCalmRoutes() {
+    if (this.calmRoutesData) {
+      this.renderCalmRoutesLayer(this.calmRoutesData)
+      return
+    }
+
     // Start spinner while we retrieve initial route map
     this.map.spin(true)
     $.getJSON(this.routeListUrl).done((data) => {
-      this.allRoutesLayer = L.geoJSON(data, {
-        style: (feature) => {
-          return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
-        },
-        interactive: false,
-      }).addTo(this.map)
-      this.map.spin(false)
+      this.calmRoutesData = data
+      this.renderCalmRoutesLayer(data)
     }).fail(function (jqxhr, textStatus, error) {
       console.log(textStatus + ': ' + error)
+    }).always(() => {
+      this.map.spin(false)
     })
   }
 
@@ -294,36 +422,183 @@ export default class App {
   }
   // ===== END DEBUG MODE =====
 
+  renderCalmRoutesLayer(data) {
+    if (this.calmRoutesLayer) {
+      this.map.removeLayer(this.calmRoutesLayer)
+      this.calmRoutesLayer = null
+    }
+
+    this.calmRoutesLayer = L.geoJSON(data, {
+      style: (feature) => {
+        return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
+      },
+      interactive: false,
+      filter: (feature) => {
+        const routeType = this.routeTypes[feature.properties.type]
+        return routeType ? routeType.visible === true : false
+      }
+    }).addTo(this.map)
+  }
+
   // Create a legend
   createLegend() {
     const legend = L.control({ position: 'bottomright' })
     legend.onAdd = (map) => {
       let div = L.DomUtil.create('div', 'info legend hideable-legend')
-      const routeTypes = [
-        ['path', 'Off-street bike paths (very calm)'],
-        ['street', 'Mellow streets (calm)'],
-        ['route', 'Main streets, often with bike lanes (less calm)']
-      ]
-      for (const routeType of routeTypes) {
-        const color = this.getLineColor(routeType[0])
-        const description = routeType[1]
-        div.innerHTML += `<i style="background:${color}"></i>${description}`
-        if (routeType !== routeTypes[routeTypes.length - 1]) {
-          div.innerHTML += '<br>'
+      const routeEntries = Object.entries(this.routeTypes)
+      for (const [type, { color, description, visible }] of routeEntries) {
+        const lineColor = color || '#7ea4e1'
+        
+        // Create a container for each legend item
+        const item = L.DomUtil.create('div', 'legend-item', div)
+        item.setAttribute('data-route-type', type)
+        if (!visible) {
+          item.classList.add('legend-item-inactive')
         }
+        
+        // Create the color box
+        const colorBox = L.DomUtil.create('i', '', item)
+        colorBox.style.background = lineColor
+        
+        // Create the text label
+        const label = L.DomUtil.create('span', '', item)
+        label.textContent = description
+        
+        // Add click handler to container to toggle the visibility of the route type
+        L.DomEvent.on(item, 'click', (e) => {
+          L.DomEvent.stopPropagation(e)
+          this.toggleCalmRouteTypeVisibility(type)
+        })
       }
+      
+      // Prevent map interactions when clicking on legend
+      L.DomEvent.disableClickPropagation(div)
+      
       return div
     }
     return legend
   }
 
   getLineColor(type) {
-    switch (type) {
-      case 'street': return '#77b7a2'
-      case 'route': return '#e18a7e'
-      case 'path': return '#e17fa8'
-      default: return '#7ea4e1'
+    const routeType = this.routeTypes[type]
+    return routeType ? routeType.color : '#7ea4e1'
+  }
+
+  // Toggle the visibility of a route type
+  toggleCalmRouteTypeVisibility(type) {
+    const routeType = this.routeTypes[type]
+    if (!routeType) { return }
+    routeType.visible = !routeType.visible
+    
+    // Update the legend item appearance
+    const legendItem = document.querySelector(`.legend-item[data-route-type="${type}"]`)
+    if (legendItem) {
+      if (routeType.visible) {
+        legendItem.classList.remove('legend-item-inactive')
+      } else {
+        legendItem.classList.add('legend-item-inactive')
+      }
     }
+    
+    // Reload the routes layer with the new filter
+    this.reloadCalmRoutes()
+  }
+
+  // Reload all routes with current filters
+  reloadCalmRoutes() {
+    if (this.calmRoutesLayer) {
+      this.map.removeLayer(this.calmRoutesLayer)
+      this.calmRoutesLayer = null
+    }
+    this.loadCalmRoutes()
+  }
+
+  parseCoordinateParam(value) {
+    if (!value) { return null }
+    const parts = value.split(',')
+    if (parts.length !== 2) { return null }
+    const lat = parseFloat(parts[0])
+    const lng = parseFloat(parts[1])
+    if (Number.isNaN(lat) || Number.isNaN(lng)) { return null }
+    return { lat, lng }
+  }
+
+  prefillAddressInput(name, value) {
+    const element = this.directionsFormElements[name]
+    if (element && element.input) {
+      element.input.value = value
+    }
+  }
+
+  // Try to parse the value of the input field as a coordinate string and set the location if successful
+  applyCoordinatesInput(markerName) {
+    const element = this.directionsFormElements && this.directionsFormElements[markerName]
+    if (!element || !element.input) { return }
+    const rawValue = (element.input.value || '').trim()
+    if (!rawValue) { return }
+    const coords = this.parseCoordinateParam(rawValue)
+    if (!coords) { return }
+    this.setSourceOrTargetLocation(markerName, coords.lat, coords.lng, rawValue)
+  }
+
+  escapeHtml(value = '') {
+    const htmlEscapes = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }
+    return value.replace(/[&<>"']/g, (char) => htmlEscapes[char])
+  }
+
+  updateUrlWithParams(params) {
+    const basePath = '/'
+    const query = params.toString()
+    const newUrl = query ? `${basePath}?${query}` : basePath
+    window.history.pushState({}, '', newUrl)
+  }
+
+  inputUsesCoordinates(markerName) {
+    const element = this.directionsFormElements && this.directionsFormElements[markerName]
+    if (!element || !element.input) { return false }
+    const rawValue = (element.input.value || '').trim()
+    if (!rawValue) { return false }
+    return Boolean(this.parseCoordinateParam(rawValue))
+  }
+
+  clearRouteQueryParams() {
+    const params = new URLSearchParams(window.location.search)
+    params.delete('sourceAddress')
+    params.delete('targetAddress')
+    params.delete('sourceCoordinates')
+    params.delete('targetCoordinates')
+    this.updateUrlWithParams(params)
+  }
+
+  setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords) {
+    const params = new URLSearchParams(window.location.search)
+    if (fromAddr) {
+      params.set('sourceAddress', fromAddr)
+    } else {
+      params.delete('sourceAddress')
+    }
+    if (toAddr) {
+      params.set('targetAddress', toAddr)
+    } else {
+      params.delete('targetAddress')
+    }
+    if (sourceCoords) {
+      params.set('sourceCoordinates', sourceCoords)
+    } else {
+      params.delete('sourceCoordinates')
+    }
+    if (targetCoords) {
+      params.set('targetCoordinates', targetCoords)
+    } else {
+      params.delete('targetCoordinates')
+    }
+    this.updateUrlWithParams(params)
   }
 
   // Convert a hex color to a lighter shade for highlighting
@@ -349,12 +624,12 @@ export default class App {
   // Clear the form and remove plotted directions from the map
   // Inputs are automatically reset because the button that triggers this has `type="reset"`
   reset() {
-    if (this.routeLayer) { this.map.removeLayer(this.routeLayer) }
+    if (this.directionsRouteLayer) { this.map.removeLayer(this.directionsRouteLayer) }
     if (this.highlightLayer) { this.map.removeLayer(this.highlightLayer) }
     if (this.highlightGlowLayer) { this.map.removeLayer(this.highlightGlowLayer) }
     if (this.markers['source']) { this.map.removeLayer(this.markers['source']) }
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
-    this.allRoutesLayer.setStyle({ opacity: 0.6 })
+    this.calmRoutesLayer.setStyle({ opacity: 0.6 })
     this.hideRouteEstimate()
     this.hideDirections()
     this.sourceAddressString = ''
@@ -364,6 +639,7 @@ export default class App {
     const searchParams = new URLSearchParams(window.location.search)
     const queryString = searchParams.toString()
     window.history.pushState({}, '', '/' + (queryString ? '?' + queryString : ''))
+    this.clearRouteQueryParams()
   }
 
   // Set up the base leaflet map and styles
@@ -410,6 +686,8 @@ export default class App {
   // form, then display it on the map
   search(e) {
     e.preventDefault()
+    this.applyCoordinatesInput('source')
+    this.applyCoordinatesInput('target')
     const source = this.sourceLocation
     const target = this.targetLocation
     const enableV2 = $('#enable-v2').is(':checked')
@@ -420,20 +698,46 @@ export default class App {
     } else {
       // Update URL with from/to addresses
       // Use the stored address strings, or fall back to the input values
-      const fromAddr = this.sourceAddressString
-      const toAddr = this.targetAddressString 
-      
+      const fromAddr = this.inputUsesCoordinates('source') ? null : this.sourceAddressString
+      const toAddr = this.inputUsesCoordinates('target') ? null : this.targetAddressString
+      const sourceCoords = this.sourceLocation
+      const targetCoords = this.targetLocation
+
+      // Build query parameters (preserve existing ones and add route params)
+      const params = new URLSearchParams(window.location.search)
+      if (fromAddr) {
+        params.set('sourceAddress', fromAddr)
+      } else {
+        params.delete('sourceAddress')
+      }
+      if (toAddr) {
+        params.set('targetAddress', toAddr)
+      } else {
+        params.delete('targetAddress')
+      }
+      if (sourceCoords) {
+        params.set('sourceCoordinates', sourceCoords)
+      } else {
+        params.delete('sourceCoordinates')
+      }
+      if (targetCoords) {
+        params.set('targetCoordinates', targetCoords)
+      } else {
+        params.delete('targetCoordinates')
+      }
+
+      // If both addresses are available, use path format while preserving query parameters
       if (fromAddr && toAddr) {
-        // Preserve existing query parameters (like ?debug=true)
-        const searchParams = new URLSearchParams(window.location.search)
-        const queryString = searchParams.toString()
+        const queryString = params.toString()
         const newUrl = `/from/${encodeURIComponent(fromAddr)}/to/${encodeURIComponent(toAddr)}/${queryString ? '?' + queryString : ''}`
         window.history.pushState({}, '', newUrl)
+      } else {
+        // Otherwise, just update query parameters
+        this.updateUrlWithParams(params)
       }
       
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
-
         // Store the route data for highlighting
         this.routeData = data.route
         
@@ -441,10 +745,10 @@ export default class App {
         const directions = data.route.directions || []
         this.displayDirections(directions)
 
-        if (this.routeLayer) {
-          this.map.removeLayer(this.routeLayer)
+        if (this.directionsRouteLayer) {
+          this.map.removeLayer(this.directionsRouteLayer)
         }
-        this.routeLayer = L.geoJSON(data.route, {
+        this.directionsRouteLayer = L.geoJSON(data.route, {
           style: (feature) => {
             return { weight: 5, color: this.getLineColor(feature.properties.type) }
           },
@@ -456,8 +760,8 @@ export default class App {
           }
         }).addTo(this.map)
         // Lower opacity on non-route street colors
-        this.allRoutesLayer.setStyle({ opacity: 0.3 })
-        this.map.fitBounds(this.routeLayer.getBounds())
+        this.calmRoutesLayer.setStyle({ opacity: 0.3 })
+        this.map.fitBounds(this.directionsRouteLayer.getBounds())
         this.showRouteEstimate(data.route.properties.distance, data.route.properties.time)
       }).fail((jqxhr, textStatus, error) => {
         const err = textStatus + ': ' + error
@@ -487,8 +791,9 @@ export default class App {
       const { input } = this.directionsFormElements[markerName]
 
       if (addressString) {
-        // Update the marker's popup
-        this.markers[markerName].unbindPopup().bindPopup(addressString)
+        const escapedAddress = this.escapeHtml(addressString)
+        // Update the marker's popup with escaped HTML
+        this.markers[markerName].unbindPopup().bindPopup(escapedAddress)
         // Update the user-facing text input field
         input.value = addressString
       }
@@ -783,8 +1088,8 @@ export default class App {
           }
           
           // Fit map to show the full route
-          if (this.routeLayer) {
-            this.map.fitBounds(this.routeLayer.getBounds())
+          if (this.directionsRouteLayer) {
+            this.map.fitBounds(this.directionsRouteLayer.getBounds())
           }
         } else {
           // Remove selected class and styles from all direction items

@@ -39,10 +39,16 @@ The app will be available on http://localhost:8000.
 
 ### Testing
 
-To run the test suite:
+To run the Python test suite:
 
 ```
 docker compose run --rm app sh -c "python -m pytest /app/tests"
+```
+
+To run frontend tests:
+
+```
+docker compose run --rm app sh -c "npm test"
 ```
 
 To fuzz turn-by-turn directions (to find routes that don't work, tag sets that look iffy for bikes, and streets that show up as unnamed in directions):
