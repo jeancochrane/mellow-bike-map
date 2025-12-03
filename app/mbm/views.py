@@ -28,9 +28,9 @@ class Home(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Pass from/to addresses from URL if they exist
-        context['from_address'] = kwargs.get('from_address', '')
-        context['to_address'] = kwargs.get('to_address', '')
+        # Pass from/to addresses from query parameters if they exist
+        context['from_address'] = self.request.GET.get('sourceAddress', '')
+        context['to_address'] = self.request.GET.get('targetAddress', '')
         return context
 
 

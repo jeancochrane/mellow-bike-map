@@ -764,15 +764,8 @@ export default class App {
         params.delete('targetCoordinates')
       }
 
-      // If both addresses are available, use path format while preserving query parameters
-      if (fromAddr && toAddr) {
-        const queryString = params.toString()
-        const newUrl = `/from/${encodeURIComponent(fromAddr)}/to/${encodeURIComponent(toAddr)}/${queryString ? '?' + queryString : ''}`
-        window.history.pushState({}, '', newUrl)
-      } else {
-        // Otherwise, just update query parameters
-        this.updateUrlWithParams(params)
-      }
+      // Update URL with query parameters
+      this.updateUrlWithParams(params)
       
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
