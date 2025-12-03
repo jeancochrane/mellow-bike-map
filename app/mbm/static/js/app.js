@@ -91,24 +91,93 @@ export default class App {
     $('[data-toggle="tooltip"]').tooltip()
 
     // Prevent settings dropdown from closing when clicking on checkboxes
-    $('#settings-dropdown').on('click', function(e) {
+    $('#settings-dropdown-menu').on('click', function(e) {
       e.stopPropagation();
     });
 
     this.gpsLocationString = 'My position'
 
-    const isMobileScreen = $(window).outerWidth() <= 768
+    const getIsMobileScreen = () => $(window).outerWidth() <= 768
+    let previousIsMobileScreen = null
 
-    // Make sure the map always fits the full height of the screen
-    $(window).resize(() => {
+    this.$hideSearch = $('#hide')
+    this.$hideLegend = $('#hide-legend')
+
+    const setSearchToggleState = (state) => {
+      if (!this.$hideSearch.length) { return }
+      const label = state === 'hidden' ? '&or; Search for a route' : '&and; Hide search box'
+      this.$hideSearch.html(label)
+      this.$hideSearch.data('state', state)
+      this.$hideSearch.attr('aria-expanded', state === 'shown')
+    }
+
+    const setLegendToggleState = (state) => {
+      if (!this.$hideLegend.length) { return }
+      const label = state === 'hidden' ? '&or; Show legend' : '&and; Hide legend'
+      this.$hideLegend.html(label)
+      this.$hideLegend.data('state', state)
+      this.$hideLegend.attr('aria-expanded', state === 'shown')
+    }
+
+    const getNextState = ($button) => {
+      return $button.data('state') === 'hidden' ? 'shown' : 'hidden'
+    }
+
+    const adjustControlsForViewport = (isMobile) => {
+      if (isMobile) {
+        $('#input-elements').collapse('hide')
+        setSearchToggleState('hidden')
+      } else {
+        $('#input-elements').collapse('show')
+        setSearchToggleState('shown')
+        $('.hideable-legend').show()
+        setLegendToggleState('shown')
+      }
+    }
+
+    const handleResize = () => {
+      const isMobile = getIsMobileScreen()
+      if (previousIsMobileScreen === null || previousIsMobileScreen !== isMobile) {
+        adjustControlsForViewport(isMobile)
+        previousIsMobileScreen = isMobile
+      }
       var windowHeight = $(window).innerHeight()
       var offsetTop = $('.navbar')[0].offsetHeight
       // Add controls to the top offset on mobile screens, where they merge
       // with the navbar
-      if (isMobileScreen) { offsetTop += $('#controls-container')[0].offsetHeight }
+      if (isMobile) { offsetTop += $('#controls-container')[0].offsetHeight }
       var mapHeight = windowHeight - offsetTop
       $('#map').css('height', mapHeight)
-    }).resize()
+    }
+
+    if (this.$hideSearch.length) {
+      this.$hideSearch.click(() => {
+        const nextState = getNextState(this.$hideSearch)
+        setSearchToggleState(nextState)
+        if (nextState === 'hidden') {
+          $('#input-elements').collapse('hide')
+        } else {
+          $('#input-elements').collapse('show')
+        }
+        handleResize()
+      })
+    }
+
+    if (this.$hideLegend.length) {
+      this.$hideLegend.click(() => {
+        const nextState = getNextState(this.$hideLegend)
+        setLegendToggleState(nextState)
+        if (nextState === 'hidden') {
+          $('.hideable-legend').hide()
+        } else {
+          $('.hideable-legend').show()
+        }
+      })
+    }
+
+    // Make sure the map always fits the full height of the screen
+    $(window).resize(handleResize)
+    handleResize()
 
     // Recalculate map size when controls are toggled
     $directionsForm.on('shown.bs.collapse hidden.bs.collapse', function (e) {
@@ -155,37 +224,6 @@ export default class App {
 
     // Define behavior for the "Reset search" button
     $('#reset-search').click(this.reset.bind(this))
-
-    // Handle hide search box checkbox
-    this.hideSearchCheckbox = document.getElementById('hide-search-box')
-    this.handleHideSearchChange = (event) => {
-      if (event.target.checked) {
-        $('#input-elements').collapse('hide')
-      } else {
-        $('#input-elements').collapse('show')
-      }
-      $(window).resize()
-    }
-    this.hideSearchCheckbox.addEventListener('change', this.handleHideSearchChange)
-
-    // Handle hide legend checkbox
-    this.hideLegendCheckbox = document.getElementById('hide-legend-box')
-    this.handleHideLegendChange = (event) => {
-      if (event.target.checked) {
-        $('.hideable-legend').hide()
-      } else {
-        $('.hideable-legend').show()
-      }
-    }
-    this.hideLegendCheckbox.addEventListener('change', this.handleHideLegendChange)
-
-    // Show the search box by default on desktop (hide it on mobile)
-    if (isMobileScreen) {
-      this.hideSearchCheckbox.checked = true
-      this.hideSearchCheckbox.dispatchEvent(new Event('change'))
-    } else {
-      $('#input-elements').collapse('show')
-    }
 
     // Watch the user's location and update the map as it changes
     this.geolocation = new Geolocation(this)
@@ -847,11 +885,23 @@ export default class App {
   showRouteEstimate(distance, time) {
     this.$routeEstimate.html(`<strong>${time}</strong> (${distance})`)
     this.$routeEstimate.show()
+    if (this.$hideSearch && this.$hideSearch.length) {
+      this.$hideSearch.addClass('mt-1')
+    }
+    if (this.$hideLegend && this.$hideLegend.length) {
+      this.$hideLegend.addClass('mt-1')
+    }
   }
 
   hideRouteEstimate() {
     this.$routeEstimate.hide()
     this.$routeEstimate.html('')
+    if (this.$hideSearch && this.$hideSearch.length) {
+      this.$hideSearch.removeClass('mt-1')
+    }
+    if (this.$hideLegend && this.$hideLegend.length) {
+      this.$hideLegend.removeClass('mt-1')
+    }
   }
 
   getDirectionIcon(maneuver, color) {
