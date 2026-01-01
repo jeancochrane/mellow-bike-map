@@ -60,6 +60,9 @@ export default class App {
         autocomplete: null
       }
     }
+    
+    // Track if directions are explicitly shown on mobile (user clicked "Turn by turn" button)
+    this.mobileDirectionsShown = false
   }
 
   start() {
@@ -252,16 +255,24 @@ export default class App {
     if ($showDirectionsBtn.length) {
       $showDirectionsBtn.on('click', () => {
         const $directionsContainer = $('#directions-container')
-        $directionsContainer.show()
-        this.updateMobileDirectionsButtons()
+        const isMobileScreen = $(window).outerWidth() <= 768
+        if (isMobileScreen) {
+          $directionsContainer.show()
+          this.mobileDirectionsShown = true
+          this.updateMobileDirectionsButtons()
+        }
       })
     }
     
     if ($hideDirectionsBtn.length) {
       $hideDirectionsBtn.on('click', () => {
         const $directionsContainer = $('#directions-container')
-        $directionsContainer.hide()
-        this.updateMobileDirectionsButtons()
+        const isMobileScreen = $(window).outerWidth() <= 768
+        if (isMobileScreen) {
+          $directionsContainer.hide()
+          this.mobileDirectionsShown = false
+          this.updateMobileDirectionsButtons()
+        }
       })
     }
 
@@ -281,6 +292,7 @@ export default class App {
     const $map = $('#map')
     const $showDirectionsBtn = $('#show-directions-btn')
     const isMobileScreen = $(window).outerWidth() <= 768
+    const hasDirections = $directionsContainer.find('#directions-list li').length > 0
 
     if ($directionsContainer.length === 0) {
       return
@@ -300,7 +312,15 @@ export default class App {
       if ($showDirectionsBtn.length && $showDirectionsBtn.parent()[0] !== $mapColumn[0]) {
         $mapColumn.append($showDirectionsBtn)
       }
-      // Update button visibility based on directions visibility
+      // On mobile, hide directions unless user explicitly showed them
+      if (hasDirections) {
+        if (this.mobileDirectionsShown) {
+          $directionsContainer.show()
+        } else {
+          $directionsContainer.hide()
+        }
+      }
+      // Update button visibility
       this.updateMobileDirectionsButtons()
     } else {
       // On desktop, move directions into the sidebar (after the form)
@@ -309,8 +329,14 @@ export default class App {
       if ($directionsContainer.parent()[0] !== $controlsContainer[0]) {
         $controlsContainer.append($directionsContainer)
       }
+      // On desktop, ALWAYS show directions if they exist
+      if (hasDirections) {
+        $directionsContainer.show()
+      }
       // Hide the show button on desktop
       $showDirectionsBtn.hide()
+      // Reset mobile state when switching to desktop
+      this.mobileDirectionsShown = false
     }
   }
 
@@ -1288,17 +1314,13 @@ export default class App {
     })
     
     // Reposition the container based on screen size
+    // This will handle showing/hiding directions appropriately for mobile vs desktop
     this.positionDirectionsContainer()
     
-    // Show/hide directions based on screen size
+    // On mobile, reset the explicit show state when new directions are displayed
     const isMobileScreen = $(window).outerWidth() <= 768
     if (isMobileScreen) {
-      // On mobile, initially hide directions and show "Turn by turn" button
-      $directionsContainer.hide()
-      this.updateMobileDirectionsButtons()
-    } else {
-      // On desktop, show directions normally
-      $directionsContainer.show()
+      this.mobileDirectionsShown = false
     }
   }
 
@@ -1308,6 +1330,9 @@ export default class App {
     
     $directionsContainer.hide()
     $directionsList.empty()
+    
+    // Reset mobile state
+    this.mobileDirectionsShown = false
     
     // Update mobile button visibility
     this.updateMobileDirectionsButtons()
