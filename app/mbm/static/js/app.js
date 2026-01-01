@@ -245,6 +245,26 @@ export default class App {
       this.positionDirectionsContainer()
     })
 
+    // Set up mobile directions show/hide buttons
+    const $showDirectionsBtn = $('#show-directions-btn')
+    const $hideDirectionsBtn = $('#hide-directions-btn')
+    
+    if ($showDirectionsBtn.length) {
+      $showDirectionsBtn.on('click', () => {
+        const $directionsContainer = $('#directions-container')
+        $directionsContainer.show()
+        this.updateMobileDirectionsButtons()
+      })
+    }
+    
+    if ($hideDirectionsBtn.length) {
+      $hideDirectionsBtn.on('click', () => {
+        const $directionsContainer = $('#directions-container')
+        $directionsContainer.hide()
+        this.updateMobileDirectionsButtons()
+      })
+    }
+
     // If from/to addresses are provided in the URL path, geocode them and auto-run search
     if (this.fromAddress && this.toAddress) {
       this.geocodeAddressesAndRunSearch(this.fromAddress, this.toAddress)
@@ -259,6 +279,7 @@ export default class App {
     const $controlsContainer = $('#controls-container')
     const $mapColumn = $('.col-12.col-md-9')
     const $map = $('#map')
+    const $showDirectionsBtn = $('#show-directions-btn')
     const isMobileScreen = $(window).outerWidth() <= 768
 
     if ($directionsContainer.length === 0) {
@@ -275,6 +296,12 @@ export default class App {
       if ($directionsContainer.parent()[0] !== $mapColumn[0]) {
         $mapColumn.append($directionsContainer)
       }
+      // Move show button to map column if not already there
+      if ($showDirectionsBtn.length && $showDirectionsBtn.parent()[0] !== $mapColumn[0]) {
+        $mapColumn.append($showDirectionsBtn)
+      }
+      // Update button visibility based on directions visibility
+      this.updateMobileDirectionsButtons()
     } else {
       // On desktop, move directions into the sidebar (after the form)
       // Reset map column positioning
@@ -282,6 +309,28 @@ export default class App {
       if ($directionsContainer.parent()[0] !== $controlsContainer[0]) {
         $controlsContainer.append($directionsContainer)
       }
+      // Hide the show button on desktop
+      $showDirectionsBtn.hide()
+    }
+  }
+
+  updateMobileDirectionsButtons() {
+    const $directionsContainer = $('#directions-container')
+    const $showDirectionsBtn = $('#show-directions-btn')
+    const isMobileScreen = $(window).outerWidth() <= 768
+    
+    if (!isMobileScreen) {
+      return
+    }
+    
+    // Show "Turn by turn" button if directions exist but container is hidden
+    const hasDirections = $directionsContainer.find('#directions-list li').length > 0
+    const isDirectionsVisible = $directionsContainer.is(':visible')
+    
+    if (hasDirections && !isDirectionsVisible) {
+      $showDirectionsBtn.show()
+    } else {
+      $showDirectionsBtn.hide()
     }
   }
 
@@ -1238,11 +1287,19 @@ export default class App {
         })
     })
     
-    // Show the directions container
-    $directionsContainer.show()
-    
     // Reposition the container based on screen size
     this.positionDirectionsContainer()
+    
+    // Show/hide directions based on screen size
+    const isMobileScreen = $(window).outerWidth() <= 768
+    if (isMobileScreen) {
+      // On mobile, initially hide directions and show "Turn by turn" button
+      $directionsContainer.hide()
+      this.updateMobileDirectionsButtons()
+    } else {
+      // On desktop, show directions normally
+      $directionsContainer.show()
+    }
   }
 
   hideDirections() {
@@ -1251,6 +1308,9 @@ export default class App {
     
     $directionsContainer.hide()
     $directionsList.empty()
+    
+    // Update mobile button visibility
+    this.updateMobileDirectionsButtons()
   }
 
   highlightChicagoWays(featureIndices) {

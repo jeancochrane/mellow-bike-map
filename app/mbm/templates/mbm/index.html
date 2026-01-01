@@ -83,7 +83,13 @@
     </div>
     <div class="col-12 col-md-9">
       <div id="map"></div>
+      <button id="show-directions-btn" class="btn btn-primary d-md-none" style="display: none;">
+        Turn by turn
+      </button>
       <div id="directions-container" style="display: none;">
+        <button id="hide-directions-btn" class="btn btn-sm btn-link d-md-none" aria-label="Close directions">
+          <span aria-hidden="true">&times;</span>
+        </button>
         <ol id="directions-list"></ol>
       </div>
     </div>
