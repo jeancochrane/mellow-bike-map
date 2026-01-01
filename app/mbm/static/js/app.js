@@ -254,7 +254,7 @@ export default class App {
     
     if ($showDirectionsBtn.length) {
       $showDirectionsBtn.on('click', () => {
-        const $directionsContainer = $('#directions-container')
+        const $directionsContainer = $('#mobile-directions-container')
         const isMobileScreen = $(window).outerWidth() <= 768
         if (isMobileScreen) {
           $directionsContainer.show()
@@ -266,7 +266,7 @@ export default class App {
     
     if ($hideDirectionsBtn.length) {
       $hideDirectionsBtn.on('click', () => {
-        const $directionsContainer = $('#directions-container')
+        const $directionsContainer = $('#mobile-directions-container')
         const isMobileScreen = $(window).outerWidth() <= 768
         if (isMobileScreen) {
           $directionsContainer.hide()
@@ -286,7 +286,7 @@ export default class App {
   }
 
   positionDirectionsContainer() {
-    const $directionsContainer = $('#directions-container')
+    const $directionsContainer = $('#mobile-directions-container')
     const $controlsContainer = $('#controls-container')
     const $mapColumn = $('.col-12.col-md-9')
     const $map = $('#map')
@@ -341,7 +341,7 @@ export default class App {
   }
 
   updateMobileDirectionsButtons() {
-    const $directionsContainer = $('#directions-container')
+    const $directionsContainer = $('#mobile-directions-container')
     const $showDirectionsBtn = $('#show-directions-btn')
     const isMobileScreen = $(window).outerWidth() <= 768
     
@@ -1034,7 +1034,7 @@ export default class App {
 
   displayDirections(directions) {
     const $directionsList = $('#directions-list')
-    const $directionsContainer = $('#directions-container')
+    const $directionsContainer = $('#mobile-directions-container')
     
     // Clear any existing directions
     $directionsList.empty()
@@ -1325,7 +1325,7 @@ export default class App {
   }
 
   hideDirections() {
-    const $directionsContainer = $('#directions-container')
+    const $directionsContainer = $('#mobile-directions-container')
     const $directionsList = $('#directions-list')
     
     $directionsContainer.hide()

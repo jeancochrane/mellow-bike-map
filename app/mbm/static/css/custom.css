@@ -156,8 +156,8 @@ a {
   }
 }
 
-/* Directions container styling - positioned by JavaScript based on screen size */
-#directions-container {
+/* Mobile directions container styling - positioned by JavaScript based on screen size */
+#mobile-directions-container {
   margin-top: 15px;
   padding-top: 15px;
   padding-bottom: 15px;
@@ -193,9 +193,10 @@ a {
     margin-right: 6px;
   }
   
-  #directions-container {
+  #mobile-directions-container {
     position: absolute;
-    bottom: 8px;
+    font-size: 0.85rem;
+    bottom: 0px;
     left: 8px;
     right: 8px;
     height: 50%; /* 50% of map height */
@@ -209,7 +210,7 @@ a {
     overflow-x: hidden;
     z-index: 1002; /* Above map and show button */
   }
-  
+
   /* Close button in top right */
   #hide-directions-btn {
     position: absolute;
@@ -236,7 +237,7 @@ a {
     outline-offset: 2px;
   }
   
-  #directions-container h5 {
+  #mobile-directions-container h5 {
     margin-top: 0;
     margin-bottom: 12px;
     font-size: 1.1rem;
@@ -253,7 +254,7 @@ a {
   }
 }
 
-#directions-container h5 {
+#mobile-directions-container h5 {
   margin-top: 0;
   margin-bottom: 15px;
   color: #000000;
