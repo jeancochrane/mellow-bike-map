@@ -170,12 +170,27 @@ a {
   /* Turn by turn button - fixed to bottom left */
   #show-directions-btn {
     position: absolute;
-    bottom: 8px;
-    left: 8px;
+    bottom: 20px;
+    left: 25px;
     z-index: 1001; /* Above map, below directions container */
     padding: 10px 16px;
     font-weight: 600;
+    font-size: 0.85rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    border: none;
+    color: #333;
+  }
+  
+  #show-directions-btn:hover {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000;
+  }
+  
+  #show-directions-btn svg {
+    vertical-align: middle;
+    margin-right: 6px;
   }
   
   #directions-container {
