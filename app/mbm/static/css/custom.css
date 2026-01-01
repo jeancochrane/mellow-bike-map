@@ -249,8 +249,17 @@ a {
     z-index: 1;
   }
   
-  #directions-list {
+  #mobile-directions-container #directions-list {
     padding-left: 16px;
+  }
+  
+  #mobile-directions-container #directions-list li {
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+  
+  #mobile-directions-container .direction-item {
+    padding: 4px 8px;
   }
 }
 
