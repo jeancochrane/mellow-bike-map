@@ -258,6 +258,7 @@ export default class App {
     const $directionsContainer = $('#directions-container')
     const $controlsContainer = $('#controls-container')
     const $mapColumn = $('.col-12.col-md-9')
+    const $map = $('#map')
     const isMobileScreen = $(window).outerWidth() <= 768
 
     if ($directionsContainer.length === 0) {
@@ -265,12 +266,19 @@ export default class App {
     }
 
     if (isMobileScreen) {
-      // On mobile, move directions below the map
+      // On mobile, position directions as an overlay on top of the map
+      // Ensure map column has relative positioning for absolute positioning of overlay
+      if ($mapColumn.css('position') !== 'relative') {
+        $mapColumn.css('position', 'relative')
+      }
+      // Move directions container to map column if not already there
       if ($directionsContainer.parent()[0] !== $mapColumn[0]) {
         $mapColumn.append($directionsContainer)
       }
     } else {
       // On desktop, move directions into the sidebar (after the form)
+      // Reset map column positioning
+      $mapColumn.css('position', '')
       if ($directionsContainer.parent()[0] !== $controlsContainer[0]) {
         $controlsContainer.append($directionsContainer)
       }

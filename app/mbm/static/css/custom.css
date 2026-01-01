@@ -165,6 +165,41 @@ a {
   padding-right: 0;
 }
 
+/* Mobile popup overlay styling */
+@media (max-width: 768px) {
+  #directions-container {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    height: 50%; /* 50% of map height */
+    margin-top: 0;
+    padding: 12px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 1000; /* Ensure it appears above the map */
+  }
+  
+  #directions-container h5 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+    position: sticky;
+    top: 0;
+    background-color: white;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    z-index: 1;
+  }
+  
+  #directions-list {
+    padding-left: 16px;
+  }
+}
+
 #directions-container h5 {
   margin-top: 0;
   margin-bottom: 15px;
