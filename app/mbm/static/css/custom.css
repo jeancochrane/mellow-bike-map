@@ -202,7 +202,6 @@ a {
     height: 50%; /* 50% of map height */
     margin-top: 0;
     padding: 12px;
-    padding-top: 40px; /* Extra padding for close button */
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -213,18 +212,20 @@ a {
 
   /* Close button in top right */
   #hide-directions-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
+    position: sticky;
+    top: 4px;
+    float: right;
     padding: 4px 8px;
     font-size: 24px;
     line-height: 1;
     color: #333;
-    background: none;
-    border: none;
+    background: white;
+    border: 1px solid #ccc;
     cursor: pointer;
-    z-index: 1;
+    z-index: 10;
     text-decoration: none;
+    margin-bottom: -32px;
+    margin-left: auto;
   }
   
   #hide-directions-btn:hover {
