@@ -218,9 +218,9 @@ a {
     padding: 4px 8px;
     font-size: 24px;
     line-height: 1;
-    color: #333;
+    color: #6c757d;
     background: white;
-    border: 1px solid #ccc;
+    border: 1px solid #6c757d;
     cursor: pointer;
     z-index: 10;
     text-decoration: none;
@@ -229,13 +229,18 @@ a {
   }
   
   #hide-directions-btn:hover {
-    color: #000;
+    color: white;
+    background: #6c757d;
     text-decoration: none;
   }
   
   #hide-directions-btn:focus {
     outline: 2px solid var(--green-color);
     outline-offset: 2px;
+  }
+  
+  #hide-directions-btn svg {
+    color: inherit;
   }
   
   /* Toggle directions size button */
@@ -246,9 +251,9 @@ a {
     padding: 4px 8px;
     font-size: 24px;
     line-height: 1;
-    color: #333;
+    color: #6c757d;
     background: white;
-    border: 1px solid #ccc;
+    border: 1px solid #6c757d;
     cursor: pointer;
     z-index: 10;
     text-decoration: none;
@@ -258,13 +263,18 @@ a {
   }
   
   #toggle-directions-size-btn:hover {
-    color: #000;
+    color: white;
+    background: #6c757d;
     text-decoration: none;
   }
   
   #toggle-directions-size-btn:focus {
     outline: 2px solid var(--green-color);
     outline-offset: 2px;
+  }
+  
+  #toggle-directions-size-btn svg {
+    color: inherit;
   }
   
   #mobile-directions-container.expanded {
