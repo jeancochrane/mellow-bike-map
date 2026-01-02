@@ -238,6 +238,40 @@ a {
     outline-offset: 2px;
   }
   
+  /* Toggle directions size button */
+  #toggle-directions-size-btn {
+    position: sticky;
+    top: 4px;
+    float: right;
+    padding: 4px 8px;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+    background: white;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    z-index: 10;
+    text-decoration: none;
+    margin-bottom: -32px;
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+  
+  #toggle-directions-size-btn:hover {
+    color: #000;
+    text-decoration: none;
+  }
+  
+  #toggle-directions-size-btn:focus {
+    outline: 2px solid var(--green-color);
+    outline-offset: 2px;
+  }
+  
+  #mobile-directions-container.expanded {
+    height: 100% !important;
+    border-radius: 8px 8px 0 0;
+  }
+  
   #mobile-directions-container h5 {
     margin-top: 0;
     margin-bottom: 12px;

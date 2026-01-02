@@ -275,6 +275,18 @@ export default class App {
         }
       })
     }
+    
+    // Set up toggle directions size button
+    const $toggleDirectionsSizeBtn = $('#toggle-directions-size-btn')
+    if ($toggleDirectionsSizeBtn.length) {
+      $toggleDirectionsSizeBtn.on('click', () => {
+        const $directionsContainer = $('#mobile-directions-container')
+        const isMobileScreen = $(window).outerWidth() <= 768
+        if (isMobileScreen) {
+          $directionsContainer.toggleClass('expanded')
+        }
+      })
+    }
 
     // If from/to addresses are provided in the URL path, geocode them and auto-run search
     if (this.fromAddress && this.toAddress) {
