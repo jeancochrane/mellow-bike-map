@@ -60,7 +60,6 @@ class Route(APIView):
         target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
-        allow_sidewalks = request.GET.get("allow_sidewalks", False) == "true"
         
         # Parse sidewalk_penalty if provided
         sidewalk_penalty = None
@@ -75,7 +74,7 @@ class Route(APIView):
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, allow_sidewalks, sidewalk_penalty)
+            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, sidewalk_penalty)
         })
 
     def get_coord_from_request(self, request, key):
@@ -113,28 +112,9 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def sidewalk_filter_sql(self, allow_sidewalks):
-        """Return SQL to filter out sidewalks when allow_sidewalks is False."""
-        if allow_sidewalks:
-            return ""
-        
-        return """
-            LEFT JOIN osm_ways AS osm_way
-            ON way.osm_id = osm_way.osm_id
-            WHERE (
-                NOT (
-                    osm_way.tags @> ''footway=>sidewalk''::hstore OR
-                    osm_way.tags @> ''footway=>crossing''::hstore OR
-                    osm_way.tags @> ''highway=>footway''::hstore
-                )
-                OR
-                (osm_way.tags @> ''bicycle=>permissive''::hstore OR osm_way.tags @> ''bicycle=>yes''::hstore)
-            ) OR osm_way.tags IS NULL
-            """
-    
-    def sidewalk_join_sql(self, allow_sidewalks, sidewalk_penalty):
+    def sidewalk_join_sql(self, sidewalk_penalty):
         """Return SQL to join with osm_ways when needed for sidewalk penalty."""
-        if allow_sidewalks and sidewalk_penalty is not None:
+        if sidewalk_penalty is not None:
             return """
                 LEFT JOIN osm_ways AS osm_way
                 ON way.osm_id = osm_way.osm_id
@@ -151,28 +131,22 @@ class Route(APIView):
             NOT (osm_way.tags @> ''bicycle=>permissive''::hstore OR osm_way.tags @> ''bicycle=>yes''::hstore)
         """
 
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, allow_sidewalks=False, sidewalk_penalty=None):
+    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, sidewalk_penalty=None):
         """
         Calculate a route between two vertices.
+        
+        Sidewalks are always allowed in routes. They can be penalized using the sidewalk_penalty parameter.
         
         Args:
             source_vertex_id: Starting vertex ID
             target_vertex_id: Ending vertex ID
             enable_v2: Whether to use v2 routing algorithm
-            allow_sidewalks: Whether to allow sidewalks in the route
-            sidewalk_penalty: Cost multiplier for sidewalks (only used when allow_sidewalks=True)
-        
-        Raises:
-            ParseError: If sidewalk_penalty is provided but allow_sidewalks is False
+            sidewalk_penalty: Cost multiplier for sidewalks (None = no penalty)
         """
-        # Validate that penalty is only used when sidewalks are allowed
-        if sidewalk_penalty is not None and not allow_sidewalks:
-            raise ParseError("sidewalk_penalty can only be used when allow_sidewalks is True")
-        
         # Build sidewalk penalty cases if needed
         sidewalk_cost_case = ""
         sidewalk_reverse_cost_case = ""
-        if allow_sidewalks and sidewalk_penalty is not None:
+        if sidewalk_penalty is not None:
             is_sidewalk = self.is_sidewalk_sql()
             sidewalk_cost_case = f"WHEN ({is_sidewalk}) THEN way.cost * {sidewalk_penalty}\n                            "
             sidewalk_reverse_cost_case = f"WHEN ({is_sidewalk}) THEN way.reverse_cost * {sidewalk_penalty}\n                            "
@@ -214,8 +188,7 @@ class Route(APIView):
                     FROM chicago_ways AS way
                     LEFT JOIN mellow
                     USING(osm_id)
-                    {self.sidewalk_join_sql(allow_sidewalks, sidewalk_penalty)}
-                    {self.sidewalk_filter_sql(allow_sidewalks)}
+                    {self.sidewalk_join_sql(sidewalk_penalty)}
                     ',
                     %s,
                     %s

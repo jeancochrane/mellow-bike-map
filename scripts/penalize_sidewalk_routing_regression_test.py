@@ -134,7 +134,7 @@ def count_sidewalk_ways(route_view, source: int, target: int, sidewalk_penalty: 
                         FROM chicago_ways AS way
                         LEFT JOIN mellow
                         USING(osm_id)
-                        {route_view.sidewalk_join_sql(True, sidewalk_penalty)}
+                        {route_view.sidewalk_join_sql(sidewalk_penalty)}
                         ',
                         %s,
                         %s
@@ -174,7 +174,7 @@ def run_route(route_view, source: int, target: int, sidewalk_penalty: Optional[f
     """
     try:
         data = route_view.get_route(
-            source, target, enable_v2=ENABLE_V2, allow_sidewalks=True, sidewalk_penalty=sidewalk_penalty
+            source, target, enable_v2=ENABLE_V2, sidewalk_penalty=sidewalk_penalty
         )
     except Exception as exc:  # noqa: BLE001 - surface DB issues to the report
         return {
