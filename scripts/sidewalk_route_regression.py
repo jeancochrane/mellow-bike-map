@@ -4,19 +4,22 @@ Generate random vertex pairs and compare mellow-bike-map routing results
 with and without sidewalks allowed.
 """
 
-import argparse
 import os
 import sys
 from pathlib import Path
-from statistics import mean
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 try:
     from django.db import connection
-except ModuleNotFoundError as exc:  # pragma: no cover - environment guard
+except ModuleNotFoundError as exc:
     raise SystemExit(
         "Django is not installed. Activate the project's virtualenv before running this script."
     ) from exc
+
+
+# Configuration: hardcoded defaults
+NUM_PAIRS = 20
+ENABLE_V2 = False
 
 
 def bootstrap_django() -> None:
@@ -30,36 +33,13 @@ def bootstrap_django() -> None:
     django.setup()
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Randomly sample vertex pairs and compare route lengths with and "
-            "without sidewalks."
-        )
-    )
-    parser.add_argument(
-        "-n",
-        "--num-pairs",
-        type=int,
-        default=50,
-        help="Number of random vertex pairs to evaluate (default: 50)",
-    )
-    parser.add_argument(
-        "--enable-v2",
-        action="store_true",
-        help="Run the v2 weighting logic when calling get_route()",
-    )
-    return parser.parse_args()
-
-
-def fetch_random_vertex_pairs(num_pairs: int) -> Sequence[Tuple[int, int]]:
+def fetch_random_vertex_pairs(num_pairs: int) -> List[Tuple[int, int]]:
     """
-    Fetch random vertex pairs in a single SQL query. We grab 2 * num_pairs
-    rows ordered randomly and stitch them into pairs.
+    Fetch random vertex pairs from the database.
+    
+    Strategy: Get 2*num_pairs random vertices, number them, then pair up
+    consecutive rows (1->2, 3->4, 5->6, etc.) to create num_pairs.
     """
-    if num_pairs <= 0:
-        return []
-
     total_vertices = num_pairs * 2
     with connection.cursor() as cursor:
         cursor.execute(
@@ -97,11 +77,15 @@ def parse_distance(distance_value: Optional[str]) -> Optional[float]:
         return None
 
 
-def run_route(route_view, source: int, target: int, *, allow_sidewalks: bool, enable_v2: bool) -> Dict:
-    """Call Route.get_route() and capture success, distance, and errors."""
+def run_route(route_view, source: int, target: int, allow_sidewalks: bool) -> Dict:
+    """
+    Run a route calculation and return success status and distance.
+    
+    Returns: {"success": bool, "distance": float|None, "error": str|None}
+    """
     try:
         data = route_view.get_route(
-            source, target, enable_v2=enable_v2, allow_sidewalks=allow_sidewalks
+            source, target, enable_v2=ENABLE_V2, allow_sidewalks=allow_sidewalks
         )
     except Exception as exc:  # noqa: BLE001 - surface DB issues to the report
         return {
@@ -121,129 +105,106 @@ def run_route(route_view, source: int, target: int, *, allow_sidewalks: bool, en
     }
 
 
-def summarize_results(results: List[Dict], num_pairs: int) -> None:
-    allow_success = sum(1 for item in results if item["allow"]["success"])
-    disallow_success = sum(1 for item in results if item["disallow"]["success"])
-
-    both_success = sum(
-        1 for item in results if item["allow"]["success"] and item["disallow"]["success"]
-    )
-    allow_only = sum(
-        1 for item in results if item["allow"]["success"] and not item["disallow"]["success"]
-    )
-    disallow_only = sum(
-        1 for item in results if not item["allow"]["success"] and item["disallow"]["success"]
-    )
-    both_failed = num_pairs - (both_success + allow_only + disallow_only)
-
-    print(f"Evaluated {num_pairs} random vertex pairs.")
-    print("Route success summary:")
-    print(f"  allow_sidewalks=True : {allow_success} successes / {num_pairs} pairs")
-    print(f"  allow_sidewalks=False: {disallow_success} successes / {num_pairs} pairs")
-    print("Outcome breakdown:")
-    print(f"  both succeeded                       : {both_success}")
-    print(f"  only allow_sidewalks=True succeeded  : {allow_only}")
-    print(f"  only allow_sidewalks=False succeeded : {disallow_only}")
-    print(f"  both failed                          : {both_failed}")
-
-    delta_candidates = []
-    for item in results:
-        allow_distance = item["allow"]["distance"]
-        disallow_distance = item["disallow"]["distance"]
-        if (
-            item["allow"]["success"]
-            and item["disallow"]["success"]
-            and allow_distance is not None
-            and disallow_distance is not None
-        ):
-            delta_candidates.append(
-                {
-                    "source": item["source"],
-                    "target": item["target"],
-                    "allow_distance": allow_distance,
-                    "disallow_distance": disallow_distance,
-                    "delta": disallow_distance - allow_distance,
-                }
-            )
-
-    if delta_candidates:
-        avg_delta = mean(item["delta"] for item in delta_candidates)
-        avg_note = (
-            "longer" if avg_delta > 0 else "shorter"
-            if avg_delta < 0 else "unchanged"
-        )
-        print(
-            f"\nAverage distance delta (no sidewalks - allow sidewalks): "
-            f"{avg_delta:.3f} miles ({avg_note} on average)"
-        )
-
-        print("\nTop 10 increases when sidewalks are disallowed:")
-        top_deltas = sorted(delta_candidates, key=lambda item: item["delta"], reverse=True)[:10]
-        if not any(item["delta"] > 0 for item in top_deltas):
-            print("  No routes got longer when sidewalks were disallowed.")
+def summarize_results(results: List[Dict]) -> None:
+    """Print a simple summary of the route comparison results."""
+    num_pairs = len(results)
+    
+    # Count successes
+    allow_success = sum(1 for r in results if r["allow"]["success"])
+    disallow_success = sum(1 for r in results if r["disallow"]["success"])
+    both_success = sum(1 for r in results if r["allow"]["success"] and r["disallow"]["success"])
+    regressions = sum(1 for r in results if r["allow"]["success"] and not r["disallow"]["success"])
+    
+    print(f"\nEvaluated {num_pairs} random vertex pairs")
+    print(f"  With sidewalks:    {allow_success}/{num_pairs} succeeded")
+    print(f"  Without sidewalks: {disallow_success}/{num_pairs} succeeded")
+    print(f"  Both succeeded:    {both_success}")
+    print(f"  Regressions:        {regressions} (worked with sidewalks, failed without)")
+    
+    # Compare distances for routes that succeeded both ways
+    distances = []
+    for r in results:
+        if r["allow"]["success"] and r["disallow"]["success"]:
+            allow_dist = r["allow"]["distance"]
+            disallow_dist = r["disallow"]["distance"]
+            if allow_dist is not None and disallow_dist is not None:
+                distances.append({
+                    "source": r["source"],
+                    "target": r["target"],
+                    "allow": allow_dist,
+                    "disallow": disallow_dist,
+                    "delta": disallow_dist - allow_dist,
+                })
+    
+    if distances:
+        avg_delta = sum(d["delta"] for d in distances) / len(distances)
+        print(f"\nDistance comparison ({len(distances)} pairs that succeeded both ways):")
+        print(f"  Average difference: {avg_delta:.3f} miles")
+        if avg_delta > 0:
+            print(f"  (Routes are {avg_delta:.3f} miles longer on average without sidewalks)")
+        elif avg_delta < 0:
+            print(f"  (Routes are {abs(avg_delta):.3f} miles shorter on average without sidewalks)")
         else:
-            print("  source -> target | allow (mi) | no sidewalks (mi) | delta (mi)")
-            for item in top_deltas:
-                print(
-                    f"  {item['source']:>7} -> {item['target']:<7} | "
-                    f"{item['allow_distance']:>8.3f} | "
-                    f"{item['disallow_distance']:>16.3f} | "
-                    f"{item['delta']:>9.3f}"
-                )
-    else:
-        print("\nNo successful route pairs to compare distances.")
-
-    regression_pairs = [
-        item for item in results if item["allow"]["success"] and not item["disallow"]["success"]
-    ]
-    if regression_pairs:
-        print(
-            "\nPairs that regressed (success with sidewalks allowed but not without sidewalks):"
-        )
-        for item in regression_pairs[:10]:
-            error = item["disallow"]["error"] or "unknown failure"
-            print(f"  {item['source']} -> {item['target']}: {error}")
+            print("  (No difference on average)")
+    
+    # Show regressions if any
+    if regressions > 0:
+        print(f"\nRegression examples (first 5):")
+        count = 0
+        for r in results:
+            if r["allow"]["success"] and not r["disallow"]["success"]:
+                error = r["disallow"]["error"] or "unknown"
+                print(f"  {r['source']} -> {r['target']}: {error}")
+                count += 1
+                if count >= 5:
+                    break
 
 
 def main() -> None:
-    args = parse_args()
+    """Main execution: bootstrap Django, fetch pairs, run routes, summarize."""
+    # Setup Django
     bootstrap_django()
-    from mbm.views import Route  # pylint: disable=import-outside-toplevel
-
+    from mbm.views import Route
     route_view = Route()
-    vertex_pairs = fetch_random_vertex_pairs(args.num_pairs)
-    if len(vertex_pairs) < args.num_pairs:
-        print(
-            f"Warning: requested {args.num_pairs} pairs but only generated {len(vertex_pairs)} "
-            "due to sampling limits."
-        )
-
-    results: List[Dict[str, Dict]] = []
-    for source, target in vertex_pairs:
-        allow_result = run_route(
-            route_view,
-            source,
-            target,
-            allow_sidewalks=True,
-            enable_v2=args.enable_v2,
-        )
-        disallow_result = run_route(
-            route_view,
-            source,
-            target,
-            allow_sidewalks=False,
-            enable_v2=args.enable_v2,
-        )
-        results.append(
-            {
-                "source": source,
-                "target": target,
-                "allow": allow_result,
-                "disallow": disallow_result,
-            }
-        )
-
-    summarize_results(results, len(vertex_pairs))
+    
+    # Fetch random vertex pairs
+    vertex_pairs = fetch_random_vertex_pairs(NUM_PAIRS)
+    print(f"Fetched {len(vertex_pairs)} vertex pairs")
+    
+    # Run routes for each pair (with and without sidewalks)
+    results = []
+    total = len(vertex_pairs)
+    print(f"\nProcessing {total} pairs...")
+    
+    for i, (source, target) in enumerate(vertex_pairs, 1):
+        # Show progress: [X/Y] source -> target
+        percent = int((i / total) * 100)
+        sys.stdout.write(f"\r[{i}/{total}] ({percent}%) {source} -> {target} ... ")
+        sys.stdout.flush()
+        
+        # Run both route calculations
+        allow_result = run_route(route_view, source, target, allow_sidewalks=True)
+        disallow_result = run_route(route_view, source, target, allow_sidewalks=False)
+        
+        # Show quick status
+        allow_status = "✓" if allow_result["success"] else "✗"
+        disallow_status = "✓" if disallow_result["success"] else "✗"
+        sys.stdout.write(f"{allow_status}/{disallow_status}")
+        sys.stdout.flush()
+        
+        results.append({
+            "source": source,
+            "target": target,
+            "allow": allow_result,
+            "disallow": disallow_result,
+        })
+    
+    # Clear the progress line and print completion
+    sys.stdout.write("\r" + " " * 80 + "\r")  # Clear line
+    print(f"Completed processing {total} pairs\n")
+    
+    # Print summary
+    summarize_results(results)
 
 
 if __name__ == "__main__":
