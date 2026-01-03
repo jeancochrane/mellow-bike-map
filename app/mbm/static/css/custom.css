@@ -296,6 +296,8 @@ a {
   
   #mobile-directions-container #directions-list {
     padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 50px;
   }
   
   #mobile-directions-container #directions-list li {
