@@ -112,24 +112,58 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def sidewalk_join_sql(self, sidewalk_penalty):
-        """Return SQL to join with osm_ways when needed for sidewalk penalty."""
-        if sidewalk_penalty is not None:
-            return """
-                LEFT JOIN osm_ways AS osm_way
-                ON way.osm_id = osm_way.osm_id
-            """
-        return ""
-    
-    def is_sidewalk_sql(self):
-        """Return SQL expression that checks if a way is a sidewalk."""
-        return """
-            (osm_way.tags @> ''footway=>sidewalk''::hstore OR
-             osm_way.tags @> ''footway=>crossing''::hstore OR
-             osm_way.tags @> ''highway=>footway''::hstore)
-            AND
-            NOT (osm_way.tags @> ''bicycle=>permissive''::hstore OR osm_way.tags @> ''bicycle=>yes''::hstore)
+    def build_cost_cases(self, cost_column, enable_v2, sidewalk_penalty):
         """
+        Build the CASE expression for routing cost calculation.
+        
+        Routes are scored by multiplying path costs by preference weights:
+        - Lower multipliers = more preferred routes
+        - Higher multipliers = less preferred (penalized) routes
+        
+        Args:
+            cost_column: Either 'cost' or 'reverse_cost'
+            enable_v2: Whether to include v2 routing bonuses for cycleways/residential streets
+            sidewalk_penalty: Multiplier to discourage sidewalk routing (e.g., 10.0 = 10x cost)
+        """
+        cases = []
+        
+        # Sidewalk penalty (optional) - discourage routing onto sidewalks
+        if sidewalk_penalty is not None:
+            # A way is considered a sidewalk if it has footway tags but lacks bicycle access
+            is_sidewalk = """
+                (osm_way.tags @> 'footway=>sidewalk'::hstore OR
+                 osm_way.tags @> 'footway=>crossing'::hstore OR
+                 osm_way.tags @> 'highway=>footway'::hstore)
+                AND NOT
+                (osm_way.tags @> 'bicycle=>permissive'::hstore OR
+                 osm_way.tags @> 'bicycle=>yes'::hstore)
+            """.replace("'", "''")  # Escape quotes for nested SQL string
+            cases.append(f"WHEN ({is_sidewalk}) THEN way.{cost_column} * {sidewalk_penalty}")
+        
+        # Mellow paths (bike paths, trails) - strongly preferred
+        cases.append(f"WHEN mellow.type = ''path'' THEN way.{cost_column} * 0.1")
+        
+        # v2: Dedicated cycleways - strongly preferred
+        if enable_v2:
+            cases.append(f"WHEN way.tag_id IN {CYCLEWAY_TAG_IDS} THEN way.{cost_column} * 0.1")
+        
+        # Mellow streets (quiet residential) - preferred
+        cases.append(f"WHEN mellow.type = ''street'' THEN way.{cost_column} * 0.25")
+        
+        # v2: Residential streets - preferred
+        if enable_v2:
+            cases.append(f"WHEN way.tag_id IN {RESIDENTIAL_STREET_TAG_IDS} THEN way.{cost_column} * 0.25")
+        
+        # One-way streets - slightly preferred (predictable traffic)
+        cases.append(f"WHEN way.oneway = ''YES'' THEN way.{cost_column} * 0.5")
+        
+        # Mellow routes (signed bike routes) - somewhat preferred
+        cases.append(f"WHEN mellow.type = ''route'' THEN way.{cost_column} * 0.75")
+        
+        # Default: no preference adjustment
+        cases.append(f"ELSE way.{cost_column}")
+        
+        return "CASE\n                            " + "\n                            ".join(cases) + "\n                        END"
 
     def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, sidewalk_penalty=None):
         """
@@ -143,17 +177,18 @@ class Route(APIView):
             enable_v2: Whether to use v2 routing algorithm
             sidewalk_penalty: Cost multiplier for sidewalks (None = no penalty)
         """
-        # Build sidewalk penalty cases if needed
-        sidewalk_cost_case = ""
-        sidewalk_reverse_cost_case = ""
+        cost_case = self.build_cost_cases('cost', enable_v2, sidewalk_penalty)
+        reverse_cost_case = self.build_cost_cases('reverse_cost', enable_v2, sidewalk_penalty)
+        
+        # Join with osm_ways table when we need access to hstore tags for sidewalk detection
+        osm_ways_join = ""
         if sidewalk_penalty is not None:
-            is_sidewalk = self.is_sidewalk_sql()
-            sidewalk_cost_case = f"WHEN ({is_sidewalk}) THEN way.cost * {sidewalk_penalty}\n                            "
-            sidewalk_reverse_cost_case = f"WHEN ({is_sidewalk}) THEN way.reverse_cost * {sidewalk_penalty}\n                            "
+            osm_ways_join = "LEFT JOIN osm_ways AS osm_way ON way.osm_id = osm_way.osm_id"
         
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 SELECT
+                    way.osm_id,
                     way.name,
                     way.length_m,
                     ST_AsGeoJSON(way.the_geom) AS geometry,
@@ -167,28 +202,12 @@ class Route(APIView):
                         way.gid AS id,
                         way.source,
                         way.target,
-                        CASE
-                            {sidewalk_cost_case}WHEN mellow.type = ''path'' THEN way.cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.cost * 0.75
-                            ELSE way.cost
-                        END AS cost,
-                        CASE
-                            {sidewalk_reverse_cost_case}WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.reverse_cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.reverse_cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
-                            ELSE way.reverse_cost
-                        END AS reverse_cost
+                        {cost_case} AS cost,
+                        {reverse_cost_case} AS reverse_cost
                     FROM chicago_ways AS way
                     LEFT JOIN mellow
                     USING(osm_id)
-                    {self.sidewalk_join_sql(sidewalk_penalty)}
+                    {osm_ways_join}
                     ',
                     %s,
                     %s
@@ -221,6 +240,7 @@ class Route(APIView):
                     'type': 'Feature',
                     'geometry': json.loads(row['geometry']),
                     'properties': {
+                        'osm_id': row['osm_id'],
                         'name': row['name'],
                         'type': row['type']
                     }
