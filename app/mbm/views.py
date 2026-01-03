@@ -180,12 +180,14 @@ class Route(APIView):
         # the total length of the route in meters
         dist_in_meters = sum(row['length_m'] for row in rows)
         distance, time = self.format_distance(dist_in_meters)
+        major_streets = self.get_major_streets(rows, dist_in_meters)
 
         return {
             'type': 'FeatureCollection',
             'properties': {
                 'distance': distance,
                 'time': time,
+                'major_streets': major_streets,
             },
             'features': [
                 {
@@ -222,6 +224,31 @@ class Route(APIView):
         time = f'{formatted_time} {time_unit_str}'
 
         return distance, time
+
+    def get_major_streets(self, rows, total_length):
+        min_percentage = 0.2 # minimum percentage of the total length of the route that a street must cover to be considered major
+        max_results = 3
+
+        if not total_length:
+            return []
+
+        per_street_lengths = {}
+        for row in rows:
+            name = row.get('name')
+            length = row.get('length_m') or 0
+            if not name:
+                continue
+            per_street_lengths[name] = per_street_lengths.get(name, 0) + length
+
+        threshold = total_length * min_percentage
+        qualifying = [
+            (name, length)
+            for name, length in per_street_lengths.items()
+            if length > threshold
+        ]
+        qualifying.sort(key=lambda item: (-item[1], item[0]))
+
+        return [name for name, _ in qualifying[:max_results]]
 
 
 class MellowRouteList(LoginRequiredMixin, ListView):
