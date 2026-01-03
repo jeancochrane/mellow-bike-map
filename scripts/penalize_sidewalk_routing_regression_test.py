@@ -79,72 +79,40 @@ def parse_distance(distance_value: Optional[str]) -> Optional[float]:
         return None
 
 
-def count_sidewalk_ways(route_view, source: int, target: int, sidewalk_penalty: Optional[float]) -> int:
+def count_sidewalk_ways(route_data: Dict) -> int:
     """
-    Count the number of sidewalk ways in the actual calculated route.
+    Count the number of sidewalk ways in a route.
     
-    This uses the same route calculation logic as get_route() to ensure
-    we're counting sidewalks from the exact same route that was used.
+    Uses the osm_ids from the route features to query which ways are sidewalks.
+    
+    Args:
+        route_data: The route GeoJSON returned from Route.get_route()
+    
+    Returns:
+        Number of distinct sidewalk ways in the route
     """
+    features = route_data.get("features", [])
+    if not features:
+        return 0
+    
+    # Get distinct osm_ids from the route
+    osm_ids = list(set(
+        f["properties"]["osm_id"]
+        for f in features
+        if f.get("properties", {}).get("osm_id")
+    ))
+    
+    if not osm_ids:
+        return 0
+    
     try:
-        # Import the constants and methods we need
-        from mbm.views import RESIDENTIAL_STREET_TAG_IDS, CYCLEWAY_TAG_IDS
-        
-        # Build the same route calculation logic as get_route()
-        sidewalk_cost_case = ""
-        sidewalk_reverse_cost_case = ""
-        if sidewalk_penalty is not None:
-            is_sidewalk = route_view.is_sidewalk_sql()
-            sidewalk_cost_case = f"WHEN ({is_sidewalk}) THEN way.cost * {sidewalk_penalty}\n                            "
-            sidewalk_reverse_cost_case = f"WHEN ({is_sidewalk}) THEN way.reverse_cost * {sidewalk_penalty}\n                            "
-        
         with connection.cursor() as cursor:
-            # Use the exact same route calculation as get_route(), but select osm_id
-            cursor.execute(f"""
-                SELECT COUNT(*) AS sidewalk_count
-                FROM (
-                    SELECT DISTINCT way.osm_id
-                    FROM pgr_dijkstra(
-                        'WITH mellow AS (
-                            SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
-                            FROM mbm_mellowroute
-                        )
-                        SELECT
-                            way.gid AS id,
-                            way.source,
-                            way.target,
-                            CASE
-                                {sidewalk_cost_case}WHEN mellow.type = ''path'' THEN way.cost * 0.1
-                                {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if ENABLE_V2 else ""}
-                                WHEN mellow.type = ''street'' THEN way.cost * 0.25
-                                {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if ENABLE_V2 else ""}
-                                WHEN way.oneway = ''YES'' THEN way.cost * 0.5
-                                WHEN mellow.type = ''route'' THEN way.cost * 0.75
-                                ELSE way.cost
-                            END AS cost,
-                            CASE
-                                {sidewalk_reverse_cost_case}WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
-                                {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.reverse_cost * 0.1" if ENABLE_V2 else ""}
-                                WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
-                                {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.reverse_cost * 0.25" if ENABLE_V2 else ""}
-                                WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
-                                WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
-                                ELSE way.reverse_cost
-                            END AS reverse_cost
-                        FROM chicago_ways AS way
-                        LEFT JOIN mellow
-                        USING(osm_id)
-                        {route_view.sidewalk_join_sql(sidewalk_penalty)}
-                        ',
-                        %s,
-                        %s
-                    ) AS path
-                    JOIN chicago_ways AS way
-                    ON path.edge = way.gid
-                ) AS route_ways
-                JOIN osm_ways AS osm_way
-                ON route_ways.osm_id = osm_way.osm_id
-                WHERE (
+            # Count how many of the route's osm_ids are sidewalks
+            cursor.execute("""
+                SELECT COUNT(DISTINCT osm_way.osm_id)
+                FROM osm_ways AS osm_way
+                WHERE osm_way.osm_id = ANY(%s)
+                AND (
                     osm_way.tags @> 'footway=>sidewalk'::hstore OR
                     osm_way.tags @> 'footway=>crossing'::hstore OR
                     osm_way.tags @> 'highway=>footway'::hstore
@@ -153,7 +121,7 @@ def count_sidewalk_ways(route_view, source: int, target: int, sidewalk_penalty: 
                     osm_way.tags @> 'bicycle=>permissive'::hstore OR
                     osm_way.tags @> 'bicycle=>yes'::hstore
                 )
-            """, [source, target])
+            """, [osm_ids])
             row = cursor.fetchone()
             return row[0] if row else 0
     except Exception:
@@ -188,10 +156,8 @@ def run_route(route_view, source: int, target: int, sidewalk_penalty: Optional[f
     success = bool(features)
     error = None if success else "no path returned"
     
-    # Count sidewalk ways if route succeeded
-    sidewalk_count = 0
-    if success:
-        sidewalk_count = count_sidewalk_ways(route_view, source, target, sidewalk_penalty)
+    # Count sidewalk ways from the returned route data
+    sidewalk_count = count_sidewalk_ways(data) if success else 0
 
     return {
         "success": success,
