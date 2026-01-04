@@ -61,13 +61,12 @@ class Route(APIView):
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
         
-        # Parse sidewalk_penalty if provided (default: 10.0 to discourage sidewalk routing)
-        sidewalk_penalty = None
-        if "sidewalk_penalty" in request.GET:
+        sidewalk_cost_multiplier = 1.0
+        if "sidewalk_cost_multiplier" in request.GET:
             try:
-                sidewalk_penalty = float(request.GET.get("sidewalk_penalty"))
+                sidewalk_cost_multiplier = float(request.GET.get("sidewalk_cost_multiplier"))
             except (ValueError, TypeError):
-                raise ParseError("sidewalk_penalty must be a valid number")
+                raise ParseError("sidewalk_cost_multiplier must be a valid number")
         
         # Debug mode enables additional route statistics
         in_debug_mode = request.GET.get("debug", "false") == "true"
@@ -77,7 +76,7 @@ class Route(APIView):
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, sidewalk_penalty, in_debug_mode)
+            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, sidewalk_cost_multiplier, in_debug_mode)
         })
 
     def get_coord_from_request(self, request, key):
@@ -115,10 +114,10 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def build_cost_cases(self, cost_column, enable_v2, sidewalk_penalty):
+    def build_cost_cases(self, cost_column, enable_v2, sidewalk_cost_multiplier):
         cases = []
         
-        if sidewalk_penalty is not None:
+        if sidewalk_cost_multiplier is not None:
             is_sidewalk = """
                 (osm_way.tags @> 'footway=>sidewalk'::hstore OR
                  osm_way.tags @> 'footway=>crossing'::hstore OR
@@ -127,7 +126,7 @@ class Route(APIView):
                 (osm_way.tags @> 'bicycle=>permissive'::hstore OR
                  osm_way.tags @> 'bicycle=>yes'::hstore)
             """.replace("'", "''")  # Escape quotes for nested SQL string
-            cases.append(f"WHEN ({is_sidewalk}) THEN way.{cost_column} * {sidewalk_penalty}")
+            cases.append(f"WHEN ({is_sidewalk}) THEN way.{cost_column} * {sidewalk_cost_multiplier}")
         
         cases.append(f"WHEN mellow.type = ''path'' THEN way.{cost_column} * 0.1")
         
@@ -147,7 +146,7 @@ class Route(APIView):
         
         return "CASE " + " ".join(cases) + " END"
 
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, sidewalk_penalty=None, in_debug_mode=False):
+    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, sidewalk_cost_multiplier=None, in_debug_mode=False):
         """
         Calculate a route between two vertices.
         
@@ -155,15 +154,15 @@ class Route(APIView):
             source_vertex_id: Starting vertex ID
             target_vertex_id: Ending vertex ID
             enable_v2: Whether to use v2 routing algorithm
-            sidewalk_penalty: Cost multiplier for sidewalks (None = no penalty)
+            sidewalk_cost_multiplier: Cost multiplier for sidewalks (None = no penalty)
             in_debug_mode: Whether to include debug info like sidewalk count
         """
-        cost_case = self.build_cost_cases('cost', enable_v2, sidewalk_penalty)
-        reverse_cost_case = self.build_cost_cases('reverse_cost', enable_v2, sidewalk_penalty)
+        cost_case = self.build_cost_cases('cost', enable_v2, sidewalk_cost_multiplier)
+        reverse_cost_case = self.build_cost_cases('reverse_cost', enable_v2, sidewalk_cost_multiplier)
         
         # Join with osm_ways table when we need access to hstore tags for sidewalk detection
         osm_ways_join = ""
-        if sidewalk_penalty is not None:
+        if sidewalk_cost_multiplier is not None:
             osm_ways_join = "LEFT JOIN osm_ways AS osm_way ON way.osm_id = osm_way.osm_id"
         
         with connection.cursor() as cursor:
