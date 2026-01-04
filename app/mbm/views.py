@@ -116,23 +116,9 @@ class Route(APIView):
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
     def build_cost_cases(self, cost_column, enable_v2, sidewalk_penalty):
-        """
-        Build the CASE expression for routing cost calculation.
-        
-        Routes are scored by multiplying path costs by preference weights:
-        - Lower multipliers = more preferred routes
-        - Higher multipliers = less preferred (penalized) routes
-        
-        Args:
-            cost_column: Either 'cost' or 'reverse_cost'
-            enable_v2: Whether to include v2 routing bonuses for cycleways/residential streets
-            sidewalk_penalty: Multiplier to discourage sidewalk routing (e.g., 10.0 = 10x cost)
-        """
         cases = []
         
-        # Sidewalk penalty (optional) - discourage routing onto sidewalks
         if sidewalk_penalty is not None:
-            # A way is considered a sidewalk if it has footway tags but lacks bicycle access
             is_sidewalk = """
                 (osm_way.tags @> 'footway=>sidewalk'::hstore OR
                  osm_way.tags @> 'footway=>crossing'::hstore OR
@@ -143,30 +129,23 @@ class Route(APIView):
             """.replace("'", "''")  # Escape quotes for nested SQL string
             cases.append(f"WHEN ({is_sidewalk}) THEN way.{cost_column} * {sidewalk_penalty}")
         
-        # Mellow paths (bike paths, trails) - strongly preferred
         cases.append(f"WHEN mellow.type = ''path'' THEN way.{cost_column} * 0.1")
         
-        # v2: Dedicated cycleways - strongly preferred
         if enable_v2:
             cases.append(f"WHEN way.tag_id IN {CYCLEWAY_TAG_IDS} THEN way.{cost_column} * 0.1")
         
-        # Mellow streets (quiet residential) - preferred
         cases.append(f"WHEN mellow.type = ''street'' THEN way.{cost_column} * 0.25")
         
-        # v2: Residential streets - preferred
         if enable_v2:
             cases.append(f"WHEN way.tag_id IN {RESIDENTIAL_STREET_TAG_IDS} THEN way.{cost_column} * 0.25")
         
-        # One-way streets - slightly preferred (predictable traffic)
         cases.append(f"WHEN way.oneway = ''YES'' THEN way.{cost_column} * 0.5")
         
-        # Mellow routes (signed bike routes) - somewhat preferred
         cases.append(f"WHEN mellow.type = ''route'' THEN way.{cost_column} * 0.75")
         
-        # Default: no preference adjustment
         cases.append(f"ELSE way.{cost_column}")
         
-        return "CASE\n                            " + "\n                            ".join(cases) + "\n                        END"
+        return "CASE " + " ".join(cases) + " END"
 
     def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, sidewalk_penalty=None, in_debug_mode=False):
         """
@@ -236,7 +215,6 @@ class Route(APIView):
             'major_streets': major_streets,
         }
         
-        # Only count sidewalks when debug mode is enabled (expensive query)
         if in_debug_mode:
             properties['sidewalk_count'] = self.count_sidewalk_ways(rows)
 

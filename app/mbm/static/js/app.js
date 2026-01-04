@@ -679,7 +679,6 @@ export default class App {
     this.$hideSearch.addClass('mt-1')
     this.$hideLegend.addClass('mt-1')
 
-    // Show debug info only when ?debug=true is set
     if (this.isDebugMode()) {
       const sidewalkWord = sidewalkCount === 1 ? 'sidewalk' : 'sidewalks'
       this.$routeDebug.html(
