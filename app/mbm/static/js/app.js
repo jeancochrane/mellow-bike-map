@@ -81,6 +81,7 @@ export default class App {
     }
 
     this.$routeEstimate = $('#route-estimate')
+    this.$routeDebug = $('#route-debug')
 
     // Setup interactive tooltip elements (via jQuery UI)
     $('[data-toggle="tooltip"]').tooltip()
@@ -556,7 +557,11 @@ export default class App {
       this.setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords)
 
       this.map.spin(true)
-      $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
+      const params = { source, target, enable_v2: enableV2 }
+      if (this.isDebugMode()) {
+        params.debug = true
+      }
+      $.getJSON(this.routeUrl + '?' + $.param(params)).done((data) => {
         if (this.directionsRouteLayer) {
           this.map.removeLayer(this.directionsRouteLayer)
         }
@@ -577,7 +582,8 @@ export default class App {
         this.showRouteEstimate(
           data.route.properties.distance,
           data.route.properties.time,
-          data.route.properties.major_streets
+          data.route.properties.major_streets,
+          data.route.properties.sidewalk_count
         )
       }).fail((jqxhr, textStatus, error) => {
         const err = textStatus + ': ' + error
@@ -660,13 +666,30 @@ export default class App {
     this.markers[name] = marker
   }
 
-  showRouteEstimate(distance, time, majorStreets = []) {
+  isDebugMode() {
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('debug') === 'true'
+  }
+
+  showRouteEstimate(distance, time, majorStreets = [], sidewalkCount = 0) {
     const viaText = this.formatViaText(majorStreets)
     const summary = viaText ? `<strong>${time}</strong> (${distance}) ${viaText}` : `<strong>${time}</strong> (${distance})`
     this.$routeEstimate.html(summary)
     this.$routeEstimate.show()
     this.$hideSearch.addClass('mt-1')
     this.$hideLegend.addClass('mt-1')
+
+    // Show debug info only when ?debug=true is set
+    if (this.isDebugMode()) {
+      const sidewalkWord = sidewalkCount === 1 ? 'sidewalk' : 'sidewalks'
+      this.$routeDebug.html(
+        `<div class="route-debug-header">Debug</div>` +
+        `<div>${sidewalkCount} ${sidewalkWord} in route</div>`
+      )
+      this.$routeDebug.show()
+    } else {
+      this.$routeDebug.hide()
+    }
   }
 
   formatViaText(streets = []) {
@@ -688,6 +711,8 @@ export default class App {
   hideRouteEstimate() {
     this.$routeEstimate.hide()
     this.$routeEstimate.html('')
+    this.$routeDebug.hide()
+    this.$routeDebug.html('')
     this.$hideSearch.removeClass('mt-1')
     this.$hideLegend.removeClass('mt-1')
   }
