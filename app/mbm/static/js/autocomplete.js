@@ -20,7 +20,7 @@ const initAutocomplete = (inputElement, markerName, app) => {
     inputElement, {
       componentRestrictions: { country: "us" },
       bounds: chicagoBounds,
-      strictBounds: true,
+      strictBounds: true
     }
   )
   // Avoid paying for data that you don't need by restricting the set of
