@@ -58,30 +58,6 @@ const initAutocomplete = (inputElement, markerName, app) => {
     app.setSourceOrTargetLocation(markerName, lat, lng, addressString)
   });
 
-  // TODO: This doesn't really need to depend on geolocation. We want to suggest
-  // results all over the city regardless of where the user is located, so we could
-  // instead hardcode a bounds object for chicago city limits. As a bonus, we could
-  // then set the autocomplete to use strictbounds and only return results within
-  // them rather than just biasing towards those results. Alternatively, we could
-  // have the backend generate these bounds based on where it has route definitions.
-  //
-  // Bias the autocomplete object to the user's geographical location,
-  // as supplied by the browser's 'navigator.geolocation' object.
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(position => {
-      const geolocation = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
-      }
-      app.geolocation.handleGPSPositionUpdate(position)
-      const circle = new google.maps.Circle({
-        center: geolocation,
-        // This is 1500 meters for me. Do we really want to bias the autocomplete to locations within 1500 meters?
-        radius: position.coords.accuracy
-      })
-      autocomplete.setBounds(circle.getBounds())
-    })
-  }
   return autocomplete
 }
 
