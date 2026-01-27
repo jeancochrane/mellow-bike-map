@@ -1,5 +1,5 @@
 from typing import TypedDict, Dict, List, Optional, Any
-from mbm.types import GeoJSONFeature, RouteProperties
+from mbm.types import Route, RouteProperties
 
 class DirectionSegment(TypedDict):
     gid: Optional[int]
@@ -23,7 +23,7 @@ class Direction(TypedDict):
     osmData: Dict[str, Any]
     featureIndices: List[int]
 
-def directions_list(features: List[GeoJSONFeature]) -> List[Direction]:
+def directions_list(features: Route) -> List[Direction]:
     directions: List[Direction] = []
     previous_heading = None
     previous_effective_name = None

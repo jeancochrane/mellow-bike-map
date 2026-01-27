@@ -1,4 +1,4 @@
-from typing import TypedDict, Literal, Dict, Any
+from typing import TypedDict, Literal, Dict, Any, List
 
 class RouteProperties(TypedDict, total=False):
     name: str
@@ -20,3 +20,5 @@ class GeoJSONFeature(TypedDict):
     type: Literal["Feature"]
     geometry: Dict[str, Any]
     properties: RouteProperties
+
+Route = List[GeoJSONFeature]

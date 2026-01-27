@@ -2,7 +2,7 @@ from typing import List, Tuple
 import json
 from django.db import connection
 from mbm.models import fetchall
-from mbm.types import GeoJSONFeature
+from mbm.types import Route
 
 RESIDENTIAL_STREET_TAG_IDS = (
     507,  # living_street
@@ -16,7 +16,7 @@ CYCLEWAY_TAG_IDS = (
     501,  # highway:cycleway
 )
 
-def calculate_route(source_vertex_id: int, target_vertex_id: int, enable_v2: bool = False) -> Tuple[List[GeoJSONFeature], str, str]:
+def calculate_route(source_vertex_id: int, target_vertex_id: int, enable_v2: bool = False) -> Tuple[Route, str, str]:
     with connection.cursor() as cursor:
         cursor.execute(f"""
             SELECT
@@ -93,7 +93,7 @@ def calculate_route(source_vertex_id: int, target_vertex_id: int, enable_v2: boo
         """, [source_vertex_id, target_vertex_id])
         rows = fetchall(cursor)
 
-    features: List[GeoJSONFeature] = [
+    features: Route = [
         {
             'type': 'Feature',
             'geometry': json.loads(row['geometry']),
