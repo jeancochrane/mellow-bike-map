@@ -2,7 +2,6 @@ import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
 import { getUserLocations, getUserPreferences, saveUserPreferences } from './storage.js'
-// describeUnnamedStreet has been moved to Python (mbm/directions.py)
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {

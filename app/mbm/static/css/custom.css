@@ -33,7 +33,7 @@ a {
     width: 100%;
 }
 
-/* Make controls-container scrollable on desktop */
+/* Make controls-container, which contains the search form and some other content (on desktop: turn by turn directions, on mobile: show/hide buttons), scrollable on desktop */
 @media (min-width: 768px) {
     #controls-container {
         display: flex;
@@ -156,7 +156,7 @@ a {
   }
 }
 
-/* Mobile directions container styling - positioned by JavaScript based on screen size */
+/* Container for turn by turn directions on mobile, unused on desktop */
 #mobile-directions-container {
   margin-top: 15px;
   padding-top: 15px;
@@ -165,7 +165,6 @@ a {
   padding-right: 0;
 }
 
-/* Mobile popup overlay styling */
 @media (max-width: 768px) {
   /* Turn by turn button - fixed to top right */
   #show-directions-btn {
