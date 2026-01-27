@@ -15,20 +15,8 @@ export function displayDirections(app, directions) {
     // Get the icon with the appropriate color
     const icon = getDirectionIcon(maneuver, color)
 
-    // Build the direction text
-    // Use effectiveName which includes descriptions for unnamed streets (computed in Python)
-    const streetName = direction.effectiveName || direction.name || 'an unknown street'
-    let directionText = ''
-    if (index === 0) {
-      directionText = `Head ${direction.cardinal} on ${streetName} for ${formatDistance(direction.distance)}`
-    } else {
-      directionText = `${direction.maneuver} onto ${streetName} and head ${direction.cardinal} for ${formatDistance(direction.distance)}`
-    }
-
-    // Add "until you reach your destination" to last direction
-    if (index === directions.length - 1) {
-      directionText += ' until you reach your destination'
-    }
+    // Direction text is computed server-side for consistency
+    const directionText = direction.directionText || ''
 
     // Build the list item with clickable class and color data
     let listItemHtml = `<li class="direction-item" data-direction-index="${index}" data-color="${color}"><span class="direction-icon-wrapper">${icon}</span><span class="direction-text">${directionText}`
@@ -138,24 +126,6 @@ function getDirectionIcon(maneuver, color) {
     </svg>`
   }
   return icons[maneuver] || icons['Continue']
-}
-
-function formatDistance(meters) {
-  const metersPerMile = 1609.344
-  const metersPerFoot = 0.3048
-  const miles = meters / metersPerMile
-
-  // Use feet for distances less than 0.09 miles
-  if (miles < 0.09) {
-    const feet = Math.round(meters / metersPerFoot)
-    const unit = feet === 1 ? 'foot' : 'feet'
-    return `${feet} ${unit}`
-  } else {
-    // Round to 1 decimal place (0.x miles)
-    const roundedMiles = Math.round(miles * 10) / 10
-    const unit = roundedMiles === 1 ? 'mile' : 'miles'
-    return `${roundedMiles} ${unit}`
-  }
 }
 
 function getLightColor(hexColor) {

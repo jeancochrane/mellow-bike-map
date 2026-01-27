@@ -22,6 +22,7 @@ class Direction(TypedDict):
     type: Optional[str]
     osmData: Dict[str, Any]
     featureIndices: List[int]
+    directionText: str
 
 def directions_list(features: Route) -> List[Direction]:
     directions: List[Direction] = []
@@ -79,6 +80,7 @@ def directions_list(features: Route) -> List[Direction]:
             'type': props.get('type'),
             'osmData': osm_data,
             'featureIndices': [i],
+            'directionText': '',
         }
         
         if _should_merge_segments(maneuver, effective_name, previous_effective_name, name):
@@ -89,11 +91,43 @@ def directions_list(features: Route) -> List[Direction]:
         previous_heading = heading
         previous_effective_name = effective_name
     
+    for index, direction in enumerate(directions):
+        street_name = direction.get('effectiveName') or direction.get('name') or 'an unknown street'
+        distance_text = _format_distance(direction['distance'])
+        if index == 0:
+            direction_text = f"Head {direction['cardinal']} on {street_name} for {distance_text}"
+        else:
+            direction_text = (
+                f"{direction['maneuver']} onto {street_name} and head "
+                f"{direction['cardinal']} for {distance_text}"
+            )
+
+        if index == len(directions) - 1:
+            direction_text += ' until you reach your destination'
+
+        direction['directionText'] = direction_text
+
     return directions
 
 def _nearest_45(x: float) -> int:
     """Round an angle to the nearest 45-degree increment (0-360)."""
     return (round(x / 45) * 45) % 360
+
+def _format_distance(meters: float) -> str:
+    meters_per_mile = 1609.344
+    meters_per_foot = 0.3048
+    miles = meters / meters_per_mile
+    def round_half_up(value: float) -> int:
+        return int(value + 0.5)
+
+    if miles < 0.09:
+        feet = round_half_up(meters / meters_per_foot)
+        unit = 'foot' if feet == 1 else 'feet'
+        return f"{feet} {unit}"
+
+    rounded_miles = round_half_up(miles * 10) / 10
+    unit = 'mile' if rounded_miles == 1 else 'miles'
+    return f"{rounded_miles} {unit}"
 
 # Relevant docs:
 # https://wiki.openstreetmap.org/wiki/Key:highway
