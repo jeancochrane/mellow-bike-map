@@ -4,10 +4,6 @@ export function displayDirections(app, directions) {
   // Clear any existing directions
   $directionsList.empty()
 
-  // Check if debug mode is enabled
-  const urlParams = new URLSearchParams(window.location.search)
-  const debugMode = urlParams.get('debug') === 'true'
-
   // Process and add each direction
   directions.forEach((direction, index) => {
     // Determine maneuver for first direction
@@ -37,71 +33,6 @@ export function displayDirections(app, directions) {
     // Build the list item with clickable class and color data
     let listItemHtml = `<li class="direction-item" data-direction-index="${index}" data-color="${color}"><span class="direction-icon-wrapper">${icon}</span><span class="direction-text">${directionText}`
 
-    // Add debug information if enabled
-    if (debugMode) {
-      const calmnessInfo = getCalmnessDescription(direction.type)
-
-      listItemHtml += `
-        <div class="direction-debug-info">
-          <div><span class="debug-label">Calmness:</span> ${calmnessInfo}</div>
-      `
-
-      // Display all chicago_ways if available
-      if (direction.osmDataChicagoWays && direction.osmDataChicagoWays.length > 0) {
-        listItemHtml += `<div><span class="debug-label">Chicago Ways (${direction.osmDataChicagoWays.length}):</span></div>`
-
-        // Track which osm_ids have been displayed with buttons in this direction
-        const seenOsmIds = new Set()
-
-        direction.osmDataChicagoWays.forEach((chicagoWay, idx) => {
-          const chicagoWaysInfo = formatChicagoWaysInfo(chicagoWay.osmData)
-          const osmWaysInfo = formatOsmWaysInfo(chicagoWay.osmData)
-
-          // Format the instruction for this chicago_way
-          // Use effectiveName which includes descriptions for unnamed streets (computed in Python)
-          const chicagoWayName = chicagoWay.effectiveName || chicagoWay.name || 'an unknown street'
-          const instruction = `${chicagoWay.maneuver} ${chicagoWay.cardinal} on ${chicagoWayName} for ${Math.round(chicagoWay.distance)}m`
-
-          // Get the feature index for this chicago_way
-          const featureIndex = direction.featureIndices[idx]
-
-          // Add button for unique osm_ids
-          const osmId = chicagoWay.osmData?.osm_id
-          let osmWayButton = ''
-          if (osmId && !seenOsmIds.has(osmId)) {
-            seenOsmIds.add(osmId)
-            osmWayButton = `<button class="osm-way-button" data-osm-id="${osmId}" title="Highlight OSM way ${osmId} on map">Highlight OSM way</button>`
-          }
-
-          // Add button to highlight this specific chicago_way
-          const highlightChicagoWayButton = `<button class="osm-way-button" data-chicago-way-index="${featureIndex}" title="Highlight this chicago_way on map">Highlight chicago_way</button>`
-
-          const parkName = chicagoWay.osmData?.park_name || 'None'
-
-          listItemHtml += `
-            <div style="margin-left: 15px; margin-top: 5px;">
-              <div><strong>Chicago Way ${idx + 1}:</strong> ${instruction} ${highlightChicagoWayButton} ${osmWayButton}</div>
-              <div style="margin-left: 10px;"><span class="debug-label">Chicago Ways:</span> ${chicagoWaysInfo}</div>
-              <div style="margin-left: 10px;"><span class="debug-label">OSM Ways:</span> ${osmWaysInfo}</div>
-              <div style="margin-left: 10px;"><span class="debug-label">Containing Park:</span> ${parkName}</div>
-            </div>
-          `
-        })
-      } else {
-        const chicagoWaysInfo = direction.osmData ? formatChicagoWaysInfo(direction.osmData) : 'No data'
-        const osmWaysInfo = direction.osmData ? formatOsmWaysInfo(direction.osmData) : 'No data'
-        const parkName = direction.osmData?.park_name || 'None'
-
-        listItemHtml += `
-          <div><span class="debug-label">Chicago Ways Data:</span> ${chicagoWaysInfo}</div>
-          <div><span class="debug-label">OSM Ways Data:</span> ${osmWaysInfo}</div>
-          <div><span class="debug-label">Containing Park:</span> ${parkName}</div>
-        `
-      }
-
-      listItemHtml += `</div>`
-    }
-
     listItemHtml += `</span></li>`
 
     $directionsList.append(listItemHtml)
@@ -109,11 +40,6 @@ export function displayDirections(app, directions) {
 
   // Add click handlers to each direction item
   $('.direction-item').on('click', (e) => {
-    // Don't trigger if clicking on debug info
-    if ($(e.target).closest('.direction-debug-info').length > 0) {
-      return
-    }
-
     const $clickedItem = $(e.currentTarget)
     const directionIndex = $clickedItem.data('direction-index')
     const direction = directions[directionIndex]
@@ -173,50 +99,6 @@ export function displayDirections(app, directions) {
     }
   })
 
-  // Add click handlers for OSM way buttons
-  $('.osm-way-button').on('click', (e) => {
-    e.stopPropagation() // Prevent triggering the direction-item click
-
-    const $button = $(e.currentTarget)
-    const osmId = $button.data('osm-id')
-    const chicagoWayIndex = $button.data('chicago-way-index')
-
-    // Handle chicago_way highlighting
-    if (chicagoWayIndex !== undefined) {
-      app.highlightChicagoWays([chicagoWayIndex])
-
-      // Scroll to the map smoothly (only on mobile)
-      const isMobileScreen = $(window).outerWidth() <= 768
-      const mapElement = document.getElementById('map')
-      if (mapElement && isMobileScreen) {
-        mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-      return
-    }
-
-    // Handle OSM way display
-    if (!osmId) {
-      return
-    }
-
-    // Fetch the full OSM way geometry from the API
-    $.getJSON(`/api/osm-way/?osm_id=${osmId}`)
-      .done((data) => {
-        app.highlightOsmWay(data)
-
-        // Scroll to the map smoothly (only on mobile)
-        const isMobileScreen = $(window).outerWidth() <= 768
-        const mapElement = document.getElementById('map')
-        if (mapElement && isMobileScreen) {
-          mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-      })
-      .fail((jqxhr, textStatus, error) => {
-        console.error('Failed to fetch OSM way:', textStatus, error)
-        alert(`Failed to load OSM way ${osmId}: ${error}`)
-      })
-  })
-
   // Reposition the container based on screen size
   // This will handle showing/hiding directions appropriately for mobile vs desktop
   app.positionDirectionsContainer()
@@ -258,36 +140,6 @@ function getDirectionIcon(maneuver, color) {
   return icons[maneuver] || icons['Continue']
 }
 
-function formatChicagoWaysInfo(osmData) {
-  if (!osmData) return ''
-
-  const parts = []
-  parts.push(`OSM ID: ${osmData.osm_id}`)
-  if (osmData.tag_id) parts.push(`Tag ID: ${osmData.tag_id}`)
-  if (osmData.park_name) parts.push(`Park: ${osmData.park_name}`)
-  if (osmData.oneway && osmData.oneway !== 'NO') parts.push(`Oneway: ${osmData.oneway}`)
-  if (osmData.rule) parts.push(`Rule: ${osmData.rule}`)
-  if (osmData.priority) parts.push(`Priority: ${osmData.priority}`)
-  if (osmData.maxspeed_forward) parts.push(`Max Speed Fwd: ${osmData.maxspeed_forward}`)
-  if (osmData.maxspeed_backward) parts.push(`Max Speed Back: ${osmData.maxspeed_backward}`)
-  if (osmData.length_m) parts.push(`Length: ${osmData.length_m.toFixed(2)}m`)
-
-  return parts.join(', ')
-}
-
-function formatOsmWaysInfo(osmData) {
-  if (!osmData || !osmData.osm_tags) return ''
-
-  if (Object.keys(osmData.osm_tags).length > 0) {
-    const tagStrings = Object.entries(osmData.osm_tags)
-      .map(([key, value]) => `${key}=${value}`)
-      .join(', ')
-    return `{${tagStrings}}`
-  }
-
-  return ''
-}
-
 function formatDistance(meters) {
   const metersPerMile = 1609.344
   const metersPerFoot = 0.3048
@@ -303,15 +155,6 @@ function formatDistance(meters) {
     const roundedMiles = Math.round(miles * 10) / 10
     const unit = roundedMiles === 1 ? 'mile' : 'miles'
     return `${roundedMiles} ${unit}`
-  }
-}
-
-function getCalmnessDescription(type) {
-  switch (type) {
-    case 'path': return 'Off-street bike paths (very calm)'
-    case 'street': return 'Mellow streets (calm)'
-    case 'route': return 'Main streets, often with bike lanes (less calm)'
-    default: return 'Not calm'
   }
 }
 

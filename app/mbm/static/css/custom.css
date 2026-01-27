@@ -351,10 +351,6 @@ a {
   background-color: #e0e0e0;
 }
 
-.direction-item.selected {
-  /* Background and border colors will be set via inline styles based on route type */
-}
-
 .direction-icon-wrapper {
   flex-shrink: 0;
   margin-right: 10px;
@@ -369,66 +365,6 @@ a {
 
 .direction-text {
   flex: 1;
-}
-
-.direction-debug-info {
-  margin-top: 5px;
-  padding: 8px;
-  background-color: #f5f5f5;
-  border-left: 3px solid #ccc;
-  font-size: 0.85em;
-  color: #666;
-  font-family: 'Courier New', monospace;
-  cursor: default;
-}
-
-.direction-debug-info .debug-label {
-  font-weight: bold;
-  color: #444;
-}
-
-.osm-way-button {
-  font-size: 0.75em;
-  padding: 2px 6px;
-  margin-left: 8px;
-  background-color: #9b59b6;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: 'Courier New', monospace;
-  transition: background-color 0.2s ease;
-}
-
-.osm-way-button:hover {
-  background-color: #8e44ad;
-}
-
-.osm-way-button:active {
-  background-color: #7d3c98;
-}
-
-/* Style for chicago_way highlight buttons */
-.osm-way-button[data-chicago-way-index] {
-  background-color: #3498db;
-}
-
-.osm-way-button[data-chicago-way-index]:hover {
-  background-color: #2980b9;
-}
-
-.osm-way-button[data-chicago-way-index]:active {
-  background-color: #21618c;
-}
-
-/* Glow effect for highlighted chicago_ways */
-.highlight-chicago-way {
-  filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 12px currentColor);
-}
-
-/* Glow effect for highlighted OSM ways */
-.highlight-osm-way {
-  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 10px currentColor);
 }
 
 /* Settings dropdown styling */

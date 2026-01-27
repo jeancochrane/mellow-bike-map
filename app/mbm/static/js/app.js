@@ -23,7 +23,6 @@ export default class App {
     this.routeData = null
     this.highlightLayer = null
     this.highlightGlowLayer = null
-    this.parksLayer = null  // For debug mode: shows park boundaries
 
     this.routeTypes = {
       'path': {
@@ -212,15 +211,6 @@ export default class App {
 
     // Load the routes layer (first call hits backend, subsequent reloads reuse cache)
     this.loadCalmRoutes()
-
-    // ===== DEBUG MODE: Load park boundaries =====
-    // Check if debug mode is enabled via URL parameter
-    const urlParams = new URLSearchParams(window.location.search)
-    const debugMode = urlParams.get('debug') === 'true'
-    if (debugMode) {
-      this.loadParkBoundaries()
-    }
-    // ===== END DEBUG MODE =====
 
     // Define behavior for the search button
     $directionsForm.submit(this.search.bind(this))
@@ -524,37 +514,6 @@ export default class App {
     })
   }
 
-  // ===== DEBUG MODE: Load park boundaries =====
-  // Fetch park boundaries from the backend and display them on the map
-  // This method is only called when debug mode is enabled (?debug=true)
-  loadParkBoundaries() {
-    $.getJSON('/api/parks/').done((data) => {
-      this.parksLayer = L.geoJSON(data, {
-        style: {
-          color: '#90EE90',      // Light green border
-          weight: 2,
-          opacity: 0.7,
-          fillColor: '#90EE90',
-          fillOpacity: 0.1
-        },
-        onEachFeature: (feature, layer) => {
-          // Add park name as a tooltip
-          if (feature.properties.name) {
-            layer.bindTooltip(feature.properties.name, {
-              permanent: false,
-              direction: 'center',
-              className: 'park-label'
-            })
-          }
-        }
-      }).addTo(this.map)
-      console.log('Loaded park boundaries for debug mode')
-    }).fail(function (jqxhr, textStatus, error) {
-      console.log('Failed to load park boundaries: ' + textStatus + ': ' + error)
-    })
-  }
-  // ===== END DEBUG MODE =====
-
   renderCalmRoutesLayer(data) {
     if (this.calmRoutesLayer) {
       this.map.removeLayer(this.calmRoutesLayer)
@@ -748,7 +707,6 @@ export default class App {
     this.sourceAddressString = ''
     this.targetAddressString = ''
     this.routeData = null
-    // Clear the URL back to home, but preserve query parameters (like ?debug=true)
     const searchParams = new URLSearchParams(window.location.search)
     const queryString = searchParams.toString()
     window.history.pushState({}, '', '/' + (queryString ? '?' + queryString : ''))
@@ -1070,43 +1028,4 @@ export default class App {
     this.map.fitBounds(this.highlightLayer.getBounds(), { padding: [50, 50] })
   }
 
-  highlightOsmWay(osmWayFeature) {
-    // Remove any existing highlight
-    if (this.highlightLayer) {
-      this.map.removeLayer(this.highlightLayer)
-    }
-    if (this.highlightGlowLayer) {
-      this.map.removeLayer(this.highlightGlowLayer)
-    }
-
-    if (!osmWayFeature || !osmWayFeature.geometry) {
-      return
-    }
-
-    // Create glow layer for the OSM way
-    this.highlightGlowLayer = L.geoJSON(osmWayFeature, {
-      style: () => {
-        return {
-          weight: 14,
-          color: '#9b59b6', // Purple color for OSM ways
-          opacity: 0.3
-        }
-      }
-    }).addTo(this.map)
-
-    // Create and add the highlight layer for the full OSM way
-    // Use a distinct color (purple/magenta) to distinguish from chicago_ways
-    this.highlightLayer = L.geoJSON(osmWayFeature, {
-      style: () => {
-        return {
-          weight: 6,
-          color: '#9b59b6', // Purple color for OSM ways
-          opacity: 0.9
-        }
-      }
-    }).addTo(this.map)
-
-    // Fit the map to show the highlighted OSM way
-    this.map.fitBounds(this.highlightLayer.getBounds(), { padding: [50, 50] })
-  }
 }
