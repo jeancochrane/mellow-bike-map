@@ -167,11 +167,11 @@ a {
 
 /* Mobile popup overlay styling */
 @media (max-width: 768px) {
-  /* Turn by turn button - fixed to bottom left */
+  /* Turn by turn button - fixed to top right */
   #show-directions-btn {
     position: absolute;
-    bottom: 20px;
-    left: 25px;
+    top: 20px;
+    right: 25px;
     z-index: 1001; /* Above map, below directions container */
     padding: 10px 16px;
     font-weight: 600;
