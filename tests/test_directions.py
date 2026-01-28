@@ -4,6 +4,8 @@ import pytest
 from mbm.directions import (
     Direction,
     directions_list,
+    _describe_unnamed_street,
+    _format_distance,
     _heading_to_english_maneuver,
     _should_merge_segments,
     _merge_with_previous_direction,
@@ -28,6 +30,39 @@ class TestHeadingToEnglishManeuver:
         result = _heading_to_english_maneuver(heading=10.0, previous_heading=350.0)
         assert result['maneuver'] == 'Continue'
         assert result['cardinal'] == 'north'
+
+
+class TestDescribeUnnamedStreet:
+    @pytest.mark.parametrize('osm_tags,park_name,expected', [
+        (None, None, 'an unknown street'),
+        ('not-a-dict', None, 'an unknown street'),
+        ({'highway': 'service', 'service': 'alley'}, None, 'an alley'),
+        ({'highway': 'service'}, None, 'an access road'),
+        ({'footway': 'crossing'}, None, 'a crosswalk'),
+        ({'highway': 'cycleway'}, None, 'a bike path'),
+        ({'bicycle': 'designated'}, None, 'a bike path'),
+        ({'highway': 'pedestrian'}, None, 'a pedestrian path'),
+        ({'highway': 'footway'}, None, 'a sidewalk'),
+        ({'footway': 'sidewalk'}, None, 'a sidewalk'),
+        ({'highway': 'path', 'bicycle': 'permissive'}, None, 'a mixed-use path'),
+        ({'highway': 'residential'}, 'Lincoln Park', 'a path inside Lincoln Park'),
+        ({'highway': 'cycleway'}, 'Grant Park', 'a bike path inside Grant Park'),
+    ])
+    def test_describes_unnamed_street(self, osm_tags, park_name, expected):
+        assert _describe_unnamed_street(osm_tags, park_name) == expected
+
+
+class TestDirectionsFormatDistance:
+    @pytest.mark.parametrize('meters,expected', [
+        (0.3048, '1 foot'),
+        (0.6096, '2 feet'),
+        (100.0, '328 feet'),
+        (160.9344, '0.1 miles'),
+        (1609.344, '1.0 mile'),
+        (1.05 * 1609.344, '1.1 miles'),
+    ])
+    def test_format_distance(self, meters, expected):
+        assert _format_distance(meters) == expected
 
 
 class TestShouldMergeSegments:
@@ -516,3 +551,75 @@ class TestDirectionsList:
             segment['featureIndex'] for segment in second_direction['directionSegments']
         ]
         assert second_segment_indices == [2, 3]
+
+    def test_empty_features_returns_empty_directions(self):
+        assert directions_list([]) == []
+
+    def test_direction_text_for_first_and_last_steps(self):
+        features = [
+            {
+                'type': 'Feature',
+                'geometry': {},
+                'properties': {
+                    'name': 'Main Street',
+                    'type': 'route',
+                    'distance': 160.9344,
+                    'heading': 0.0,
+                    'gid': 21,
+                },
+            },
+            {
+                'type': 'Feature',
+                'geometry': {},
+                'properties': {
+                    'name': 'Oak Avenue',
+                    'type': 'route',
+                    'distance': 160.9344,
+                    'heading': 90.0,
+                    'gid': 22,
+                },
+            },
+        ]
+
+        directions = directions_list(features)
+
+        assert directions[0]['directionText'] == (
+            'Head north on Main Street for 0.1 miles'
+        )
+        assert directions[1]['directionText'] == (
+            'Turn right onto Oak Avenue and head east for 0.1 miles '
+            'until you reach your destination'
+        )
+
+    def test_direction_text_for_unnamed_street(self):
+        features = [
+            {
+                'type': 'Feature',
+                'geometry': {},
+                'properties': {
+                    'name': 'Main Street',
+                    'type': 'route',
+                    'distance': 160.9344,
+                    'heading': 0.0,
+                    'gid': 31,
+                },
+            },
+            {
+                'type': 'Feature',
+                'geometry': {},
+                'properties': {
+                    'name': None,
+                    'type': 'route',
+                    'distance': 160.9344,
+                    'heading': 90.0,
+                    'gid': 32,
+                },
+            },
+        ]
+
+        directions = directions_list(features)
+
+        assert directions[1]['directionText'] == (
+            'Turn right onto an unknown street and head east for 0.1 miles '
+            'until you reach your destination'
+        )
