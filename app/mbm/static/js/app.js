@@ -2,7 +2,7 @@ import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
 import { getUserLocations, getUserPreferences, saveUserPreferences } from './storage.js'
-import { displayDirections } from './turnbyturn/displayDirections.js'
+import { displayDirections, positionDirectionsContainer, updateMobileDirectionsButtons } from './turnbyturn/displayDirections.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -233,9 +233,9 @@ export default class App {
     })
 
     // Position directions container based on screen size
-    this.positionDirectionsContainer()
+    positionDirectionsContainer(this)
     $(window).on('resize', () => {
-      this.positionDirectionsContainer()
+      positionDirectionsContainer(this)
     })
 
     // Set up mobile directions show/hide buttons
@@ -249,7 +249,7 @@ export default class App {
         if (isMobileScreen) {
           $directionsContainer.show()
           this.mobileDirectionsShown = true
-          this.updateMobileDirectionsButtons()
+          updateMobileDirectionsButtons(this)
         }
       })
     }
@@ -261,7 +261,7 @@ export default class App {
         if (isMobileScreen) {
           $directionsContainer.hide()
           this.mobileDirectionsShown = false
-          this.updateMobileDirectionsButtons()
+          updateMobileDirectionsButtons(this)
         }
       })
     }
@@ -287,80 +287,7 @@ export default class App {
     }
   }
 
-  positionDirectionsContainer() {
-    const $directionsContainer = $('#mobile-directions-container')
-    const $controlsContainer = $('#controls-container')
-    const $mapColumn = $('.col-12.col-md-9')
-    const $map = $('#map')
-    const $showDirectionsBtn = $('#show-directions-btn')
-    const isMobileScreen = $(window).outerWidth() <= 768
-    const hasDirections = $directionsContainer.find('#directions-list li').length > 0
-
-    if ($directionsContainer.length === 0) {
-      return
-    }
-
-    if (isMobileScreen) {
-      // On mobile, position directions as an overlay on top of the map
-      // Ensure map column has relative positioning for absolute positioning of overlay
-      if ($mapColumn.css('position') !== 'relative') {
-        $mapColumn.css('position', 'relative')
-      }
-      // Move directions container to map column if not already there
-      if ($directionsContainer.parent()[0] !== $mapColumn[0]) {
-        $mapColumn.append($directionsContainer)
-      }
-      // Move show button to map column if not already there
-      if ($showDirectionsBtn.length && $showDirectionsBtn.parent()[0] !== $mapColumn[0]) {
-        $mapColumn.append($showDirectionsBtn)
-      }
-      // On mobile, hide directions unless user explicitly showed them
-      if (hasDirections) {
-        if (this.mobileDirectionsShown) {
-          $directionsContainer.show()
-        } else {
-          $directionsContainer.hide()
-        }
-      }
-      // Update button visibility
-      this.updateMobileDirectionsButtons()
-    } else {
-      // On desktop, move directions into the sidebar (after the form)
-      // Reset map column positioning
-      $mapColumn.css('position', '')
-      if ($directionsContainer.parent()[0] !== $controlsContainer[0]) {
-        $controlsContainer.append($directionsContainer)
-      }
-      // On desktop, ALWAYS show directions if they exist
-      if (hasDirections) {
-        $directionsContainer.show()
-      }
-      // Hide the show button on desktop
-      $showDirectionsBtn.hide()
-      // Reset mobile state when switching to desktop
-      this.mobileDirectionsShown = false
-    }
-  }
-
-  updateMobileDirectionsButtons() {
-    const $directionsContainer = $('#mobile-directions-container')
-    const $showDirectionsBtn = $('#show-directions-btn')
-    const isMobileScreen = $(window).outerWidth() <= 768
-    
-    if (!isMobileScreen) {
-      return
-    }
-    
-    // Show "Turn by turn" button if directions exist but container is hidden
-    const hasDirections = $directionsContainer.find('#directions-list li').length > 0
-    const isDirectionsVisible = $directionsContainer.is(':visible')
-    
-    if (hasDirections && !isDirectionsVisible) {
-      $showDirectionsBtn.show()
-    } else {
-      $showDirectionsBtn.hide()
-    }
-  }
+  
 
   // When addresses are provided in the URL, we don't have coordinates returned
   // from Google Maps API as we do when selecting addresses from autocomplete,
@@ -963,7 +890,7 @@ export default class App {
     this.mobileDirectionsShown = false
     
     // Update mobile button visibility
-    this.updateMobileDirectionsButtons()
+    updateMobileDirectionsButtons(this)
   }
 
   highlightChicagoWays(featureIndices) {

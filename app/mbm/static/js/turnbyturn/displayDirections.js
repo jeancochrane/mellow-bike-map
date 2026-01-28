@@ -9,16 +9,12 @@ export function displayDirections(app, directions) {
     // Determine maneuver for first direction
     const maneuver = index === 0 ? 'Continue' : direction.maneuver
 
-    // Get the color based on the type
     const color = app.getLineColor(direction.type)
 
-    // Get the icon with the appropriate color
     const icon = getDirectionIcon(maneuver, color)
 
-    // Direction text is computed server-side for consistency
     const directionText = direction.directionText || ''
 
-    // Build the list item with clickable class and color data
     let listItemHtml = `<li class="direction-item" data-direction-index="${index}" data-color="${color}"><span class="direction-icon-wrapper">${icon}</span><span class="direction-text">${directionText}`
 
     listItemHtml += `</span></li>`
@@ -26,18 +22,15 @@ export function displayDirections(app, directions) {
     $directionsList.append(listItemHtml)
   })
 
-  // Add click handlers to each direction item
   $('.direction-item').on('click', (e) => {
     const $clickedItem = $(e.currentTarget)
     const directionIndex = $clickedItem.data('direction-index')
     const direction = directions[directionIndex]
 
     if (direction && direction.featureIndices) {
-      // Check if this item is already selected
       const isAlreadySelected = $clickedItem.hasClass('selected')
 
       if (isAlreadySelected) {
-        // Unhighlight: remove selected class and styles, remove highlight layers, show full route
         $clickedItem.removeClass('selected').css({
           'background-color': '',
           'border-left-color': ''
@@ -89,12 +82,87 @@ export function displayDirections(app, directions) {
 
   // Reposition the container based on screen size
   // This will handle showing/hiding directions appropriately for mobile vs desktop
-  app.positionDirectionsContainer()
+  positionDirectionsContainer(app)
 
   // On mobile, reset the explicit show state when new directions are displayed
   const isMobileScreen = $(window).outerWidth() <= 768
   if (isMobileScreen) {
     app.mobileDirectionsShown = false
+  }
+}
+
+export function positionDirectionsContainer(app) {
+  const $directionsContainer = $('#mobile-directions-container')
+  const $controlsContainer = $('#controls-container')
+  const $mapColumn = $('.col-12.col-md-9')
+  const $map = $('#map')
+  const $showDirectionsBtn = $('#show-directions-btn')
+  const isMobileScreen = $(window).outerWidth() <= 768
+  const hasDirections = $directionsContainer.find('#directions-list li').length > 0
+
+  if ($directionsContainer.length === 0) {
+    return
+  }
+
+  if (isMobileScreen) {
+    // On mobile, position directions as an overlay on top of the map
+    // Ensure map column has relative positioning for absolute positioning of overlay
+    if ($mapColumn.css('position') !== 'relative') {
+      $mapColumn.css('position', 'relative')
+    }
+    // Move directions container to map column if not already there
+    if ($directionsContainer.parent()[0] !== $mapColumn[0]) {
+      $mapColumn.append($directionsContainer)
+    }
+    // Move show button to map column if not already there
+    if ($showDirectionsBtn.length && $showDirectionsBtn.parent()[0] !== $mapColumn[0]) {
+      $mapColumn.append($showDirectionsBtn)
+    }
+    // On mobile, hide directions unless user explicitly showed them
+    if (hasDirections) {
+      if (app.mobileDirectionsShown) {
+        $directionsContainer.show()
+      } else {
+        $directionsContainer.hide()
+      }
+    }
+    // Update button visibility
+    updateMobileDirectionsButtons(app)
+  } else {
+    // On desktop, move directions into the sidebar (after the form)
+    // Reset map column positioning
+    $mapColumn.css('position', '')
+    if ($directionsContainer.parent()[0] !== $controlsContainer[0]) {
+      $controlsContainer.append($directionsContainer)
+    }
+    // On desktop, ALWAYS show directions if they exist
+    if (hasDirections) {
+      $directionsContainer.show()
+    }
+    // Hide the show button on desktop
+    $showDirectionsBtn.hide()
+    // Reset mobile state when switching to desktop
+    app.mobileDirectionsShown = false
+  }
+}
+
+export function updateMobileDirectionsButtons(app) {
+  const $directionsContainer = $('#mobile-directions-container')
+  const $showDirectionsBtn = $('#show-directions-btn')
+  const isMobileScreen = $(window).outerWidth() <= 768
+  
+  if (!isMobileScreen) {
+    return
+  }
+  
+  // Show "Turn by turn" button if directions exist but container is hidden
+  const hasDirections = $directionsContainer.find('#directions-list li').length > 0
+  const isDirectionsVisible = $directionsContainer.is(':visible')
+  
+  if (hasDirections && !isDirectionsVisible) {
+    $showDirectionsBtn.show()
+  } else {
+    $showDirectionsBtn.hide()
   }
 }
 
