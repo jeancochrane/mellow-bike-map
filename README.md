@@ -39,6 +39,8 @@ The app will be available on http://localhost:8000.
 
 ### Testing
 
+#### Automated
+
 To run the Python test suite:
 
 ```
@@ -51,11 +53,18 @@ To run frontend tests:
 docker compose run --rm app sh -c "npm test"
 ```
 
+#### Manual
+
+To generate directions on the command line:
+
+docker compose run --rm app sh -c "python manage.py generate_route --sourceCoordinates 'x, y' --targetCoordinates 'x, y'"
+
 To fuzz turn-by-turn directions (to find routes that don't work, tag sets that look iffy for bikes, and streets that show up as unnamed in directions):
 
 ```
 docker compose run --rm app sh -c "python /app/scripts/fuzz_directions.py --runs 5"
 ```
+
 
 ## Mapping
 
