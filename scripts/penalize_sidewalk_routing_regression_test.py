@@ -40,16 +40,33 @@ def fetch_random_vertex_pairs(num_pairs: int) -> List[Tuple[int, int]]:
     """
     Fetch random vertex pairs from the database.
     
-    Strategy: Get 2*num_pairs random vertices, number them, then pair up
-    consecutive rows (1->2, 3->4, 5->6, etc.) to create num_pairs.
+    Strategy: Get 2*num_pairs random vertices that are attached to at least
+    one non-sidewalk way, number them, then pair up consecutive rows
+    (1->2, 3->4, 5->6, etc.) to create num_pairs.
     """
     total_vertices = num_pairs * 2
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            WITH randomized AS (
+            WITH candidate_vertices AS (
+                SELECT DISTINCT vert.id
+                FROM chicago_ways_vertices_pgr AS vert
+                JOIN chicago_ways AS way
+                  ON way.source = vert.id OR way.target = vert.id
+                LEFT JOIN osm_ways AS osm_way
+                  ON way.osm_id = osm_way.osm_id
+                WHERE NOT (
+                    COALESCE(osm_way.tags, ''::hstore) @> 'footway=>sidewalk'::hstore OR
+                    COALESCE(osm_way.tags, ''::hstore) @> 'footway=>crossing'::hstore OR
+                    COALESCE(osm_way.tags, ''::hstore) @> 'highway=>footway'::hstore
+                ) OR (
+                    COALESCE(osm_way.tags, ''::hstore) @> 'bicycle=>permissive'::hstore OR
+                    COALESCE(osm_way.tags, ''::hstore) @> 'bicycle=>yes'::hstore
+                )
+            ),
+            randomized AS (
                 SELECT id
-                FROM chicago_ways_vertices_pgr
+                FROM candidate_vertices
                 ORDER BY random()
                 LIMIT %s
             ),
