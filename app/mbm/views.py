@@ -68,15 +68,12 @@ class Route(APIView):
             except (ValueError, TypeError):
                 raise ParseError("sidewalk_cost_multiplier must be a valid number")
         
-        # Debug mode enables additional route statistics
-        in_debug_mode = request.GET.get("debug", "false") == "true"
-        
         return Response({
             'source': source_coord,
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, sidewalk_cost_multiplier, in_debug_mode)
+            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, sidewalk_cost_multiplier)
         })
 
     def get_coord_from_request(self, request, key):
@@ -146,7 +143,7 @@ class Route(APIView):
         
         return "CASE " + " ".join(cases) + " END"
 
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, sidewalk_cost_multiplier=None, in_debug_mode=False):
+    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, sidewalk_cost_multiplier=None):
         """
         Calculate a route between two vertices.
         
@@ -155,7 +152,6 @@ class Route(APIView):
             target_vertex_id: Ending vertex ID
             enable_v2: Whether to use v2 routing algorithm
             sidewalk_cost_multiplier: Cost multiplier for sidewalks (None = no penalty)
-            in_debug_mode: Whether to include debug info like sidewalk count
         """
         cost_case = self.build_cost_cases('cost', enable_v2, sidewalk_cost_multiplier)
         reverse_cost_case = self.build_cost_cases('reverse_cost', enable_v2, sidewalk_cost_multiplier)
@@ -214,9 +210,6 @@ class Route(APIView):
             'major_streets': major_streets,
         }
         
-        if in_debug_mode:
-            properties['sidewalk_count'] = self.count_sidewalk_ways(rows)
-
         return {
             'type': 'FeatureCollection',
             'properties': properties,
@@ -282,39 +275,6 @@ class Route(APIView):
         qualifying.sort(key=lambda item: (-item[1], item[0]))
 
         return [name for name, _ in qualifying[:max_results]]
-
-    def count_sidewalk_ways(self, rows):
-        """
-        Count the number of distinct sidewalk ways in a route.
-        
-        A way is considered a sidewalk if it has footway/sidewalk tags
-        but lacks explicit bicycle access.
-        """
-        if not rows:
-            return 0
-        
-        osm_ids = list(set(row['osm_id'] for row in rows if row.get('osm_id')))
-        if not osm_ids:
-            return 0
-        
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT COUNT(DISTINCT osm_way.osm_id)
-                FROM osm_ways AS osm_way
-                WHERE osm_way.osm_id = ANY(%s)
-                AND (
-                    osm_way.tags @> 'footway=>sidewalk'::hstore OR
-                    osm_way.tags @> 'footway=>crossing'::hstore OR
-                    osm_way.tags @> 'highway=>footway'::hstore
-                )
-                AND NOT (
-                    osm_way.tags @> 'bicycle=>permissive'::hstore OR
-                    osm_way.tags @> 'bicycle=>yes'::hstore
-                )
-            """, [osm_ids])
-            row = cursor.fetchone()
-            return row[0] if row else 0
-
 
 class MellowRouteList(LoginRequiredMixin, ListView):
     title = 'Neighborhoods'
