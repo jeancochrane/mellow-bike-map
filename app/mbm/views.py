@@ -145,57 +145,6 @@ class Route(APIView):
 
         return [name for name, _ in qualifying[:max_results]]
 
-
-
-class OsmWay(APIView):
-    """
-    API endpoint to fetch the complete geometry of an OSM way by osm_id.
-    This returns the full street/path geometry from the osm_ways table,
-    which may extend beyond the route segments.
-    """
-    renderer_classes = [JSONRenderer]
-
-    def get(self, request):
-        osm_id = request.GET.get('osm_id')
-        
-        if not osm_id:
-            raise ParseError('Request is missing required parameter: osm_id')
-        
-        try:
-            osm_id = int(osm_id)
-        except (ValueError, TypeError):
-            raise ParseError('osm_id must be an integer')
-        
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT 
-                    osm_id,
-                    name,
-                    ST_AsGeoJSON(the_geom) AS geometry
-                FROM osm_ways
-                WHERE osm_id = %s
-            """, [osm_id])
-            
-            row = cursor.fetchone()
-            
-            if not row:
-                return Response({
-                    'error': f'No OSM way found with osm_id {osm_id}'
-                }, status=404)
-            
-            columns = [col[0] for col in cursor.description]
-            result = dict(zip(columns, row))
-        
-        return Response({
-            'type': 'Feature',
-            'geometry': json.loads(result['geometry']),
-            'properties': {
-                'osm_id': result['osm_id'],
-                'name': result['name']
-            }
-        })
-
-
 class ParkBoundaries(LoginRequiredMixin, APIView):
     """
     API endpoint to fetch Chicago park boundaries as GeoJSON.
