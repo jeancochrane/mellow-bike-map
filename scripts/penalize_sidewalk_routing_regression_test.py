@@ -6,6 +6,7 @@ with different sidewalk penalty values (None, 2, and 5).
 
 import os
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -128,7 +129,7 @@ def count_sidewalk_ways(route_data: Dict) -> int:
         return 0
 
 
-def run_route(route_view, source: int, target: int, sidewalk_penalty: Optional[float]) -> Dict:
+def run_route(route_view, source: int, target: int, sidewalk_cost_multiplier: Optional[float]) -> Dict:
     """
     Run a route calculation with a specific sidewalk penalty and return success status, distance, and sidewalk count.
     
@@ -136,13 +137,16 @@ def run_route(route_view, source: int, target: int, sidewalk_penalty: Optional[f
         route_view: The Route view instance
         source: Source vertex ID
         target: Target vertex ID
-        sidewalk_penalty: Penalty multiplier for sidewalks (None = no penalty)
+        sidewalk_cost_multiplier: Penalty multiplier for sidewalks (None = no penalty)
     
     Returns: {"success": bool, "distance": float|None, "error": str|None, "sidewalk_count": int}
     """
     try:
         data = route_view.get_route(
-            source, target, enable_v2=ENABLE_V2, sidewalk_penalty=sidewalk_penalty
+            source,
+            target,
+            enable_v2=ENABLE_V2,
+            sidewalk_cost_multiplier=sidewalk_cost_multiplier,
         )
     except Exception as exc:  # noqa: BLE001 - surface DB issues to the report
         return {
@@ -185,6 +189,29 @@ def summarize_results(results: List[Dict]) -> None:
         penalty_key = "none" if penalty is None else str(penalty)
         penalty_label = "None (no penalty)" if penalty is None else f"{penalty}x"
         print(f"  {penalty_label:20s}: {success_counts[penalty_key]}/{num_pairs} succeeded")
+
+    print("\nFailure summaries (by penalty):")
+    for penalty in PENALTIES:
+        penalty_key = "none" if penalty is None else str(penalty)
+        penalty_label = "None (no penalty)" if penalty is None else f"{penalty}x"
+        failures = [
+            r for r in results
+            if not r[penalty_key]["success"]
+        ]
+        if not failures:
+            print(f"  {penalty_label:20s}: no failures")
+            continue
+        error_counts = Counter(
+            (r[penalty_key]["error"] or "unknown error") for r in failures
+        )
+        common_errors = error_counts.most_common(3)
+        print(f"  {penalty_label:20s}: {len(failures)} failures")
+        for error, count in common_errors:
+            print(f"    - {count}x {error}")
+        print("    Sample pairs:")
+        for sample in failures[:3]:
+            error = sample[penalty_key]["error"] or "unknown error"
+            print(f"      {sample['source']} -> {sample['target']}: {error}")
     
     # Calculate average sidewalk counts for successful routes
     print("\nAverage sidewalk ways per route (for successful routes):")
@@ -312,7 +339,7 @@ def main() -> None:
         
         for penalty in PENALTIES:
             penalty_key = "none" if penalty is None else str(penalty)
-            penalty_result = run_route(route_view, source, target, sidewalk_penalty=penalty)
+            penalty_result = run_route(route_view, source, target, sidewalk_cost_multiplier=penalty)
             result[penalty_key] = penalty_result
         
         # Show quick status for all penalties
