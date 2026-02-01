@@ -227,7 +227,8 @@ class Route(APIView):
                     'properties': {
                         'osm_id': row['osm_id'],
                         'name': row['name'],
-                        'type': row['type']
+                        'type': row['type'],
+                        'length_m': row['length_m'],
                     }
                 }
                 for row in rows

@@ -19,10 +19,11 @@ except ModuleNotFoundError as exc:
 
 
 # Configuration: hardcoded defaults
-NUM_PAIRS = 20
+NUM_PAIRS = 10
 ENABLE_V2 = False
 # Test penalty scenarios: None (no penalty), 2 (double cost), 5 (5x cost), 10 (10x cost)
 PENALTIES = [None, 2, 5, 10]
+MELLOW_TYPES = {"street", "path", "route"}
 
 
 def bootstrap_django() -> None:
@@ -97,6 +98,49 @@ def parse_distance(distance_value: Optional[str]) -> Optional[float]:
         return None
 
 
+def parse_time(time_value: Optional[str]) -> Optional[float]:
+    """Convert the '<1 minute' or '5 minutes' formatted string into minutes."""
+    if not time_value:
+        return None
+    try:
+        first_token = str(time_value).split()[0]
+        if first_token == "<1":
+            return 0.5
+        return float(first_token)
+    except (ValueError, IndexError):
+        return None
+
+
+def compute_mellow_type_percentages(route_data: Dict) -> Dict[str, float]:
+    """
+    Compute the share of route length for each mellow type (street/path/route).
+    """
+    features = route_data.get("features", [])
+    if not features:
+        return {}
+    totals = {mellow_type: 0.0 for mellow_type in MELLOW_TYPES}
+    total_length = 0.0
+    for feature in features:
+        props = feature.get("properties", {})
+        length_m = props.get("length_m")
+        if length_m is None:
+            continue
+        try:
+            length_value = float(length_m)
+        except (TypeError, ValueError):
+            continue
+        total_length += length_value
+        mellow_type = props.get("type")
+        if mellow_type in totals:
+            totals[mellow_type] += length_value
+    if total_length <= 0:
+        return {}
+    return {
+        mellow_type: (length / total_length) * 100
+        for mellow_type, length in totals.items()
+    }
+
+
 def count_sidewalk_ways(route_data: Dict) -> int:
     """
     Count the number of sidewalk ways in a route.
@@ -156,7 +200,7 @@ def run_route(route_view, source: int, target: int, sidewalk_cost_multiplier: Op
         target: Target vertex ID
         sidewalk_cost_multiplier: Penalty multiplier for sidewalks (None = no penalty)
     
-    Returns: {"success": bool, "distance": float|None, "error": str|None, "sidewalk_count": int}
+    Returns: {"success": bool, "distance": float|None, "time": float|None, "mellow_type_pct": Dict[str, float], "error": str|None, "sidewalk_count": int}
     """
     try:
         data = route_view.get_route(
@@ -169,6 +213,8 @@ def run_route(route_view, source: int, target: int, sidewalk_cost_multiplier: Op
         return {
             "success": False,
             "distance": None,
+            "time": None,
+            "mellow_type_pct": {},
             "error": str(exc),
             "sidewalk_count": 0,
         }
@@ -179,10 +225,13 @@ def run_route(route_view, source: int, target: int, sidewalk_cost_multiplier: Op
     
     # Count sidewalk ways from the returned route data
     sidewalk_count = count_sidewalk_ways(data) if success else 0
+    mellow_type_pct = compute_mellow_type_percentages(data) if success else {}
 
     return {
         "success": success,
         "distance": parse_distance(data.get("properties", {}).get("distance")),
+        "time": parse_time(data.get("properties", {}).get("time")),
+        "mellow_type_pct": mellow_type_pct,
         "error": error,
         "sidewalk_count": sidewalk_count,
     }
@@ -254,6 +303,52 @@ def summarize_results(results: List[Dict]) -> None:
             print(f"  {penalty_label:20s}: {routes_with_sidewalks}/{len(successful_routes)} ({percentage:.1f}%)")
         else:
             print(f"  {penalty_label:20s}: N/A (no successful routes)")
+
+    print("\nAverage time per route (for successful routes):")
+    for penalty in PENALTIES:
+        penalty_key = "none" if penalty is None else str(penalty)
+        penalty_label = "None (no penalty)" if penalty is None else f"{penalty}x"
+        successful_routes = [
+            r for r in results
+            if r[penalty_key]["success"] and r[penalty_key]["time"] is not None
+        ]
+        if successful_routes:
+            avg_time = sum(r[penalty_key]["time"] for r in successful_routes) / len(successful_routes)
+            print(f"  {penalty_label:20s}: {avg_time:.1f} minutes")
+        else:
+            print(f"  {penalty_label:20s}: N/A (no successful routes)")
+
+    print("\nAverage mellow type share per route (for successful routes):")
+    for penalty in PENALTIES:
+        penalty_key = "none" if penalty is None else str(penalty)
+        penalty_label = "None (no penalty)" if penalty is None else f"{penalty}x"
+        successful_routes = [
+            r for r in results
+            if r[penalty_key]["success"]
+        ]
+        if not successful_routes:
+            print(f"  {penalty_label:20s}: N/A (no successful routes)")
+            continue
+        averages = {mellow_type: 0.0 for mellow_type in MELLOW_TYPES}
+        counted = 0
+        for route in successful_routes:
+            pct = route[penalty_key].get("mellow_type_pct", {})
+            if not pct:
+                continue
+            counted += 1
+            for mellow_type in MELLOW_TYPES:
+                averages[mellow_type] += pct.get(mellow_type, 0.0)
+        if counted == 0:
+            print(f"  {penalty_label:20s}: N/A (no routes with type data)")
+            continue
+        for mellow_type in MELLOW_TYPES:
+            averages[mellow_type] /= counted
+        print(
+            f"  {penalty_label:20s}: "
+            f"street {averages['street']:.1f}%, "
+            f"path {averages['path']:.1f}%, "
+            f"route {averages['route']:.1f}%"
+        )
     
     # Find pairs that succeeded with all penalties
     penalty_keys = ["none"] + [str(p) for p in PENALTIES if p is not None]
