@@ -531,6 +531,11 @@ export default class App {
     const streets = new L.Google('ROADMAP', { mapOptions: { styles: googleStyles } })
     map.addLayer(streets).setView([41.87, -87.62], 11)
 
+    map.attributionControl.setPrefix('')
+    map.attributionControl.addAttribution(
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>'
+    )
+
     return map
   }
 
