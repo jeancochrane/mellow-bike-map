@@ -87,7 +87,7 @@ export default class App {
 
     this.gpsLocationString = 'My position'
 
-    const isMobileScreen = $(window).outerWidth() <= 768
+    this.isMobileScreen = $(window).outerWidth() <= 768
 
     // Make sure the map always fits the full height of the screen
     $(window).resize(() => {
@@ -95,7 +95,7 @@ export default class App {
       var offsetTop = $('.navbar')[0].offsetHeight
       // Add controls to the top offset on mobile screens, where they merge
       // with the navbar
-      if (isMobileScreen) { offsetTop += $('#controls-container')[0].offsetHeight }
+      if (this.isMobileScreen) { offsetTop += $('#controls-container')[0].offsetHeight }
       var mapHeight = windowHeight - offsetTop
       $('#map').css('height', mapHeight)
     }).resize()
@@ -175,7 +175,7 @@ export default class App {
     })
 
     // Show the search box by default on desktop
-    if (!isMobileScreen) { this.$hideSearch.click() }
+    if (!this.isMobileScreen) { this.$hideSearch.click() }
 
     // Watch the user's location and update the map as it changes
     this.geolocation = new Geolocation(this)
@@ -554,6 +554,9 @@ export default class App {
       const targetCoords = this.targetLocation
 
       this.setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords)
+      if (this.isMobileScreen && this.$hideSearch.data('state') === 'shown') {
+        this.$hideSearch.click()
+      }
 
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
