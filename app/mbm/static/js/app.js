@@ -168,12 +168,6 @@ export default class App {
       toggleControlText(this, 'Search for a route', 'Hide search box')
     })
 
-    this.$hideLegend = $('#hide-legend')
-    this.$hideLegend.click(function (e) {
-      toggleControlElement(this, '.hideable-legend')
-      toggleControlText(this, 'Show legend', 'Hide legend')
-    })
-
     // Show the search box by default on desktop
     if (!isMobileScreen) { this.$hideSearch.click() }
 
@@ -325,6 +319,17 @@ export default class App {
     const legend = L.control({ position: 'bottomright' })
     legend.onAdd = (map) => {
       let div = L.DomUtil.create('div', 'info legend hideable-legend')
+      const closeButton = L.DomUtil.create('button', 'legend-close', div)
+      closeButton.setAttribute('type', 'button')
+      closeButton.setAttribute('aria-label', 'Hide legend')
+      closeButton.textContent = '×'
+
+      L.DomEvent.on(closeButton, 'click', (e) => {
+        L.DomEvent.stopPropagation(e)
+        L.DomEvent.preventDefault(e)
+        div.style.display = 'none'
+      })
+
       const routeEntries = Object.entries(this.routeTypes)
       for (const [type, { color, description, visible }] of routeEntries) {
         const lineColor = color || '#7ea4e1'
