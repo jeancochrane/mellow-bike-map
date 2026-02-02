@@ -2,11 +2,8 @@ import json
 from typing import List
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection
-
 from mbm.directions import directions_list
-from mbm.models import fetchall
-from mbm.routing import calculate_route
+from mbm.routing import calculate_route, get_nearest_vertex_id
 
 
 def parse_coordinate_param(value: str) -> List[float]:
@@ -21,26 +18,6 @@ def parse_coordinate_param(value: str) -> List[float]:
     except ValueError as exc:
         raise CommandError("Coordinate must be in 'lat,lng' format.") from exc
     return [lat, lng]
-
-
-def get_nearest_vertex_id(coord: List[float]) -> int:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT vert.id
-            FROM chicago_ways_vertices_pgr AS vert
-            ORDER BY vert.the_geom <-> ST_SetSRID(
-                ST_MakePoint(%s, %s),
-                4326
-            )
-            LIMIT 1
-            """,
-            [coord[1], coord[0]],  # ST_MakePoint expects lng,lat
-        )
-        rows = fetchall(cursor)
-    if rows:
-        return rows[0]["id"]
-    raise CommandError(f"No vertex found near point {coord[0]},{coord[1]}.")
 
 
 class Command(BaseCommand):

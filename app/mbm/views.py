@@ -15,7 +15,7 @@ from rest_framework.exceptions import ParseError
 from mbm import forms
 from mbm.models import MellowRoute, fetchall
 from mbm.directions import directions_list
-from mbm.routing import calculate_route
+from mbm.routing import calculate_route, get_nearest_vertex_id
 
 
 # osm2pgrouting tag IDs for indexing specific types of streets. For docs, see:
@@ -51,10 +51,10 @@ class Route(APIView):
 
     def get(self, request):
         source_coord = self.get_coord_from_request(request, 'source')
-        source_vertex_id = self.get_nearest_vertex_id(source_coord)
+        source_vertex_id = get_nearest_vertex_id(source_coord)
 
         target_coord = self.get_coord_from_request(request, 'target')
-        target_vertex_id = self.get_nearest_vertex_id(target_coord)
+        target_vertex_id = get_nearest_vertex_id(target_coord)
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
 
@@ -83,23 +83,6 @@ class Route(APIView):
             )
 
         return coord_parts
-
-    def get_nearest_vertex_id(self, coord):
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT vert.id
-                FROM chicago_ways_vertices_pgr AS vert
-                ORDER BY vert.the_geom <-> ST_SetSRID(
-                    ST_MakePoint(%s, %s),
-                    4326
-                )
-                LIMIT 1
-            """, [coord[1], coord[0]])  # ST_MakePoint() expects lng,lat
-            rows = fetchall(cursor)
-        if rows:
-            return rows[0]['id']
-        else:
-            raise ParseError('No vertex found near point %s' % ','.join(coord))
 
     def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
         features, distance, time = calculate_route(source_vertex_id, target_vertex_id, enable_v2)

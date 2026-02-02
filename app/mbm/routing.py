@@ -16,6 +16,27 @@ CYCLEWAY_TAG_IDS = (
     501,  # highway:cycleway
 )
 
+
+def get_nearest_vertex_id(coord: List[float]) -> int:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT vert.id
+            FROM chicago_ways_vertices_pgr AS vert
+            ORDER BY vert.the_geom <-> ST_SetSRID(
+                ST_MakePoint(%s, %s),
+                4326
+            )
+            LIMIT 1
+            """,
+            [coord[1], coord[0]],  # ST_MakePoint expects lng,lat
+        )
+        rows = fetchall(cursor)
+    if rows:
+        return rows[0]["id"]
+    raise ValueError(f"No vertex found near point {coord[0]},{coord[1]}.")
+
+
 def calculate_route(source_vertex_id: int, target_vertex_id: int, enable_v2: bool = False) -> Tuple[Route, str, str]:
     with connection.cursor() as cursor:
         cursor.execute(f"""

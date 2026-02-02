@@ -1,6 +1,7 @@
 import pytest
-from mbm.routing import _format_distance
+from mbm.routing import _format_distance, get_nearest_vertex_id
 from mbm import views
+import mbm.routing as routing
 
 
 @pytest.mark.parametrize('dist_in_meters,expected', [
@@ -61,3 +62,52 @@ def test_get_major_streets_does_not_return_unnamed_streets():
     ]
     total_length = sum(row['length_m'] for row in rows)
     assert route.get_major_streets(rows, total_length) == []
+
+
+class _DummyCursor:
+    def __init__(self):
+        self.query = None
+        self.params = None
+
+    def execute(self, query, params):
+        self.query = query
+        self.params = params
+
+
+class _DummyCursorContext:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def __enter__(self):
+        return self._cursor
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
+def test_get_nearest_vertex_id_returns_id(monkeypatch):
+    cursor = _DummyCursor()
+
+    def _cursor_factory():
+        return _DummyCursorContext(cursor)
+
+    monkeypatch.setattr(routing.connection, "cursor", _cursor_factory)
+    monkeypatch.setattr(routing, "fetchall", lambda _cursor: [{"id": 123}])
+
+    coord = [41.9, -87.7]
+    assert get_nearest_vertex_id(coord) == 123
+    assert cursor.params == [coord[1], coord[0]]
+
+
+def test_get_nearest_vertex_id_raises_when_missing(monkeypatch):
+    cursor = _DummyCursor()
+
+    def _cursor_factory():
+        return _DummyCursorContext(cursor)
+
+    monkeypatch.setattr(routing.connection, "cursor", _cursor_factory)
+    monkeypatch.setattr(routing, "fetchall", lambda _cursor: [])
+
+    coord = [41.9, -87.7]
+    with pytest.raises(ValueError, match="No vertex found near point 41.9,-87.7."):
+        get_nearest_vertex_id(coord)
