@@ -1,8 +1,10 @@
 import json
-from typing import List
+from typing import List, Optional, Tuple
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import connection
 from mbm.directions import directions_list
+from mbm.models import fetchall
 from mbm.routing import calculate_route, get_nearest_vertex_id
 
 
@@ -18,6 +20,96 @@ def parse_coordinate_param(value: str) -> List[float]:
     except ValueError as exc:
         raise CommandError("Coordinate must be in 'lat,lng' format.") from exc
     return [lat, lng]
+
+
+def get_component_info(
+    vertex_id: int,
+) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            WITH components AS (
+                SELECT node, component
+                FROM pgr_connectedComponents(
+                    'SELECT gid AS id, source, target, cost, reverse_cost FROM chicago_ways'
+                )
+            ),
+            component_counts AS (
+                SELECT component, COUNT(*) AS component_node_count
+                FROM components
+                GROUP BY component
+            ),
+            total AS (
+                SELECT
+                    COUNT(*) AS total_components,
+                    SUM(component_node_count) AS total_nodes
+                FROM component_counts
+            )
+            SELECT
+                components.component,
+                component_counts.component_node_count,
+                total.total_components AS total_components,
+                total.total_nodes AS total_nodes
+            FROM components
+            JOIN component_counts
+            ON components.component = component_counts.component
+            CROSS JOIN total
+            WHERE node = %s
+            """,
+            [vertex_id],
+        )
+        rows = fetchall(cursor)
+    if not rows:
+        return None, None, None, None
+    return (
+        rows[0]["component"],
+        rows[0]["component_node_count"],
+        rows[0]["total_components"],
+        rows[0]["total_nodes"],
+    )
+
+
+def check_vertices_connected(
+    source_vertex_id: int, target_vertex_id: int
+) -> Tuple[
+    bool,
+    Optional[int],
+    Optional[int],
+    Optional[int],
+    Optional[int],
+    Optional[int],
+    Optional[int],
+]:
+    source_component, source_node_count, source_total_components, source_total_nodes = (
+        get_component_info(source_vertex_id)
+    )
+    target_component, target_node_count, target_total_components, target_total_nodes = (
+        get_component_info(target_vertex_id)
+    )
+    connected = (
+        source_component is not None
+        and target_component is not None
+        and source_component == target_component
+    )
+    total_components = (
+        source_total_components
+        if source_total_components is not None
+        else target_total_components
+    )
+    total_nodes = (
+        source_total_nodes
+        if source_total_nodes is not None
+        else target_total_nodes
+    )
+    return (
+        connected,
+        source_component,
+        target_component,
+        source_node_count,
+        target_node_count,
+        total_components,
+        total_nodes,
+    )
 
 
 class Command(BaseCommand):
@@ -56,7 +148,43 @@ class Command(BaseCommand):
             target_vertex_id,
             enable_v2,
         )
+        (
+            connected,
+            source_component,
+            target_component,
+            source_node_count,
+            target_node_count,
+            total_components,
+            total_nodes,
+        ) = check_vertices_connected(source_vertex_id, target_vertex_id)
+        self.stdout.write(
+            f"Source component: {source_component}"
+        )
+        self.stdout.write(
+            f"Target component: {target_component}"
+        )
+        if source_component is not None and total_nodes:
+            source_percentage = round((source_node_count / total_nodes) * 100)
+            self.stdout.write(
+                f"Source component node count: {source_node_count} / {total_nodes} total ({source_percentage}%)"
+            )
+        if target_component is not None and total_nodes:
+            target_percentage = round((target_node_count / total_nodes) * 100)
+            self.stdout.write(
+                f"Target component node count: {target_node_count} / {total_nodes} total ({target_percentage}%)"
+            )
+        self.stdout.write(
+            f"Total components in graph: {total_components}"
+        )
         if not features:
+            if connected:
+                self.stdout.write(
+                    "Vertices are in the same connected component, but no route was returned."
+                )
+            else:
+                self.stdout.write(
+                    "Vertices are in different connected components."
+                )
             raise CommandError(
                 "No route found between source and target coordinates."
             )
