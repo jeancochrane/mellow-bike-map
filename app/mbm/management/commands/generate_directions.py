@@ -48,12 +48,30 @@ class Command(BaseCommand):
         source_vertex_id = get_nearest_vertex_id(source_coord)
         target_vertex_id = get_nearest_vertex_id(target_coord)
 
+        self.stdout.write(f"Source vertex id: {source_vertex_id}")
+        self.stdout.write(f"Target vertex id: {target_vertex_id}")
+
         features, _, _ = calculate_route(
             source_vertex_id,
             target_vertex_id,
             enable_v2,
         )
+        if not features:
+            raise CommandError(
+                "No route found between source and target coordinates."
+            )
+        # Print basic route information
+        total_distance = sum(
+            feature.get("properties", {}).get("length_m", 0) for feature in features
+        )
+        num_segments = len(features)
+        self.stdout.write("Route information:")
+        self.stdout.write(f"  Number of segments: {num_segments}")
+        self.stdout.write(f"  Total distance: {total_distance:.1f} meters")
+
         directions = directions_list(features)
+        if not directions:
+            raise CommandError("No directions generated from route features.")
 
         lines = []
         for direction in directions:
@@ -63,10 +81,17 @@ class Command(BaseCommand):
             for segment in direction.get("directionSegments", []):
                 feature_index = segment.get("featureIndex")
                 gid = segment.get("gid")
-                name = segment.get("name") or segment.get("effectiveName") or "an unknown street"
+                name = (
+                    segment.get("name")
+                    or segment.get("effectiveName")
+                    or "an unknown street"
+                )
                 distance = segment.get("distance", 0)
                 lines.append(
                     f"  way {feature_index}: {name} (gid: {gid}; distance: {distance}m)"
                 )
+
+        if not lines:
+            raise CommandError("No direction text was produced.")
 
         self.stdout.write("\n".join(lines))
