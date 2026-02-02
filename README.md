@@ -55,9 +55,9 @@ docker compose run --rm app sh -c "npm test"
 
 #### Manual
 
-To generate directions on the command line:
+To generate directions between two coordinate pairs on the command line:
 
-docker compose run --rm app sh -c "python manage.py generate_route --sourceCoordinates 'x, y' --targetCoordinates 'x, y'"
+docker compose run --rm app sh -c "python manage.py generate_directions --sourceCoordinates 'x, y' --targetCoordinates 'x, y'"
 
 To fuzz turn-by-turn directions (to find routes that don't work, tag sets that look iffy for bikes, and streets that show up as unnamed in directions):
 
