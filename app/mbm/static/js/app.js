@@ -671,7 +671,6 @@ export default class App {
     this.$routeEstimate.html(summary)
     this.$routeEstimate.show()
     this.$hideSearch.addClass('mt-1')
-    this.$hideLegend.addClass('mt-1')
   }
 
   formatViaText(streets = []) {
@@ -694,6 +693,5 @@ export default class App {
     this.$routeEstimate.hide()
     this.$routeEstimate.html('')
     this.$hideSearch.removeClass('mt-1')
-    this.$hideLegend.removeClass('mt-1')
   }
 }
