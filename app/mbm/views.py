@@ -90,8 +90,27 @@ class Route(APIView):
     def get_nearest_vertex_id(self, coord):
         with connection.cursor() as cursor:
             cursor.execute("""
+                WITH components AS (
+                    SELECT * FROM pgr_connectedComponents(
+                        'SELECT gid AS id, source, target, cost, reverse_cost FROM chicago_ways'
+                    )
+                ),
+                component_sizes AS (
+                    SELECT component, COUNT(*) AS node_count
+                    FROM components
+                    GROUP BY component
+                ),
+                largest_component AS (
+                    SELECT component
+                    FROM component_sizes
+                    ORDER BY node_count DESC
+                    LIMIT 1
+                )
                 SELECT vert.id
                 FROM chicago_ways_vertices_pgr AS vert
+                JOIN components
+                ON components.node = vert.id
+                WHERE components.component IN (SELECT component FROM largest_component)
                 ORDER BY vert.the_geom <-> ST_SetSRID(
                     ST_MakePoint(%s, %s),
                     4326
