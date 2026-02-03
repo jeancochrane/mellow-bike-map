@@ -261,6 +261,7 @@ export default class App {
         if (isMobileScreen) {
           $directionsContainer.hide()
           this.mobileDirectionsShown = false
+          this.clearDirectionHighlight()
           updateMobileDirectionsButtons(this)
         }
       })
@@ -885,12 +886,29 @@ export default class App {
     
     $directionsContainer.hide()
     $directionsList.empty()
+    this.clearDirectionHighlight()
     
     // Reset mobile state
     this.mobileDirectionsShown = false
     
     // Update mobile button visibility
     updateMobileDirectionsButtons(this)
+  }
+
+  clearDirectionHighlight() {
+    $('.direction-item').removeClass('selected').css({
+      'background-color': '',
+      'border-left-color': ''
+    })
+
+    if (this.highlightLayer) {
+      this.map.removeLayer(this.highlightLayer)
+      this.highlightLayer = null
+    }
+    if (this.highlightGlowLayer) {
+      this.map.removeLayer(this.highlightGlowLayer)
+      this.highlightGlowLayer = null
+    }
   }
 
   highlightChicagoWays(featureIndices) {
@@ -952,7 +970,20 @@ export default class App {
     }).addTo(this.map)
 
     // Fit the map to show the highlighted chicago_ways
-    this.map.fitBounds(this.highlightLayer.getBounds(), { padding: [50, 50] })
+    const isMobileScreen = $(window).outerWidth() <= 768
+    const mapElement = document.getElementById('map')
+    let fitOptions = { padding: [50, 50] }
+
+    if (isMobileScreen && mapElement) {
+      const mapHeight = mapElement.clientHeight || mapElement.offsetHeight
+      const verticalPadding = Math.round(mapHeight * 0.5)
+      fitOptions = {
+        paddingTopLeft: [50, 50],
+        paddingBottomRight: [50, 50 + verticalPadding]
+      }
+    }
+
+    this.map.fitBounds(this.highlightLayer.getBounds(), fitOptions)
   }
 
 }
