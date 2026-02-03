@@ -186,6 +186,7 @@ class MellowRoute(models.Model):
                 ),
                 edges_with_component AS (
                     SELECT way.gid,
+                           way.osm_id,
                            way.name,
                            way.the_geom,
                            components.component
@@ -208,8 +209,11 @@ class MellowRoute(models.Model):
                     ewc.component,
                     ewc.gid,
                     ewc.name,
-                    ST_AsGeoJSON(ewc.the_geom) AS geometry
+                    ST_AsGeoJSON(ewc.the_geom) AS geometry,
+                    hstore_to_json(ow.tags) AS tags
                 FROM edges_with_component AS ewc
+                LEFT JOIN osm_ways AS ow
+                ON ow.osm_id = ewc.osm_id
                 WHERE ewc.component NOT IN (SELECT component FROM largest_component)
                 ORDER BY ewc.component, ewc.gid
             """)
@@ -225,6 +229,7 @@ class MellowRoute(models.Model):
                         'component': row['component'],
                         'gid': row['gid'],
                         'name': row['name'],
+                        'tags': row['tags'],
                     }
                 }
                 for row in rows

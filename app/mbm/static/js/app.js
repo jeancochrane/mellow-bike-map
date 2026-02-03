@@ -399,10 +399,29 @@ export default class App {
     const props = feature && feature.properties ? feature.properties : {}
     const name = props.name || 'Unnamed way'
     const component = props.component !== undefined ? props.component : 'unknown'
+    const tags = this.formatTags(props.tags)
     return (
       `<strong>Name:</strong> ${this.escapeHtml(String(name))}<br>` +
-      `<strong>Component:</strong> ${this.escapeHtml(String(component))}`
+      `<strong>Component:</strong> ${this.escapeHtml(String(component))}<br>` +
+      `<strong>Tags:</strong> ${this.escapeHtml(tags)}`
     )
+  }
+
+  formatTags(tags) {
+    if (!tags) {
+      return 'none'
+    }
+    if (typeof tags === 'string') {
+      return tags
+    }
+    if (typeof tags !== 'object') {
+      return 'none'
+    }
+    const entries = Object.entries(tags).sort(([a], [b]) => a.localeCompare(b))
+    if (entries.length === 0) {
+      return 'none'
+    }
+    return entries.map(([key, value]) => `${key}=${value}`).join(', ')
   }
 
   // Toggle the visibility of a route type
