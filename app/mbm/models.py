@@ -172,6 +172,65 @@ class MellowRoute(models.Model):
             ]
         }
 
+    @classmethod
+    def all_graph_component_edges(cls):
+        """
+        Retrieve all edges (excluding the largest component) with metadata.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                WITH components AS (
+                    SELECT * FROM pgr_connectedComponents(
+                        'SELECT gid AS id, source, target, cost, reverse_cost FROM chicago_ways'
+                    )
+                ),
+                edges_with_component AS (
+                    SELECT way.gid,
+                           way.name,
+                           way.the_geom,
+                           components.component
+                    FROM chicago_ways AS way
+                    JOIN components
+                    ON components.node = way.source
+                ),
+                component_sizes AS (
+                    SELECT component, COUNT(*) AS edge_count
+                    FROM edges_with_component
+                    GROUP BY component
+                ),
+                largest_component AS (
+                    SELECT component
+                    FROM component_sizes
+                    ORDER BY edge_count DESC
+                    LIMIT 1
+                )
+                SELECT
+                    ewc.component,
+                    ewc.gid,
+                    ewc.name,
+                    ST_AsGeoJSON(ewc.the_geom) AS geometry
+                FROM edges_with_component AS ewc
+                WHERE ewc.component NOT IN (SELECT component FROM largest_component)
+                ORDER BY ewc.component, ewc.gid
+            """)
+            rows = fetchall(cursor)
+
+        return {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'geometry': json.loads(row['geometry']),
+                    'properties': {
+                        'component': row['component'],
+                        'gid': row['gid'],
+                        'name': row['name'],
+                    }
+                }
+                for row in rows
+            ]
+        }
+
 def fetchall(cursor):
     """
     Convenience function for fetching rows from a psycopg2 cursor as

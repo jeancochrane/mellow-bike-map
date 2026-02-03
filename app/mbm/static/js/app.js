@@ -317,7 +317,14 @@ export default class App {
       style: (feature) => {
         return { color: this.getCalmRouteLineColor(feature), opacity: 0.6 }
       },
-      interactive: false,
+      interactive: true,
+      onEachFeature: (feature, layer) => {
+        if (!this.highlightByComponent) { return }
+        const info = this.formatComponentFeatureInfo(feature)
+        if (info) {
+          layer.bindPopup(info)
+        }
+      },
       filter: (feature) => {
         if (this.highlightByComponent) {
           return true
@@ -386,6 +393,16 @@ export default class App {
     }
     const hue = (numericId * 137.508) % 360
     return `hsl(${hue}, 65%, 45%)`
+  }
+
+  formatComponentFeatureInfo(feature) {
+    const props = feature && feature.properties ? feature.properties : {}
+    const name = props.name || 'Unnamed way'
+    const component = props.component !== undefined ? props.component : 'unknown'
+    return (
+      `<strong>Name:</strong> ${this.escapeHtml(String(name))}<br>` +
+      `<strong>Component:</strong> ${this.escapeHtml(String(component))}`
+    )
   }
 
   // Toggle the visibility of a route type
