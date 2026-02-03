@@ -938,7 +938,9 @@ export default class App {
         return {
           weight: 16,
           color: color,
-          opacity: 0.3
+          opacity: 0.3,
+          lineCap: 'butt',
+          lineJoin: 'miter'
         }
       },
       onEachFeature: function (feature, layer) {
