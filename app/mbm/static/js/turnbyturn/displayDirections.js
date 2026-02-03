@@ -26,6 +26,7 @@ export function displayDirections(app, directions) {
     const $clickedItem = $(e.currentTarget)
     const directionIndex = $clickedItem.data('direction-index')
     const direction = directions[directionIndex]
+    const isMobileScreen = $(window).outerWidth() <= 768
 
     if (direction && direction.featureIndices) {
       const isAlreadySelected = $clickedItem.hasClass('selected')
@@ -70,8 +71,13 @@ export function displayDirections(app, directions) {
         // Highlight the chicago_ways on the map
         app.highlightChicagoWays(direction.featureIndices)
 
+        // On mobile, collapse expanded directions after selecting a step
+        const $directionsContainer = $('#mobile-directions-container')
+        if (isMobileScreen && $directionsContainer.hasClass('expanded')) {
+          $directionsContainer.removeClass('expanded')
+        }
+
         // Scroll to the map smoothly (only on mobile)
-        const isMobileScreen = $(window).outerWidth() <= 768
         const mapElement = document.getElementById('map')
         if (mapElement && isMobileScreen) {
           mapElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
