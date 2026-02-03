@@ -38,6 +38,9 @@ export default class App {
       }
     }
 
+    // Short-term debug mode: color all ways by connected component.
+    this.highlightByComponent = true
+
     // Start the app once the DOM is ready
     document.addEventListener('DOMContentLoaded', this.start.bind(this))
     this.sourceLocation = ''
@@ -105,7 +108,9 @@ export default class App {
       $(window).resize()
     })
 
-    this.createLegend().addTo(this.map)
+    if (!this.highlightByComponent) {
+      this.createLegend().addTo(this.map)
+    }
 
     // Allow users to name and save their own locations by double clicking on the map
     this.userLocationsCheckbox = document.getElementById('enable-user-locations')
@@ -310,10 +315,13 @@ export default class App {
 
     this.calmRoutesLayer = L.geoJSON(data, {
       style: (feature) => {
-        return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
+        return { color: this.getCalmRouteLineColor(feature), opacity: 0.6 }
       },
       interactive: false,
       filter: (feature) => {
+        if (this.highlightByComponent) {
+          return true
+        }
         const routeType = this.routeTypes[feature.properties.type]
         return routeType ? routeType.visible === true : false
       }
@@ -362,6 +370,22 @@ export default class App {
   getLineColor(type) {
     const routeType = this.routeTypes[type]
     return routeType ? routeType.color : '#7ea4e1'
+  }
+
+  getCalmRouteLineColor(feature) {
+    if (this.highlightByComponent) {
+      return this.getComponentColor(feature.properties.component)
+    }
+    return this.getLineColor(feature.properties.type)
+  }
+
+  getComponentColor(componentId) {
+    const numericId = Number(componentId)
+    if (Number.isNaN(numericId)) {
+      return '#7ea4e1'
+    }
+    const hue = (numericId * 137.508) % 360
+    return `hsl(${hue}, 65%, 45%)`
   }
 
   // Toggle the visibility of a route type

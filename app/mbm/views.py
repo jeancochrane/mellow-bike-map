@@ -46,7 +46,7 @@ class RouteList(APIView):
     renderer_classes = [JSONRenderer]
 
     def get(self, request):
-        return Response(MellowRoute.all())
+        return Response(MellowRoute.all_graph_components())
 
 
 class Route(APIView):
