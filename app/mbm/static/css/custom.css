@@ -135,3 +135,49 @@ a {
     transform: scale(0.8);
   }
 }
+
+#settings-dropdown-menu {
+  min-width: 250px;
+  padding: 0;
+  position: absolute;
+  will-change: transform;
+}
+
+#settings-dropdown-menu .form-check {
+  margin-bottom: 0.75rem;
+}
+
+#settings-dropdown-menu .form-check:last-child {
+  margin-bottom: 0;
+}
+
+#settings-dropdown-menu .form-check-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+#settings-dropdown-menu {
+  pointer-events: auto;
+}
+
+#settings-dropdown-toggle {
+  font-size: 1.1rem;
+}
+
+.navbar-nav .nav-link {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.nav-item.dropdown {
+  position: relative;
+}
+
+.navbar .dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: auto;
+  z-index: 1000;
+  margin-top: 0;
+}
