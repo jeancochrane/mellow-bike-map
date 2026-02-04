@@ -1,0 +1,47 @@
+name: mellow-bike-map
+region: tor
+
+databases:
+  - name: db
+    engine: PG
+    production: true
+    version: "16"
+
+services:
+  - name: web
+    github:
+      repo: jeancochrane/mellow-bike-map
+      branch: master
+      deploy_on_push: true
+
+    dockerfile_path: app/Dockerfile
+
+    http_port: 8000
+
+    instance_count: 1
+    instance_size_slug: basic-xxs
+
+    envs:
+      - key: DJANGO_SECRET_KEY
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: ${db.DATABASE_URL}
+      - key: DJANGO_DEBUG
+        scope: RUN_TIME
+        value: "False"
+      - key: DJANGO_ENV
+        scope: RUN_TIME
+        value: "prod"
+      - key: DJANGO_ALLOWED_HOSTS
+        scope: RUN_TIME
+        value: ".ondigitalocean.app"
+      - key: DJANGO_MANAGEPY_MIGRATE
+        scope: RUN_TIME
+        value: "on"
+      - key: POSTGRES_REQUIRE_SSL
+        scope: RUN_TIME
+        value: "true"
+
+    run_command: /app/app/docker-entrypoint.sh

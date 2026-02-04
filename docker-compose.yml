@@ -9,6 +9,7 @@ services:
     tty: true
     ports:
       - 8000:8000
+      - 8080:8080
     depends_on:
       postgres:
         condition: service_healthy
@@ -18,7 +19,10 @@ services:
     environment:
       DJANGO_SECRET_KEY: reallysupersecret
       DJANGO_MANAGEPY_MIGRATE: "on"
-    command: /app/app/docker-entrypoint.sh python manage.py runserver 0.0.0.0:8000
+      DJANGO_ENV: "dev"
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+    command: /app/app/docker-entrypoint.sh
 
   postgres:
     container_name: mellow-bike-map-postgres
