@@ -14,27 +14,24 @@ from rest_framework.exceptions import ParseError
 
 from mbm import forms
 from mbm.models import MellowRoute, fetchall
+from mbm.directions import directions_list
+from mbm.routing import calculate_route, get_nearest_vertex_id
 
 
 # osm2pgrouting tag IDs for indexing specific types of streets. For docs, see:
 # https://github.com/pgRouting/osm2pgrouting/blob/8491929fc4037d308f271e84d59bb96da3c28aa2/mapconfig_for_bicycles.xml
 
-RESIDENTIAL_STREET_TAG_IDS = (
-    507,  # living_street
-    509,  # residential
-)
-
-CYCLEWAY_TAG_IDS = (
-    101,  # cycleway:track
-    201,  # cycleway:right:track
-    301,  # cycleway:left:track
-    501,  # highway:cycleway
-)
-
 
 class Home(TemplateView):
     title = 'Home'
     template_name = 'mbm/index.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Pass from/to addresses from query parameters if they exist
+        context['from_address'] = self.request.GET.get('sourceAddress', '')
+        context['to_address'] = self.request.GET.get('targetAddress', '')
+        return context
 
 
 class About(TemplateView):
@@ -54,10 +51,10 @@ class Route(APIView):
 
     def get(self, request):
         source_coord = self.get_coord_from_request(request, 'source')
-        source_vertex_id = self.get_nearest_vertex_id(source_coord)
+        source_vertex_id = get_nearest_vertex_id(source_coord)
 
         target_coord = self.get_coord_from_request(request, 'target')
-        target_vertex_id = self.get_nearest_vertex_id(target_coord)
+        target_vertex_id = get_nearest_vertex_id(target_coord)
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
 
@@ -87,80 +84,13 @@ class Route(APIView):
 
         return coord_parts
 
-    def get_nearest_vertex_id(self, coord):
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT vert.id
-                FROM chicago_ways_vertices_pgr AS vert
-                ORDER BY vert.the_geom <-> ST_SetSRID(
-                    ST_MakePoint(%s, %s),
-                    4326
-                )
-                LIMIT 1
-            """, [coord[1], coord[0]])  # ST_MakePoint() expects lng,lat
-            rows = fetchall(cursor)
-        if rows:
-            return rows[0]['id']
-        else:
-            raise ParseError('No vertex found near point %s' % ','.join(coord))
-
     def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
-        with connection.cursor() as cursor:
-            cursor.execute(f"""
-                SELECT
-                    way.name,
-                    way.length_m,
-                    ST_AsGeoJSON(way.the_geom) AS geometry,
-                    mellow.type
-                FROM pgr_dijkstra(
-                    'WITH mellow AS (
-                        SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
-                        FROM mbm_mellowroute
-                    )
-                    SELECT
-                        way.gid AS id,
-                        way.source,
-                        way.target,
-                        CASE
-                            WHEN mellow.type = ''path'' THEN way.cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.cost * 0.75
-                            ELSE way.cost
-                        END AS cost,
-                        CASE
-                            WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
-                            ELSE way.reverse_cost
-                        END AS reverse_cost
-                    FROM chicago_ways AS way
-                    LEFT JOIN mellow
-                    USING(osm_id)
-                    ',
-                    %s,
-                    %s
-                ) AS path
-                JOIN chicago_ways AS way
-                ON path.edge = way.gid
-                LEFT JOIN (
-                    SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
-                    FROM mbm_mellowroute
-                ) as mellow
-                USING(osm_id)
-            """, [source_vertex_id, target_vertex_id])
-            rows = fetchall(cursor)
+        features, distance, time = calculate_route(source_vertex_id, target_vertex_id, enable_v2)
+        directions = directions_list(features)
 
-        # Calculate total distance in miles and time in minutes based on
-        # the total length of the route in meters
-        dist_in_meters = sum(row['length_m'] for row in rows)
-        distance, time = self.format_distance(dist_in_meters)
-        major_streets = self.get_major_streets(rows, dist_in_meters)
+        # need to adapt to not take rows
+        # major_streets = self.get_major_streets(rows, dist_in_meters)
+        major_streets = []
 
         return {
             'type': 'FeatureCollection',
@@ -169,41 +99,9 @@ class Route(APIView):
                 'time': time,
                 'major_streets': major_streets,
             },
-            'features': [
-                {
-                    'type': 'Feature',
-                    'geometry': json.loads(row['geometry']),
-                    'properties': {
-                        'name': row['name'],
-                        'type': row['type']
-                    }
-                }
-                for row in rows
-            ]
+            'features': features,
+            'directions': directions,
         }
-
-    def format_distance(self, dist_in_meters):
-        """
-        Given a distance in meters, return a tuple (distance, time)
-        where `distance` is a string representing a distance in miles and
-        `time` is a string representing an estimated travelime in minutes.
-        """
-        meters_per_mi = 1609.344
-        dist_in_mi = dist_in_meters / meters_per_mi
-        formatted_dist = round(dist_in_mi, 1)
-        # Don't worry about single-mile case since we always report at least
-        # one decimal (i.e. "1.0 miles")
-        dist_unit_str = 'miles'
-        distance = f'{formatted_dist} {dist_unit_str}'
-
-        # Assume 8mph as a naive guess of speed
-        mi_per_min = 10 / 60
-        time_in_min = dist_in_mi / mi_per_min
-        formatted_time = '<1' if time_in_min < 1 else str(round(time_in_min))
-        time_unit_str = 'minute' if formatted_time in ['<1', '1'] else 'minutes'
-        time = f'{formatted_time} {time_unit_str}'
-
-        return distance, time
 
     def get_major_streets(self, rows, total_length):
         min_percentage = 0.2 # minimum percentage of the total length of the route that a street must cover to be considered major
@@ -229,6 +127,38 @@ class Route(APIView):
         qualifying.sort(key=lambda item: (-item[1], item[0]))
 
         return [name for name, _ in qualifying[:max_results]]
+
+class ParkBoundaries(LoginRequiredMixin, APIView):
+    """
+    API endpoint to fetch Chicago park boundaries as GeoJSON.
+    """
+    renderer_classes = [JSONRenderer]
+
+    def get(self, request):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    park,
+                    ST_AsGeoJSON(wkb_geometry) AS geometry
+                FROM chicago_parks
+                WHERE park IS NOT NULL
+                ORDER BY park
+            """)
+            rows = fetchall(cursor)
+        
+        return Response({
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'geometry': json.loads(row['geometry']),
+                    'properties': {
+                        'name': row['park']
+                    }
+                }
+                for row in rows
+            ]
+        })
 
 
 class MellowRouteList(LoginRequiredMixin, ListView):

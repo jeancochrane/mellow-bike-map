@@ -1,7 +1,8 @@
 import UserLocations from './userlocations.js'
 import autocomplete from './autocomplete.js'
 import Geolocation from './geolocation.js'
-import { getUserPreferences, saveUserPreferences } from './storage.js'
+import { getUserLocations, getUserPreferences, saveUserPreferences } from './storage.js'
+import { displayDirections, positionDirectionsContainer, updateMobileDirectionsButtons } from './turnbyturn/displayDirections.js'
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -19,6 +20,9 @@ export default class App {
     this.calmRoutesData = null
 
     this.markers = { 'source': null, 'target': null }
+    this.routeData = null
+    this.highlightLayer = null
+    this.highlightGlowLayer = null
 
     this.routeTypes = {
       'path': {
@@ -55,6 +59,9 @@ export default class App {
         autocomplete: null
       }
     }
+    
+    // Track if directions are explicitly shown on mobile (user clicked "Turn by turn" button)
+    this.mobileDirectionsShown = false
   }
 
   start() {
@@ -85,20 +92,94 @@ export default class App {
     // Setup interactive tooltip elements (via jQuery UI)
     $('[data-toggle="tooltip"]').tooltip()
 
+    // Prevent settings dropdown from closing when clicking on checkboxes
+    $('#settings-dropdown-menu').on('click', function(e) {
+      e.stopPropagation();
+    });
+
     this.gpsLocationString = 'My position'
 
-    const isMobileScreen = $(window).outerWidth() <= 768
+    const getIsMobileScreen = () => $(window).outerWidth() <= 768
+    let previousIsMobileScreen = null
 
-    // Make sure the map always fits the full height of the screen
-    $(window).resize(() => {
+    this.$hideSearch = $('#hide')
+    this.$hideLegend = $('#hide-legend')
+
+    const setSearchToggleState = (state) => {
+      if (!this.$hideSearch.length) { return }
+      const label = state === 'hidden' ? '&or; Search for a route' : '&and; Hide search box'
+      this.$hideSearch.html(label)
+      this.$hideSearch.data('state', state)
+      this.$hideSearch.attr('aria-expanded', state === 'shown')
+    }
+
+    const setLegendToggleState = (state) => {
+      if (!this.$hideLegend.length) { return }
+      const label = state === 'hidden' ? '&or; Show legend' : '&and; Hide legend'
+      this.$hideLegend.html(label)
+      this.$hideLegend.data('state', state)
+      this.$hideLegend.attr('aria-expanded', state === 'shown')
+    }
+
+    const getNextState = ($button) => {
+      return $button.data('state') === 'hidden' ? 'shown' : 'hidden'
+    }
+
+    const adjustControlsForViewport = (isMobile) => {
+      if (isMobile) {
+        $('#input-elements').collapse('hide')
+        setSearchToggleState('hidden')
+      } else {
+        $('#input-elements').collapse('show')
+        setSearchToggleState('shown')
+        $('.hideable-legend').show()
+        setLegendToggleState('shown')
+      }
+    }
+
+    const handleResize = () => {
+      const isMobile = getIsMobileScreen()
+      if (previousIsMobileScreen === null || previousIsMobileScreen !== isMobile) {
+        adjustControlsForViewport(isMobile)
+        previousIsMobileScreen = isMobile
+      }
       var windowHeight = $(window).innerHeight()
       var offsetTop = $('.navbar')[0].offsetHeight
       // Add controls to the top offset on mobile screens, where they merge
       // with the navbar
-      if (isMobileScreen) { offsetTop += $('#controls-container')[0].offsetHeight }
+      if (isMobile) { offsetTop += $('#controls-container')[0].offsetHeight }
       var mapHeight = windowHeight - offsetTop
       $('#map').css('height', mapHeight)
-    }).resize()
+    }
+
+    if (this.$hideSearch.length) {
+      this.$hideSearch.click(() => {
+        const nextState = getNextState(this.$hideSearch)
+        setSearchToggleState(nextState)
+        if (nextState === 'hidden') {
+          $('#input-elements').collapse('hide')
+        } else {
+          $('#input-elements').collapse('show')
+        }
+        handleResize()
+      })
+    }
+
+    if (this.$hideLegend.length) {
+      this.$hideLegend.click(() => {
+        const nextState = getNextState(this.$hideLegend)
+        setLegendToggleState(nextState)
+        if (nextState === 'hidden') {
+          $('.hideable-legend').hide()
+        } else {
+          $('.hideable-legend').show()
+        }
+      })
+    }
+
+    // Make sure the map always fits the full height of the screen
+    $(window).resize(handleResize)
+    handleResize()
 
     // Recalculate map size when controls are toggled
     $directionsForm.on('shown.bs.collapse hidden.bs.collapse', function (e) {
@@ -137,46 +218,6 @@ export default class App {
     // Define behavior for the "Reset search" button
     $('#reset-search').click(this.reset.bind(this))
 
-    const isHidden = (elem) => { return $(elem).data('state') === 'hidden' }
-
-    const toggleControlText = (elem, showText, hideText) => {
-      let innerHTML
-      let state
-      if (isHidden(elem)) {
-        innerHTML = `&and; ${hideText}`
-        state = 'shown'
-      } else {
-        innerHTML = `&or; ${showText}`
-        state = 'hidden'
-      }
-      $(elem).html(innerHTML)
-      $(elem).data('state', state)
-    }
-
-    const toggleControlElement = (elem, controlSelector) => {
-      if (isHidden(elem)) {
-        $(controlSelector).show()
-      } else {
-        $(controlSelector).hide()
-      }
-    }
-
-    this.$hideSearch = $('#hide')
-    // Toggle text on Show/Hide button
-    this.$hideSearch.click(function (e) {
-      $(window).resize()
-      toggleControlText(this, 'Search for a route', 'Hide search box')
-    })
-
-    this.$hideLegend = $('#hide-legend')
-    this.$hideLegend.click(function (e) {
-      toggleControlElement(this, '.hideable-legend')
-      toggleControlText(this, 'Show legend', 'Hide legend')
-    })
-
-    // Show the search box by default on desktop
-    if (!isMobileScreen) { this.$hideSearch.click() }
-
     // Watch the user's location and update the map as it changes
     this.geolocation = new Geolocation(this)
 
@@ -191,7 +232,106 @@ export default class App {
       this.setSourceOrTargetLocation(markerName, latlng.lat, latlng.lng, this.gpsLocationString)
     })
 
-    this.applyInitialQueryParams(window.location.search)
+    // Position directions container based on screen size
+    positionDirectionsContainer(this)
+    $(window).on('resize', () => {
+      positionDirectionsContainer(this)
+    })
+
+    // Set up mobile directions show/hide buttons
+    const $showDirectionsBtn = $('#show-directions-btn')
+    const $hideDirectionsBtn = $('#hide-directions-btn')
+    
+    if ($showDirectionsBtn.length) {
+      $showDirectionsBtn.on('click', () => {
+        const $directionsContainer = $('#mobile-directions-container')
+        const isMobileScreen = $(window).outerWidth() <= 768
+        if (isMobileScreen) {
+          $directionsContainer.show()
+          this.mobileDirectionsShown = true
+          updateMobileDirectionsButtons(this)
+        }
+      })
+    }
+    
+    if ($hideDirectionsBtn.length) {
+      $hideDirectionsBtn.on('click', () => {
+        const $directionsContainer = $('#mobile-directions-container')
+        const isMobileScreen = $(window).outerWidth() <= 768
+        if (isMobileScreen) {
+          $directionsContainer.hide()
+          this.mobileDirectionsShown = false
+          this.clearDirectionHighlight()
+          updateMobileDirectionsButtons(this)
+        }
+      })
+    }
+    
+    // Set up toggle directions size button
+    const $toggleDirectionsSizeBtn = $('#toggle-directions-size-btn')
+    if ($toggleDirectionsSizeBtn.length) {
+      $toggleDirectionsSizeBtn.on('click', () => {
+        const $directionsContainer = $('#mobile-directions-container')
+        const isMobileScreen = $(window).outerWidth() <= 768
+        if (isMobileScreen) {
+          $directionsContainer.toggleClass('expanded')
+        }
+      })
+    }
+
+    // If from/to addresses are provided in the URL path, geocode them and auto-run search
+    if (this.fromAddress && this.toAddress) {
+      this.geocodeAddressesAndRunSearch(this.fromAddress, this.toAddress)
+    } else {
+      // Otherwise, check for query parameters
+      this.applyInitialQueryParams(window.location.search)
+    }
+  }
+
+  
+
+  // When addresses are provided in the URL, we don't have coordinates returned
+  // from Google Maps API as we do when selecting addresses from autocomplete,
+  // so we need to geocode the addresses by calling the Google Maps API.
+  // If the address matches a saved location name, use the saved coordinates instead.
+  geocodeAddressesAndRunSearch(fromAddress, toAddress) {
+    const geocoder = new google.maps.Geocoder()
+    const savedLocations = getUserLocations() || {}
+    
+    // Helper function to resolve an address (either from saved locations or geocoding)
+    const resolveAddress = (address, callback) => {
+      // Check if this matches a saved location name
+      if (savedLocations[address]) {
+        const location = savedLocations[address]
+        callback(location.lat, location.lng, address, true)
+        return
+      }
+      
+      // Otherwise, geocode it
+      geocoder.geocode({ address: address }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const lat = results[0].geometry.location.lat()
+          const lng = results[0].geometry.location.lng()
+          callback(lat, lng, address, false)
+        } else {
+          console.error('Geocode failed for address:', address, status)
+          alert('Could not find the address: ' + address)
+        }
+      })
+    }
+    
+    // Resolve the source address
+    resolveAddress(fromAddress, (sourceLat, sourceLng, sourceAddress, isSaved) => {
+      this.setSourceLocation(sourceLat, sourceLng, sourceAddress)
+      
+      // Once source is set, resolve the target
+      resolveAddress(toAddress, (targetLat, targetLng, targetAddress, isSaved) => {
+        this.setTargetLocation(targetLat, targetLng, targetAddress)
+        
+        // Auto-submit the search
+        $('#input-elements').submit()
+      })
+    })
   }
 
   async applyInitialQueryParams(searchString = '') {
@@ -485,12 +625,19 @@ export default class App {
   // Inputs are automatically reset because the button that triggers this has `type="reset"`
   reset() {
     if (this.directionsRouteLayer) { this.map.removeLayer(this.directionsRouteLayer) }
+    if (this.highlightLayer) { this.map.removeLayer(this.highlightLayer) }
+    if (this.highlightGlowLayer) { this.map.removeLayer(this.highlightGlowLayer) }
     if (this.markers['source']) { this.map.removeLayer(this.markers['source']) }
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
     this.calmRoutesLayer.setStyle({ opacity: 0.6 })
     this.hideRouteEstimate()
+    this.hideDirections()
     this.sourceAddressString = ''
     this.targetAddressString = ''
+    this.routeData = null
+    const searchParams = new URLSearchParams(window.location.search)
+    const queryString = searchParams.toString()
+    window.history.pushState({}, '', '/' + (queryString ? '?' + queryString : ''))
     this.clearRouteQueryParams()
   }
 
@@ -553,15 +700,48 @@ export default class App {
     } else if (target == '') {
       alert('Target is required for search')
     } else {
+      // Update URL with from/to addresses
+      // Use the stored address strings, or fall back to the input values
       const fromAddr = this.inputUsesCoordinates('source') ? null : this.sourceAddressString
       const toAddr = this.inputUsesCoordinates('target') ? null : this.targetAddressString
       const sourceCoords = this.sourceLocation
       const targetCoords = this.targetLocation
 
-      this.setRouteQueryParams(fromAddr, toAddr, sourceCoords, targetCoords)
+      // Build query parameters (preserve existing ones and add route params)
+      const params = new URLSearchParams(window.location.search)
+      if (fromAddr) {
+        params.set('sourceAddress', fromAddr)
+      } else {
+        params.delete('sourceAddress')
+      }
+      if (toAddr) {
+        params.set('targetAddress', toAddr)
+      } else {
+        params.delete('targetAddress')
+      }
+      if (sourceCoords) {
+        params.set('sourceCoordinates', sourceCoords)
+      } else {
+        params.delete('sourceCoordinates')
+      }
+      if (targetCoords) {
+        params.set('targetCoordinates', targetCoords)
+      } else {
+        params.delete('targetCoordinates')
+      }
 
+      // Update URL with query parameters
+      this.updateUrlWithParams(params)
+      
       this.map.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
+        // Store the route data for highlighting
+        this.routeData = data.route
+        
+        // Use directions from API if available, otherwise fall back to computing them
+        const directions = data.route.directions || []
+        displayDirections(this, directions)
+
         if (this.directionsRouteLayer) {
           this.map.removeLayer(this.directionsRouteLayer)
         }
@@ -670,8 +850,12 @@ export default class App {
     const summary = viaText ? `<strong>${time}</strong> (${distance}) ${viaText}` : `<strong>${time}</strong> (${distance})`
     this.$routeEstimate.html(summary)
     this.$routeEstimate.show()
-    this.$hideSearch.addClass('mt-1')
-    this.$hideLegend.addClass('mt-1')
+    if (this.$hideSearch && this.$hideSearch.length) {
+      this.$hideSearch.addClass('mt-1')
+    }
+    if (this.$hideLegend && this.$hideLegend.length) {
+      this.$hideLegend.addClass('mt-1')
+    }
   }
 
   formatViaText(streets = []) {
@@ -693,7 +877,120 @@ export default class App {
   hideRouteEstimate() {
     this.$routeEstimate.hide()
     this.$routeEstimate.html('')
-    this.$hideSearch.removeClass('mt-1')
-    this.$hideLegend.removeClass('mt-1')
+    if (this.$hideSearch && this.$hideSearch.length) {
+      this.$hideSearch.removeClass('mt-1')
+    }
+    if (this.$hideLegend && this.$hideLegend.length) {
+      this.$hideLegend.removeClass('mt-1')
+    }
   }
+
+  hideDirections() {
+    const $directionsContainer = $('#mobile-directions-container')
+    const $directionsList = $('#directions-list')
+    
+    $directionsContainer.hide()
+    $directionsList.empty()
+    this.clearDirectionHighlight()
+    
+    // Reset mobile state
+    this.mobileDirectionsShown = false
+    
+    // Update mobile button visibility
+    updateMobileDirectionsButtons(this)
+  }
+
+  clearDirectionHighlight() {
+    $('.direction-item').removeClass('selected').css({
+      'background-color': '',
+      'border-left-color': ''
+    })
+
+    if (this.highlightLayer) {
+      this.map.removeLayer(this.highlightLayer)
+      this.highlightLayer = null
+    }
+    if (this.highlightGlowLayer) {
+      this.map.removeLayer(this.highlightGlowLayer)
+      this.highlightGlowLayer = null
+    }
+  }
+
+  highlightChicagoWays(featureIndices) {
+    // Remove any existing highlight
+    if (this.highlightLayer) {
+      this.map.removeLayer(this.highlightLayer)
+    }
+    if (this.highlightGlowLayer) {
+      this.map.removeLayer(this.highlightGlowLayer)
+    }
+
+    if (!this.routeData || !featureIndices || featureIndices.length === 0) {
+      return
+    }
+
+    // Create a GeoJSON with only the selected features
+    const selectedFeatures = featureIndices.map(idx => this.routeData.features[idx])
+    const highlightGeoJSON = {
+      type: 'FeatureCollection',
+      features: selectedFeatures
+    }
+
+    // Create glow layer first (wider, semi-transparent)
+    this.highlightGlowLayer = L.geoJSON(highlightGeoJSON, {
+      style: (feature) => {
+        const color = this.getLineColor(feature.properties.type)
+        return {
+          weight: 16,
+          color: color,
+          opacity: 0.3,
+          lineCap: 'butt',
+          lineJoin: 'miter'
+        }
+      },
+      onEachFeature: function (feature, layer) {
+        // Bind popup to allow tooltips on highlighted segments
+        layer.bindPopup(
+          `<strong>Name:</strong> ${feature.properties.name}<br>` +
+          `<strong>Type:</strong> ${feature.properties.type ? feature.properties.type : 'non-mellow street'}`
+        )
+      }
+    }).addTo(this.map)
+    
+    // Create main highlight layer on top (narrower, fully opaque)
+    this.highlightLayer = L.geoJSON(highlightGeoJSON, {
+      style: (feature) => {
+        const color = this.getLineColor(feature.properties.type)
+        return {
+          weight: 8,
+          color: color,
+          opacity: 1
+        }
+      },
+      onEachFeature: function (feature, layer) {
+        // Bind popup to allow tooltips on highlighted segments
+        layer.bindPopup(
+          `<strong>Name:</strong> ${feature.properties.name}<br>` +
+          `<strong>Type:</strong> ${feature.properties.type ? feature.properties.type : 'non-mellow street'}`
+        )
+      }
+    }).addTo(this.map)
+
+    // Fit the map to show the highlighted chicago_ways
+    const isMobileScreen = $(window).outerWidth() <= 768
+    const mapElement = document.getElementById('map')
+    let fitOptions = { padding: [50, 50] }
+
+    if (isMobileScreen && mapElement) {
+      const mapHeight = mapElement.clientHeight || mapElement.offsetHeight
+      const verticalPadding = Math.round(mapHeight * 0.5)
+      fitOptions = {
+        paddingTopLeft: [50, 50],
+        paddingBottomRight: [50, 50 + verticalPadding]
+      }
+    }
+
+    this.map.fitBounds(this.highlightLayer.getBounds(), fitOptions)
+  }
+
 }

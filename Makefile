@@ -1,5 +1,5 @@
 .PHONY: all
-all: db/import/mellowroute.fixture db/import/chicago.table
+all: db/import/mellowroute.fixture db/import/chicago.table db/import/chicago_parks.table
 
 db/import/%.fixture: app/mbm/fixtures/%.json
 	(cd app && python manage.py loaddata $*) && touch $@
@@ -12,6 +12,12 @@ db/import/chicago.table: db/raw/chicago-filtered.osm
 		FROM osm_ways \
 		WHERE osm_ways.osm_id = chicago_ways.osm_id \
 		AND osm_ways.tags @> 'oneway:bicycle => no'" && \
+	touch $@
+
+db/import/chicago_parks.table: db/chicago_parks.geojson
+	ogr2ogr -f "PostgreSQL" PG:"dbname=mbm user=postgres password=postgres host=postgres" \
+	        $< -nln chicago_parks -overwrite -lco GEOMETRY_NAME=wkb_geometry && \
+	PGPASSWORD=postgres psql -U postgres -h postgres -d mbm -f /app/db/label-parks.sql && \
 	touch $@
 
 
