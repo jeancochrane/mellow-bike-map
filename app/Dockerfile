@@ -2,9 +2,9 @@ FROM python:3.9
 
 # Add the NodeSource PPA
 # (see: https://github.com/nodesource/distributions/blob/master/README.md)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+RUN curl -sL https://deb.nodesource.com/setup_22.x | bash -
 
-RUN apt-get update && apt-get install -y --no-install-recommends nodejs gdal-bin nginx
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs gdal-bin
 
 # Inside the container, create an app directory and switch into it
 RUN mkdir -p /app/app
