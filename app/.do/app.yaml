@@ -11,7 +11,7 @@ services:
   - name: mellow-bike-map-app
     github:
       repo: jeancochrane/mellow-bike-map
-      branch: jeancochrane/setup-staging-site
+      branch: staging
       deploy_on_push: true
 
     dockerfile_path: Dockerfile
