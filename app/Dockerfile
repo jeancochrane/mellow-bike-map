@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.8
 
 # Add the NodeSource PPA
 # (see: https://github.com/nodesource/distributions/blob/master/README.md)
