@@ -14,6 +14,7 @@ db/import/chicago.table: db/raw/chicago-filtered.osm
 		AND osm_ways.tags @> 'oneway:bicycle => no'" && \
 	touch $@
 
+# Via https://data.cityofchicago.org/Parks-Recreation/Parks-Chicago-Park-District-Park-Boundaries-curren/ej32-qgdr
 db/import/chicago_parks.table: db/raw/chicago_parks.geojson
 	ogr2ogr -f "PostgreSQL" PG:"dbname=mbm user=postgres password=postgres host=postgres" \
 	        $< -nln chicago_parks -overwrite -lco GEOMETRY_NAME=wkb_geometry && \
