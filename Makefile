@@ -14,7 +14,7 @@ db/import/chicago.table: db/raw/chicago-filtered.osm
 		AND osm_ways.tags @> 'oneway:bicycle => no'" && \
 	touch $@
 
-db/import/chicago_parks.table: db/chicago_parks.geojson
+db/import/chicago_parks.table: db/raw/chicago_parks.geojson
 	ogr2ogr -f "PostgreSQL" PG:"dbname=mbm user=postgres password=postgres host=postgres" \
 	        $< -nln chicago_parks -overwrite -lco GEOMETRY_NAME=wkb_geometry && \
 	PGPASSWORD=postgres psql -U postgres -h postgres -d mbm -f /app/db/label-parks.sql && \
