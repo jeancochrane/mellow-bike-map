@@ -34,7 +34,6 @@ def directions_list(features: Route) -> List[Direction]:
         name = props.get('name')
         heading: float = props.get('heading', 0.0) or 0.0
         distance: float = props.get('distance', 0)
-        route_type: Optional[str] = props.get('type')
         osm_tags: Optional[Dict[str, str]] = props.get('osm_tags')
         park_name: Optional[str] = props.get('park_name')
         
