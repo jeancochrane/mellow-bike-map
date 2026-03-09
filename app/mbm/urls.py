@@ -32,6 +32,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('pong/', views.pong),
     path('healthcheck/', views.healthcheck, name='healthcheck'),
+    path('robots.txt', views.robots_txt, name='robots_txt'),
 ]
 
 handler404 = 'mbm.views.page_not_found'

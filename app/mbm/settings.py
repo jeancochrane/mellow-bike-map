@@ -147,3 +147,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+# Configure indexing policy for bots
+NOINDEX = os.getenv("NOINDEX", "").lower() in ("1", "true", "yes")
