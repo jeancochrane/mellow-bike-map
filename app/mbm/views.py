@@ -1,5 +1,6 @@
 import json
 
+from django.conf import settings
 from django.db import connection
 from django.urls import reverse_lazy
 from django.shortcuts import render
@@ -278,3 +279,13 @@ def healthcheck(request):
     with connection.cursor() as cursor:
         cursor.execute("""SELECT 1""")
     return HttpResponse("")
+
+
+def robots_txt(request):
+    """Simple endpoint to generate a robots.txt file to block crawlers
+    based on the value of a NOINDEX env var."""
+    if getattr(settings, "NOINDEX", False):
+        content = "User-agent: *\nDisallow: /"  # block all
+    else:
+        content = "User-agent: *\nDisallow:"  # allow all
+    return HttpResponse(content, content_type="text/plain")
