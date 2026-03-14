@@ -7,12 +7,6 @@ on:
     branches:
       - master
 
-env:
-  # These branch names must be set in the top-level env because we use them
-  # in the `if` conditional that controls the `deploy` job
-  PROD_REF: refs/heads/master
-  STAGING_REF: refs/heads/jeancochrane/setup-aws-staging-instance
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -54,9 +48,39 @@ jobs:
       - name: Run JavaScript tests
         run: |
           cd app && npm test
-  deploy:
+
+  set-deploy-target:
     needs: test
-    if: ${{ github.ref == env.PROD_REF || github.ref == env.STAGING_REF }}
+    runs-on: ubuntu-latest
+    outputs:
+      is_deploy_eligible: ${{ steps.vars.outputs.is_deploy_eligible }}
+      app_name: ${{ steps.vars.outputs.app_name }}
+      deployment_group: ${{ steps.vars.outputs.deployment_group }}
+    env:
+      STAGING_REF: refs/heads/jeancochrane/setup-aws-staging-instance
+      PROD_REF: refs/heads/master
+    steps:
+    - name: Set deployment target
+      id: vars
+      run: |
+        if [ "$GITHUB_REF" == "$STAGING_REF" ]; then
+          echo "Ref '$GITHUB_REF' matches staging ref, setting deploy target to staging"
+          echo "is_deploy_eligible=true" >> $GITHUB_OUTPUT
+          echo "app_name=mellow-bike-map-staging" >> $GITHUB_OUTPUT
+          echo "deployment_group=staging" >> $GITHUB_OUTPUT
+        elif [ "$GITHUB_REF" == "$PROD_REF" ]; then
+          echo "Ref '$GITHUB_REF' matches prod ref, setting deploy target to prod"
+          echo "is_deploy_eligible=true" >> $GITHUB_OUTPUT
+          echo "app_name=mellow-bike-map" >> $GITHUB_OUTPUT
+          echo "deployment_group=production" >> $GITHUB_OUTPUT
+        else
+          echo "Ref '$GITHUB_REF' is not eligible for deployment, skipping deploy"
+          echo "is_deploy_eligible=false" >> $GITHUB_OUTPUT
+        fi
+
+  deploy:
+    needs: set-deploy-target
+    if: needs.set-deploy-target.outputs.is_deploy_eligible == "true"
     runs-on: ubuntu-latest
     environment: Dev
     env:
@@ -72,23 +96,11 @@ jobs:
         with:
           role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Set deployment environment
-        run: |
-          if [ "$GITHUB_REF" == "$STAGING_REF" ]; then
-            echo "APP_NAME=mellow-bike-map-staging" >> $GITHUB_ENV
-            echo "DEPLOYMENT_GROUP=staging" >> $GITHUB_ENV
-          elif [ "$GITHUB_REF" == "$PROD_REF" ]; then
-            echo "APP_NAME=mellow-bike-map" >> $GITHUB_ENV
-            echo "DEPLOYMENT_GROUP=production" >> $GITHUB_ENV
-          else
-            echo "Error: unexpected ref '$GITHUB_REF', cancelling deployment"
-            exit 1
-          fi
       - name: Deploy app
         run: |
           commit_hash=`git rev-parse HEAD`
           aws deploy create-deployment \
-            --application-name "$APP_NAME" \
-            --deployment-group-name "$DEPLOYMENT_GROUP" \
+            --application-name "${{ needs.set-deploy-target.outputs.app_name }}" \
+            --deployment-group-name "${{ needs.set-deploy-target.outputs.deployment_group }}" \
             --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash \
             --ignore-application-stop-failures
