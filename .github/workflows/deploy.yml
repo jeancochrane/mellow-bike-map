@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - master
+      - jeancochrane/setup-aws-staging-instance
 
 jobs:
   test:
@@ -51,19 +52,20 @@ jobs:
 
   set-deploy-target:
     needs: test
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     outputs:
       is_deploy_eligible: ${{ steps.vars.outputs.is_deploy_eligible }}
       app_name: ${{ steps.vars.outputs.app_name }}
       deployment_group: ${{ steps.vars.outputs.deployment_group }}
     env:
-      STAGING_BRANCH: jeancochrane/setup-aws-staging-instance
+      STAGING_REF: refs/heads/jeancochrane/setup-aws-staging-instance
       PROD_REF: refs/heads/master
     steps:
     - name: Set deployment target
       id: vars
       run: |
-        if [ "$GITHUB_EVENT_NAME" == "pull_request" && "$GITHUB_HEAD_REF" == "$STAGING_BRANCH" ]; then
+        if [ "$GITHUB_REF" == "$STAGING_REF" ]; then
           echo "Ref '$GITHUB_REF' matches staging ref, setting deploy target to staging"
           echo "is_deploy_eligible=true" >> $GITHUB_OUTPUT
           echo "app_name=mellow-bike-map-staging" >> $GITHUB_OUTPUT
@@ -80,7 +82,7 @@ jobs:
 
   deploy:
     needs: set-deploy-target
-    if: ${{ needs.set-deploy-target.outputs.is_deploy_eligible == 'true' }}
+    if: ${{ github.event_name == 'push' && needs.set-deploy-target.outputs.is_deploy_eligible == 'true' }}
     runs-on: ubuntu-latest
     environment: Dev
     env:
