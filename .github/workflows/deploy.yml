@@ -56,7 +56,7 @@ jobs:
           cd app && npm test
   deploy:
     needs: test
-    if: github.ref == env.PROD_REF || github.ref == env.STAGING_REF
+    if: ${{ github.ref == env.PROD_REF || github.ref == env.STAGING_REF }}
     runs-on: ubuntu-latest
     environment: Dev
     env:
