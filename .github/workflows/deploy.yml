@@ -50,11 +50,13 @@ jobs:
           cd app && npm test
   deploy:
     needs: test
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == env.PROD_REF || github.ref == env.STAGING_REF
     runs-on: ubuntu-latest
     environment: Dev
     env:
       AWS_REGION: us-east-2
+      PROD_REF: refs/heads/master
+      STAGING_REF: refs/heads/jeancochrane/setup-aws-staging-instance
     permissions:
       id-token: write
       contents: read
@@ -66,7 +68,23 @@ jobs:
         with:
           role-to-assume: ${{ secrets.IAMROLE_GITHUB }}
           aws-region: ${{ env.AWS_REGION }}
+      - name: Set deployment environment
+        run: |
+          if [ "$GITHUB_REF" == "$STAGING_REF" ]; then
+            echo "APP_NAME=mellow-bike-map-staging" >> $GITHUB_ENV
+            echo "DEPLOYMENT_GROUP=staging" >> $GITHUB_ENV
+          elif [ "$GITHUB_REF" == "$PROD_REF" ]; then
+            echo "APP_NAME=mellow-bike-map" >> $GITHUB_ENV
+            echo "DEPLOYMENT_GROUP=production" >> $GITHUB_ENV
+          else
+            echo "Error: unexpected ref '$GITHUB_REF', cancelling deployment"
+            exit 1
+          fi
       - name: Deploy app
         run: |
           commit_hash=`git rev-parse HEAD`
-          aws deploy create-deployment --application-name mellow-bike-map --deployment-group-name production --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
+          aws deploy create-deployment \
+            --application-name "$APP_NAME" \
+            --deployment-group-name "$DEPLOYMENT_GROUP" \
+            --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash \
+            --ignore-application-stop-failures
