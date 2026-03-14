@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - master
+      - staging
 
 jobs:
   test:
@@ -48,9 +49,40 @@ jobs:
       - name: Run JavaScript tests
         run: |
           cd app && npm test
-  deploy:
+
+  set-deploy-target:
     needs: test
-    if: github.ref == 'refs/heads/master'
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    outputs:
+      is_deploy_eligible: ${{ steps.vars.outputs.is_deploy_eligible }}
+      app_name: ${{ steps.vars.outputs.app_name }}
+      deployment_group: ${{ steps.vars.outputs.deployment_group }}
+    env:
+      STAGING_REF: refs/heads/staging
+      PROD_REF: refs/heads/master
+    steps:
+    - name: Set deployment target
+      id: vars
+      run: |
+        if [ "$GITHUB_REF" == "$STAGING_REF" ]; then
+          echo "Ref '$GITHUB_REF' matches staging ref, setting deploy target to staging"
+          echo "is_deploy_eligible=true" >> $GITHUB_OUTPUT
+          echo "app_name=mellow-bike-map" >> $GITHUB_OUTPUT
+          echo "deployment_group=staging" >> $GITHUB_OUTPUT
+        elif [ "$GITHUB_REF" == "$PROD_REF" ]; then
+          echo "Ref '$GITHUB_REF' matches prod ref, setting deploy target to prod"
+          echo "is_deploy_eligible=true" >> $GITHUB_OUTPUT
+          echo "app_name=mellow-bike-map" >> $GITHUB_OUTPUT
+          echo "deployment_group=production" >> $GITHUB_OUTPUT
+        else
+          echo "Ref '$GITHUB_REF' is not eligible for deployment, skipping deploy"
+          echo "is_deploy_eligible=false" >> $GITHUB_OUTPUT
+        fi
+
+  deploy:
+    needs: set-deploy-target
+    if: ${{ github.event_name == 'push' && needs.set-deploy-target.outputs.is_deploy_eligible == 'true' }}
     runs-on: ubuntu-latest
     environment: Dev
     env:
@@ -69,4 +101,8 @@ jobs:
       - name: Deploy app
         run: |
           commit_hash=`git rev-parse HEAD`
-          aws deploy create-deployment --application-name mellow-bike-map --deployment-group-name production --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures
+          aws deploy create-deployment \
+            --application-name "${{ needs.set-deploy-target.outputs.app_name }}" \
+            --deployment-group-name "${{ needs.set-deploy-target.outputs.deployment_group }}" \
+            --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash \
+            --ignore-application-stop-failures

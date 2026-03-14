@@ -1,1 +1,2 @@
 configs/mellow-bike-map-production.conf.supervisor
+configs/mellow-bike-map-staging.conf.supervisor
