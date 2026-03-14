@@ -7,6 +7,12 @@ on:
     branches:
       - master
 
+env:
+  # These branch names must be set in the top-level env because we use them
+  # in the `if` conditional that controls the `deploy` job
+  PROD_REF: refs/heads/master
+  STAGING_REF: refs/heads/jeancochrane/setup-aws-staging-instance
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -55,8 +61,6 @@ jobs:
     environment: Dev
     env:
       AWS_REGION: us-east-2
-      PROD_REF: refs/heads/master
-      STAGING_REF: refs/heads/jeancochrane/setup-aws-staging-instance
     permissions:
       id-token: write
       contents: read
