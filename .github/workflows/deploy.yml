@@ -68,7 +68,7 @@ jobs:
         if [ "$GITHUB_REF" == "$STAGING_REF" ]; then
           echo "Ref '$GITHUB_REF' matches staging ref, setting deploy target to staging"
           echo "is_deploy_eligible=true" >> $GITHUB_OUTPUT
-          echo "app_name=mellow-bike-map-staging" >> $GITHUB_OUTPUT
+          echo "app_name=mellow-bike-map" >> $GITHUB_OUTPUT
           echo "deployment_group=staging" >> $GITHUB_OUTPUT
         elif [ "$GITHUB_REF" == "$PROD_REF" ]; then
           echo "Ref '$GITHUB_REF' matches prod ref, setting deploy target to prod"
