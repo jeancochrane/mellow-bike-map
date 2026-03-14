@@ -80,7 +80,7 @@ jobs:
 
   deploy:
     needs: set-deploy-target
-    if: needs.set-deploy-target.outputs.is_deploy_eligible == "true"
+    if: ${{ needs.set-deploy-target.outputs.is_deploy_eligible == 'true' }}
     runs-on: ubuntu-latest
     environment: Dev
     env:
