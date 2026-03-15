@@ -47,6 +47,7 @@
             <th></th>
             <th></th>
             <th></th>
+            <th></th>
           </thead>
           <tbody>
             {% for object in object_list %}
@@ -74,6 +75,12 @@
                   <a href="{% url 'mellow-route-edit' object.slug view.model.Type.PATH %}">
                     <i class="fa fa-fw fa-edit"></i>
                     Edit paths
+                  </a>
+                </td>
+                <td>
+                  <a href="{% url 'mellow-route-edit' object.slug view.model.Type.SIDEWALK %}">
+                    <i class="fa fa-fw fa-edit"></i>
+                    Edit sidewalks
                   </a>
                 </td>
                 <td>
@@ -124,6 +131,7 @@
               case 'street': return {color: 'green'}
               case 'route': return {color: 'orange'}
               case 'path': return {color: 'pink'}
+              case 'sidewalk': return {color: 'purple'}
             }
           }
         }).addTo(map)

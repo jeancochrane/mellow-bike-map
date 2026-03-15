@@ -126,6 +126,7 @@ class Route(APIView):
                             {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
                             WHEN mellow.type = ''street'' THEN way.cost * 0.25
                             {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
+                            WHEN mellow.type = ''sidewalk'' THEN way.cost * 0.3
                             WHEN way.oneway = ''YES'' THEN way.cost * 0.5
                             WHEN mellow.type = ''route'' THEN way.cost * 0.75
                             ELSE way.cost
@@ -135,6 +136,7 @@ class Route(APIView):
                             {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
                             WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
                             {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
+                            WHEN mellow.type = ''sidewalk'' THEN way.reverse_cost * 0.3
                             WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
                             WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
                             ELSE way.reverse_cost

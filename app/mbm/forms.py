@@ -26,6 +26,8 @@ class MellowRouteMultipleChoiceWidget(GeoMultipleChoiceWidget):
 
 
 class MellowRouteCreateForm(forms.ModelForm):
+    """This form creates neighborhoods by creating a MellowRoute instance
+    for each type with the given neighborhood slug"""
     class Meta:
         model = MellowRoute
         fields = ['name', 'slug', 'bounding_box']
@@ -57,6 +59,11 @@ class MellowRouteCreateForm(forms.ModelForm):
         path_instance.pk = None
         path_instance.type = MellowRoute.Type.PATH
         path_instance.save()
+
+        sidewalk_instance = path_instance
+        sidewalk_instance.pk = None
+        sidewalk_instance.type = MellowRoute.Type.SIDEWALK
+        sidewalk_instance.save()
 
         return path_instance
 

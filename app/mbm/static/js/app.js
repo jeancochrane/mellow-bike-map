@@ -24,17 +24,26 @@ export default class App {
       'path': {
         color: '#e17fa8',
         description: 'Off-street bike paths (very calm)',
-        visible: true
+        visible: true,
+        addToLegend: true
+      },
+      'sidewalk' : {
+        color: '#e17fa8',  // Same color as paths
+        description: 'Connecting sidewalks (calm)',
+        visible: true,
+        addToLegend: false
       },
       'street': {
         color: '#77b7a2',
         description: 'Mellow streets (calm)',
-        visible: true
+        visible: true,
+        addToLegend: true
       },
       'route': {
         color: '#e18a7e',
         description: 'Main streets, often with bike lanes (less calm)',
-        visible: true
+        visible: true,
+        addToLegend: true
       }
     }
 
@@ -331,7 +340,9 @@ export default class App {
       })
 
       const routeEntries = Object.entries(this.routeTypes)
-      for (const [type, { color, description, visible }] of routeEntries) {
+      for (const [type, { color, description, visible, addToLegend }] of routeEntries) {
+        if (!addToLegend) continue
+
         const lineColor = color || '#7ea4e1'
         
         // Create a container for each legend item

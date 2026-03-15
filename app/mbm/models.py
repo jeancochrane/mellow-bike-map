@@ -70,11 +70,12 @@ class MellowRoute(models.Model):
         ROUTE = ('route', 'Official bike route')
         STREET = ('street', 'Mellow street')
         PATH = ('path', 'Off-street bike path')
+        SIDEWALK = ('sidewalk', 'Connecting sidewalk')
 
     slug = models.SlugField(max_length=50)
     name = models.CharField(max_length=150)
     bounding_box = gis_models.PolygonField(null=True, blank=True)
-    type = models.CharField(max_length=6, choices=Type.choices, default=Type.STREET)
+    type = models.CharField(max_length=8, choices=Type.choices, default=Type.STREET)
     ways = pg_models.ArrayField(
         models.BigIntegerField(),
         help_text=(
