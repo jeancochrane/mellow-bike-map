@@ -465,6 +465,17 @@ export default class App {
     const legend = L.control({ position: 'bottomright' })
     legend.onAdd = (map) => {
       let div = L.DomUtil.create('div', 'info legend hideable-legend')
+      const closeButton = L.DomUtil.create('button', 'legend-close', div)
+      closeButton.setAttribute('type', 'button')
+      closeButton.setAttribute('aria-label', 'Hide legend')
+      closeButton.textContent = '×'
+
+      L.DomEvent.on(closeButton, 'click', (e) => {
+        L.DomEvent.stopPropagation(e)
+        L.DomEvent.preventDefault(e)
+        div.style.display = 'none'
+      })
+
       const routeEntries = Object.entries(this.routeTypes)
       for (const [type, { color, description, visible }] of routeEntries) {
         const lineColor = color || '#7ea4e1'
@@ -678,6 +689,11 @@ export default class App {
     const streets = new L.Google('ROADMAP', { mapOptions: { styles: googleStyles } })
     map.addLayer(streets).setView([41.87, -87.62], 11)
 
+    map.attributionControl.setPrefix('')
+    map.attributionControl.addAttribution(
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>'
+    )
+
     return map
   }
 
@@ -723,6 +739,11 @@ export default class App {
         params.set('targetCoordinates', targetCoords)
       } else {
         params.delete('targetCoordinates')
+      }
+
+      const isMobileScreen = $(window).outerWidth() <= 768
+      if (isMobileScreen && this.$hideSearch.length && this.$hideSearch.data('state') === 'shown') {
+        this.$hideSearch.click()
       }
 
       // Update URL with query parameters
