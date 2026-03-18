@@ -16,13 +16,13 @@ ALTER TABLE chicago_ways ADD COLUMN IF NOT EXISTS park_name TEXT;
 CREATE INDEX IF NOT EXISTS chicago_parks_geom_idx ON chicago_parks USING GIST(wkb_geometry);
 
 \echo '[Step 3/6] Computing humanized park names...'
--- Humanize park names: remove text in parens, title case, add " Park" to the end if not already present
+-- Humanize park names: preserve parentheticals, title case, add " Park" to the end if not already present
 -- Will be present for park names like "PARK NO. 399", will not be for the majority of parks, like "MAPLEWOOD"
 UPDATE chicago_parks
 SET humanized_name = CASE 
-    WHEN UPPER(TRIM(REGEXP_REPLACE(park, '\s*\([^)]*\)', '', 'g'))) LIKE '%PARK%' 
-    THEN INITCAP(TRIM(REGEXP_REPLACE(park, '\s*\([^)]*\)', '', 'g')))
-    ELSE INITCAP(TRIM(REGEXP_REPLACE(park, '\s*\([^)]*\)', '', 'g'))) || ' Park'
+    WHEN UPPER(TRIM(park)) LIKE '%PARK%' 
+    THEN INITCAP(TRIM(park))
+    ELSE INITCAP(TRIM(park)) || ' Park'
 END
 WHERE park IS NOT NULL AND park != '';
 
