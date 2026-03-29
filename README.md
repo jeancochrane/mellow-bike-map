@@ -14,12 +14,6 @@ Build containers:
 docker compose build
 ```
 
-Run migrations:
-
-```
-docker compose run --rm app ./manage.py migrate
-```
-
 Import the data (note that the full data import can take quite a bit of memory,
 so make sure to adjust your Docker preferences to allow Docker at least 6GB of
 RAM):
@@ -27,6 +21,12 @@ RAM):
 ```
 docker compose run --rm -w /app postgres make db/import/chicago.table
 docker compose run --rm -w /app app make db/import/mellowroute.fixture
+```
+
+Run migrations:
+
+```
+docker compose run --rm app ./manage.py migrate
 ```
 
 Start the app service:
@@ -84,6 +84,8 @@ following options:
 * **Edit routes**: Add official bike routes in this neighborhood (non-mellow streets).
 * **Edit streets**: Add mellow streets in this neighborhood.
 * **Edit paths**: Add protected off-street bike routes to this neighborhood.
+* **Edit sidewalks**: Add sidewalks that are important for connecting routes.
+  * Note that all other sidewalks will be excluded from the routing algorithm.
 
 ### Exporting routes
 
