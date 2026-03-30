@@ -13,23 +13,8 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.exceptions import ParseError
 
 from mbm import forms
+from mbm.constants import CYCLEWAY_TAG_IDS, RESIDENTIAL_STREET_TAG_IDS
 from mbm.models import MellowRoute, fetchall
-
-
-# osm2pgrouting tag IDs for indexing specific types of streets. For docs, see:
-# https://github.com/pgRouting/osm2pgrouting/blob/8491929fc4037d308f271e84d59bb96da3c28aa2/mapconfig_for_bicycles.xml
-
-RESIDENTIAL_STREET_TAG_IDS = (
-    507,  # living_street
-    509,  # residential
-)
-
-CYCLEWAY_TAG_IDS = (
-    101,  # cycleway:track
-    201,  # cycleway:right:track
-    301,  # cycleway:left:track
-    501,  # highway:cycleway
-)
 
 
 class Home(TemplateView):
@@ -46,7 +31,7 @@ class RouteList(APIView):
     renderer_classes = [JSONRenderer]
 
     def get(self, request):
-        return Response(MellowRoute.all())
+        return Response(MellowRoute.all(exclude_sidewalks=True))
 
 
 class Route(APIView):
@@ -92,6 +77,9 @@ class Route(APIView):
             cursor.execute("""
                 SELECT vert.id
                 FROM chicago_ways_vertices_pgr AS vert
+                INNER JOIN clean_ways AS cw
+                    ON vert.id = cw.source
+                    OR vert.id = cw.target
                 ORDER BY vert.the_geom <-> ST_SetSRID(
                     ST_MakePoint(%s, %s),
                     4326
@@ -141,14 +129,14 @@ class Route(APIView):
                             WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
                             ELSE way.reverse_cost
                         END AS reverse_cost
-                    FROM chicago_ways AS way
+                    FROM clean_ways AS way
                     LEFT JOIN mellow
                     USING(osm_id)
                     ',
                     %s,
                     %s
                 ) AS path
-                JOIN chicago_ways AS way
+                JOIN clean_ways AS way
                 ON path.edge = way.gid
                 LEFT JOIN (
                     SELECT DISTINCT(UNNEST(ways)) AS osm_id, type

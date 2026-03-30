@@ -1,25 +1,24 @@
 from django.db import migrations, models
 
-
-SIDEWALK_TAG_ID = 504
+from mbm.constants import SIDEWALK_TAG_IDS
 
 # Create a materialized view that drops sidewalks, keeping only sidewalks
 # that are tagged as mellow routes.
+SIDEWALK_TAG_IDS_STR = ", ".join(str(id) for id in SIDEWALK_TAG_IDS)
 CREATE_VIEW = f"""
 CREATE MATERIALIZED VIEW IF NOT EXISTS clean_ways AS
 SELECT *
 FROM chicago_ways
-WHERE tag_id <> {SIDEWALK_TAG_ID}
+WHERE tag_id NOT IN ({SIDEWALK_TAG_IDS_STR})
 UNION ALL
 SELECT cw.*
 FROM chicago_ways cw
 INNER JOIN (
     SELECT DISTINCT UNNEST(ways) AS osm_id
     FROM mbm_mellowroute
-    WHERE type = 'sidewalk'
 ) AS mellow_sidewalks
     ON cw.osm_id = mellow_sidewalks.osm_id
-WHERE cw.tag_id = {SIDEWALK_TAG_ID};
+WHERE cw.tag_id IN ({SIDEWALK_TAG_IDS_STR});
 
 CREATE UNIQUE INDEX IF NOT EXISTS clean_ways_gid_idx ON clean_ways (gid);
 CREATE INDEX IF NOT EXISTS clean_ways_osm_id_idx ON clean_ways (osm_id);

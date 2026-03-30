@@ -39,7 +39,7 @@ class Edge(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'chicago_ways'
+        db_table = 'clean_ways'
 
 
 class Way(models.Model):
@@ -90,24 +90,39 @@ class MellowRoute(models.Model):
         unique_together = ('slug', 'type')
 
     @classmethod
-    def all(cls):
+    def all(cls, exclude_sidewalks=False):
         """
         Retrieve all mellow routes and return their unioned geometries as a
         dictionary grouped by route type.
+
+        If exclude_sidewalks is True, skip mellow routes that are sidewalks.
+        This is useful because sidewalk geometries tend to look weird.
         """
+        base_query = """
+            SELECT
+                routes.type,
+                ST_AsGeoJSON(ST_Union(clean_ways.the_geom)) AS geometry
+            FROM clean_ways
+            JOIN (
+                SELECT UNNEST(ways) AS osm_id, type
+                FROM mbm_mellowroute
+                {subquery_where}
+            ) as routes
+            USING(osm_id)
+            GROUP BY routes.type
+        """
+
+        params = []
+        subquery_where = ""
+        if exclude_sidewalks:
+            subquery_where = "WHERE type != %s"
+            params.append('sidewalk')
+
+        # Compose the final query with the correct subquery WHERE clause
+        final_query = base_query.format(subquery_where=subquery_where)
+
         with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT
-                    routes.type,
-                    ST_AsGeoJSON(ST_Union(chicago_ways.the_geom)) AS geometry
-                FROM chicago_ways
-                JOIN (
-                    SELECT UNNEST(ways) AS osm_id, type
-                    FROM mbm_mellowroute
-                ) as routes
-                USING(osm_id)
-                GROUP BY routes.type
-            """)
+            cursor.execute(final_query, params)
             rows = fetchall(cursor)
 
         return {
