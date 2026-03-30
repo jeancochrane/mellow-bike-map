@@ -2,7 +2,7 @@
 all: db/import/mellowroute.fixture db/import/chicago.table
 
 db/import/%.fixture: app/mbm/fixtures/%.json
-	(cd app && python manage.py loaddata $*) && touch $@
+	(cd app && python manage.py load_mellow_routes $*) && touch $@
 
 db/import/chicago.table: db/raw/chicago-filtered.osm
 	osm2pgrouting -f $< -c /usr/local/share/osm2pgrouting/mapconfig_for_bicycles.xml --prefix chicago_ --addnodes --tags --clean \
