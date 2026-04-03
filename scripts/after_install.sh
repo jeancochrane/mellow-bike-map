@@ -37,10 +37,10 @@ sudo -H -u mbm $VENV_DIR/bin/pip install -r $PROJECT_DIR/app/requirements.txt --
 # OPTIONAL If you're using PostgreSQL, check to see if the database that you
 # need is present and, if not, create it setting the mbm user as it's
 # owner.
-psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'mbm'" | grep -q 1 || createdb -U postgres -O mbm mbm
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = 'mbm'" | grep -q 1 || sudo -u postgres createdb -O mbm mbm
 
 # OPTIONAL Create any extensions within your database that your project needs.
-psql -U postgres -d mbm -f $PROJECT_DIR/db/create-extensions.sql
+sudo -u postgres psql -d mbm -f $PROJECT_DIR/db/create-extensions.sql
 
 # OPTIONAL Run migrations and other management commands that should be run with
 # every deployment
