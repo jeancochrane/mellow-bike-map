@@ -63,7 +63,8 @@ for deployment in $old_deployments; do
     if [[ ! $deployment == $DEPLOYMENT_ID ]]; then
         echo "Signalling application processes from $deployment"
 
-        STATUS=`supervisorctl status $APP_NAME-$deployment:*`
+        STATUS=`supervisorctl status $APP_NAME-$deployment:* 2>/dev/null || echo 'NOT FOUND'`
+        echo "Supervisor status for $APP_NAME-$deployment: $STATUS"
         if [[ $STATUS == *"RUNNING"* ]]; then
             supervisorctl signal TERM $APP_NAME-$deployment:*
         fi
