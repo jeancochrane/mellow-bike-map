@@ -14,8 +14,9 @@ VENV_DIR="/home/mbm/.virtualenvs/$DEPLOYMENT_NAME"
 # the deployment specific folder
 mv /home/mbm/mellow-bike-map $PROJECT_DIR
 
-# Create a deployment specific virtual environment
-python3 -m venv $VENV_DIR
+# Create a deployment specific virtual environment.
+# Run as the mbm user so that we pick up that user's configured pyenv version
+sudo -H -u mbm python3 -m venv $VENV_DIR
 
 # Set the ownership of the project files and the virtual environment
 chown -R mbm.www-data $PROJECT_DIR
