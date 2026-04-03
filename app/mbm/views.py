@@ -93,6 +93,12 @@ class Route(APIView):
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
     def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
+        # Make sure vertices are integers, since we need to template them
+        # directly into the SQL string below to satisfy the pgRouting interface,
+        # which means they are SQL injection targets
+        assert isinstance(source_vertex_id, int)
+        assert isinstance(target_vertex_id, int)
+
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 SELECT
@@ -104,6 +110,16 @@ class Route(APIView):
                     'WITH mellow AS (
                         SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
                         FROM mbm_mellowroute
+                    ),
+                    -- Restrict input ways to a 2-mile bounding box around the
+                    -- source and target to limit the complexity of the query
+                    bbox AS (
+                        SELECT ST_Expand(
+                            ST_Envelope(ST_Collect(the_geom)),
+                            0.029  -- 2 miles
+                        ) AS geom
+                        FROM chicago_ways_vertices_pgr
+                        WHERE id IN ({source_vertex_id}, {target_vertex_id})
                     )
                     SELECT
                         way.gid AS id,
@@ -130,6 +146,7 @@ class Route(APIView):
                             ELSE way.reverse_cost
                         END AS reverse_cost
                     FROM clean_ways AS way
+                    JOIN bbox ON way.the_geom && bbox.geom
                     LEFT JOIN mellow
                     USING(osm_id)
                     ',
