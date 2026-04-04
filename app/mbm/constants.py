@@ -14,5 +14,6 @@ CYCLEWAY_TAG_IDS = (
 )
 
 SIDEWALK_TAG_IDS = (
+    503,  # highway:pedestrian
     504,  # highway:footway
 )
