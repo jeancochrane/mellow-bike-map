@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - master
-      - jeancochrane/drop-unimportant-sidewalks
+      - staging
 
 jobs:
   test:
@@ -59,7 +59,7 @@ jobs:
       app_name: ${{ steps.vars.outputs.app_name }}
       deployment_group: ${{ steps.vars.outputs.deployment_group }}
     env:
-      STAGING_REF: refs/heads/jeancochrane/drop-unimportant-sidewalks
+      STAGING_REF: refs/heads/staging
       PROD_REF: refs/heads/master
     steps:
     - name: Set deployment target
