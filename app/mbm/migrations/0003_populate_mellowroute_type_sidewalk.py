@@ -37,7 +37,6 @@ def delete_sidewalks(apps, schema_editor):
         f'object{"s" if count != 1 else ""} '
         f'with type "sidewalk"'
     )
-    pass
 
 
 class Migration(migrations.Migration):

@@ -10,6 +10,29 @@ class Edge(models.Model):
     Unmanaged model corresponding to an edge stored in the edgelist. Edges are
     what we use to calculate routes, and are comprised of segments of OSM Ways
     that have been split at nodes and intersections.
+
+    The underlying table in the database is the `clean_ways` materialized view,
+    which takes a set of edges produced by an osm2pgrouting call and filters
+    them to remove unimportant sidewalks. The data flow looks like this:
+
+    `osm_ways`: Raw OSM way table from an Overpass API mirror
+    |
+    --> `chicago_ways`: Intermediate way table, transformed for bike routing
+         |
+         --> `clean_ways`: Materialized view that drops unimportant sidewalks
+
+    See the Makefile for more details about `osm_ways` and `chicago_ways`.
+    See the `0004_add_clean_ways_view` migration for the `clean_ways` view
+    definition.
+
+    We use a materialized view to filter out sidewalks so that we can
+    preserve those sidewalks in the underlying `chicago_ways` table. That
+    makes it easy to tweak the set of important sidewalks if our needs change in
+    the future, because the `chicago_ways` table is the source of the ways
+    data that powers the admin tagging interface. Hence, we can tag the most
+    important sidewalks, filter out the rest from the routing interface, and
+    still retain the ability to retag important sidewalks and quickly refresh
+    the relation that powers our routing algorithm.
     """
     gid = models.BigIntegerField(primary_key=True)
     osm_id = models.BigIntegerField()
