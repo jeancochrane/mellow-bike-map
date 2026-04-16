@@ -14,8 +14,10 @@ VENV_DIR="/home/mbm/.virtualenvs/$DEPLOYMENT_NAME"
 # the deployment specific folder
 mv /home/mbm/mellow-bike-map $PROJECT_DIR
 
-# Create a deployment specific virtual environment
-python3 -m venv $VENV_DIR
+# Create a deployment specific virtual environment.
+# Run as the mbm user in a login shell so that we pick up that user's configured
+# pyenv version, if one exists
+sudo -H -i -u mbm python3 -m venv $VENV_DIR
 
 # Set the ownership of the project files and the virtual environment
 chown -R mbm.www-data $PROJECT_DIR
@@ -68,7 +70,7 @@ fi
 
 # Install Jinja into the virtual environment and run the render_configs.py
 # script.
-$VENV_DIR/bin/pip install Jinja2==2.10
+$VENV_DIR/bin/pip install Jinja2==3.16
 $VENV_DIR/bin/python $PROJECT_DIR/scripts/render_configs.py $DEPLOYMENT_ID $DEPLOYMENT_GROUP_NAME $DOMAIN $APP_NAME
 
 # Write out the deployment ID to a Python module that can get imported by the
