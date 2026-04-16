@@ -20,13 +20,18 @@ RAM):
 
 ```
 docker compose run --rm -w /app postgres make db/import/chicago.table
-docker compose run --rm -w /app app make db/import/mellowroute.fixture
 ```
 
 Run migrations:
 
 ```
 docker compose run --rm app ./manage.py migrate
+```
+
+Load tagged mellow routes:
+
+```
+docker compose run --rm -w /app app make db/import/mellowroute.fixture
 ```
 
 Start the app service:
