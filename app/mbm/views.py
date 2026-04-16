@@ -31,6 +31,11 @@ CYCLEWAY_TAG_IDS = (
     501,  # highway:cycleway
 )
 
+SIDEWALK_TAG_IDS = (
+    503,  # highway:pedestrian
+    504,  # highway:footway
+)
+
 
 class Home(TemplateView):
     title = 'Home'
@@ -89,9 +94,13 @@ class Route(APIView):
 
     def get_nearest_vertex_id(self, coord):
         with connection.cursor() as cursor:
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT vert.id
                 FROM chicago_ways_vertices_pgr AS vert
+                INNER JOIN chicago_ways AS cw
+                    ON vert.id = cw.source
+                    OR vert.id = cw.target
+                WHERE cw.tag_id NOT IN {SIDEWALK_TAG_IDS}
                 ORDER BY vert.the_geom <-> ST_SetSRID(
                     ST_MakePoint(%s, %s),
                     4326
@@ -105,6 +114,12 @@ class Route(APIView):
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
     def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
+        # Make sure vertices are integers, since we need to template them
+        # directly into the SQL string below to satisfy the pgRouting interface,
+        # which means they are SQL injection targets
+        assert isinstance(source_vertex_id, int)
+        assert isinstance(target_vertex_id, int)
+
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 SELECT
@@ -116,6 +131,16 @@ class Route(APIView):
                     'WITH mellow AS (
                         SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
                         FROM mbm_mellowroute
+                    ),
+                    -- Restrict input ways to a 2-mile bounding box around the
+                    -- source and target to limit the complexity of the query
+                    bbox AS (
+                        SELECT ST_Expand(
+                            ST_Envelope(ST_Collect(the_geom)),
+                            0.029  -- 2 miles
+                        ) AS geom
+                        FROM chicago_ways_vertices_pgr
+                        WHERE id IN ({source_vertex_id}, {target_vertex_id})
                     )
                     SELECT
                         way.gid AS id,
@@ -127,6 +152,7 @@ class Route(APIView):
                             WHEN mellow.type = ''street'' THEN way.cost * 0.25
                             {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
                             WHEN way.oneway = ''YES'' THEN way.cost * 0.5
+                            WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.5
                             WHEN mellow.type = ''route'' THEN way.cost * 0.75
                             ELSE way.cost
                         END AS cost,
@@ -136,10 +162,12 @@ class Route(APIView):
                             WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
                             {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
                             WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
+                            WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.5
                             WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
                             ELSE way.reverse_cost
                         END AS reverse_cost
                     FROM chicago_ways AS way
+                    JOIN bbox ON way.the_geom && bbox.geom
                     LEFT JOIN mellow
                     USING(osm_id)
                     ',
