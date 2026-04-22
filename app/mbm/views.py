@@ -60,13 +60,20 @@ class Route(APIView):
         target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
-
+        
+        sidewalk_cost_multiplier = 1.0
+        if "sidewalk_cost_multiplier" in request.GET:
+            try:
+                sidewalk_cost_multiplier = float(request.GET.get("sidewalk_cost_multiplier"))
+            except (ValueError, TypeError):
+                raise ParseError("sidewalk_cost_multiplier must be a valid number")
+        
         return Response({
             'source': source_coord,
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2)
+            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, sidewalk_cost_multiplier)
         })
 
     def get_coord_from_request(self, request, key):
@@ -104,10 +111,60 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
+    def build_cost_cases(self, cost_column, enable_v2, sidewalk_cost_multiplier):
+        cases = []
+        
+        if sidewalk_cost_multiplier is not None:
+            is_sidewalk = """
+                (osm_way.tags @> 'footway=>sidewalk'::hstore OR
+                 osm_way.tags @> 'footway=>crossing'::hstore OR
+                 osm_way.tags @> 'highway=>footway'::hstore)
+                AND NOT
+                (osm_way.tags @> 'bicycle=>permissive'::hstore OR
+                 osm_way.tags @> 'bicycle=>yes'::hstore)
+            """.replace("'", "''")  # Escape quotes for nested SQL string
+            cases.append(f"WHEN ({is_sidewalk}) THEN way.{cost_column} * {sidewalk_cost_multiplier}")
+        
+        cases.append(f"WHEN mellow.type = ''path'' THEN way.{cost_column} * 0.1")
+        
+        if enable_v2:
+            cases.append(f"WHEN way.tag_id IN {CYCLEWAY_TAG_IDS} THEN way.{cost_column} * 0.1")
+        
+        cases.append(f"WHEN mellow.type = ''street'' THEN way.{cost_column} * 0.25")
+        
+        if enable_v2:
+            cases.append(f"WHEN way.tag_id IN {RESIDENTIAL_STREET_TAG_IDS} THEN way.{cost_column} * 0.25")
+        
+        cases.append(f"WHEN way.oneway = ''YES'' THEN way.{cost_column} * 0.5")
+        
+        cases.append(f"WHEN mellow.type = ''route'' THEN way.{cost_column} * 0.75")
+        
+        cases.append(f"ELSE way.{cost_column}")
+        
+        return "CASE " + " ".join(cases) + " END"
+
+    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, sidewalk_cost_multiplier=None):
+        """
+        Calculate a route between two vertices.
+        
+        Args:
+            source_vertex_id: Starting vertex ID
+            target_vertex_id: Ending vertex ID
+            enable_v2: Whether to use v2 routing algorithm
+            sidewalk_cost_multiplier: Cost multiplier for sidewalks (None = no penalty)
+        """
+        cost_case = self.build_cost_cases('cost', enable_v2, sidewalk_cost_multiplier)
+        reverse_cost_case = self.build_cost_cases('reverse_cost', enable_v2, sidewalk_cost_multiplier)
+        
+        # Join with osm_ways table when we need access to hstore tags for sidewalk detection
+        osm_ways_join = ""
+        if sidewalk_cost_multiplier is not None:
+            osm_ways_join = "LEFT JOIN osm_ways AS osm_way ON way.osm_id = osm_way.osm_id"
+        
         with connection.cursor() as cursor:
             cursor.execute(f"""
                 SELECT
+                    way.osm_id,
                     way.name,
                     way.length_m,
                     ST_AsGeoJSON(way.the_geom) AS geometry,
@@ -121,27 +178,12 @@ class Route(APIView):
                         way.gid AS id,
                         way.source,
                         way.target,
-                        CASE
-                            WHEN mellow.type = ''path'' THEN way.cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.cost * 0.75
-                            ELSE way.cost
-                        END AS cost,
-                        CASE
-                            WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
-                            ELSE way.reverse_cost
-                        END AS reverse_cost
+                        {cost_case} AS cost,
+                        {reverse_cost_case} AS reverse_cost
                     FROM chicago_ways AS way
                     LEFT JOIN mellow
                     USING(osm_id)
+                    {osm_ways_join}
                     ',
                     %s,
                     %s
@@ -162,20 +204,24 @@ class Route(APIView):
         distance, time = self.format_distance(dist_in_meters)
         major_streets = self.get_major_streets(rows, dist_in_meters)
 
+        properties = {
+            'distance': distance,
+            'time': time,
+            'major_streets': major_streets,
+        }
+        
         return {
             'type': 'FeatureCollection',
-            'properties': {
-                'distance': distance,
-                'time': time,
-                'major_streets': major_streets,
-            },
+            'properties': properties,
             'features': [
                 {
                     'type': 'Feature',
                     'geometry': json.loads(row['geometry']),
                     'properties': {
+                        'osm_id': row['osm_id'],
                         'name': row['name'],
-                        'type': row['type']
+                        'type': row['type'],
+                        'length_m': row['length_m'],
                     }
                 }
                 for row in rows
@@ -229,7 +275,6 @@ class Route(APIView):
         qualifying.sort(key=lambda item: (-item[1], item[0]))
 
         return [name for name, _ in qualifying[:max_results]]
-
 
 class MellowRouteList(LoginRequiredMixin, ListView):
     title = 'Neighborhoods'

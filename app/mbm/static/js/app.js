@@ -575,7 +575,8 @@ export default class App {
       }
 
       this.map.spin(true)
-      $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
+      const params = { source, target, enable_v2: enableV2 }
+      $.getJSON(this.routeUrl + '?' + $.param(params)).done((data) => {
         if (this.directionsRouteLayer) {
           this.map.removeLayer(this.directionsRouteLayer)
         }
