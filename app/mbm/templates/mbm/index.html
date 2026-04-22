@@ -10,67 +10,70 @@
 {% endblock %}
 
 {% block body %}
-  <div class="row">
-    <div id="controls-container" class="col-12 col-md-3">
-      <div class="container-fluid m-auto form-group">
-        <form id="input-elements" class="hideable collapse multi-collapse">
-          <div class="form-group">
-            <label for="source" class="sr-only">Start address</label>
-            <input id="source" class="form-control my-2" name="source" placeholder="Start address"></input>
-          </div>
-          <div class="form-group">
-            <label for="target" class="sr-only">End address</label>
-            <input id="target" class="form-control my-2" name="target" placeholder="End address"></input>
-          </div>
-          <div class="form-group">
-            <button id="submit" type="submit" class="btn btn-primary btn-block mt-1">Search</button>
-            <button id="reset-search" type="reset" class="btn btn-secondary btn-block mb-2">Reset search</button>
-          </div>
-          <div class="form-group">
-            <div>
-              <input type="checkbox" id="enable-v2" name="enable-v2" />
-              <label for="enable-v2" style="padding-left: 5px">Use v2 routing</label>
-              <i
-                data-toggle="tooltip"
-                data-placement="top"
-                title="V2 routing uses a new experimental algorithm that considers all residential streets to be mellow streets."
-                style="cursor: pointer"
-              >
-                <i class="fa fa-fw fa-info-circle text-muted"></i>
-              </i>
+  <!-- Hack to enable full-bleed map, since containers add margins by default -->
+  <div style="overflow-x: hidden">
+    <div class="row">
+      <div id="controls-container" class="col-12 col-md-3">
+        <div class="container-fluid m-auto form-group">
+          <form id="input-elements" class="hideable collapse multi-collapse">
+            <div class="form-group">
+              <label for="source" class="sr-only">Start address</label>
+              <input id="source" class="form-control my-2" name="source" placeholder="Start address"></input>
             </div>
-            <div>
-              <input type="checkbox" id="enable-user-locations" name="enable-user-locations" />
-              <label for="enable-user-locations" style="padding-left: 5px">Enable saved locations</label>
-              <i
-                data-toggle="tooltip"
-                data-placement="top"
-                title="When this is checked, double-clicking or double-tapping on the map will no longer zoom in and will instead open a dialog to save a location at that point."
-                style="cursor: pointer"
-              >
-                <i class="fa fa-fw fa-info-circle text-muted"></i>
-              </i>
+            <div class="form-group">
+              <label for="target" class="sr-only">End address</label>
+              <input id="target" class="form-control my-2" name="target" placeholder="End address"></input>
             </div>
-          </div>
-          <span id="route-estimate" class="text-muted"></span>
-        </form>
-        <button
-          id="hide"
-          class="btn btn-outline-secondary mb-2 btn-block"
-          type="button"
-          data-toggle="collapse"
-          href=".hideable"
-          role="button"
-          aria-expanded="true"
-          aria-controls="input-elements navbar-tagline"
-          data-state="hidden"
-        >
-          &or; Search for a route
-        </button>
+            <div class="form-group">
+              <button id="submit" type="submit" class="btn btn-primary btn-block mt-1">Search</button>
+              <button id="reset-search" type="reset" class="btn btn-secondary btn-block mb-2">Reset search</button>
+            </div>
+            <div class="form-group">
+              <div>
+                <input type="checkbox" id="enable-v2" name="enable-v2" />
+                <label for="enable-v2" style="padding-left: 5px">Use v2 routing</label>
+                <i
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="V2 routing uses a new experimental algorithm that considers all residential streets to be mellow streets."
+                  style="cursor: pointer"
+                >
+                  <i class="fa fa-fw fa-info-circle text-muted"></i>
+                </i>
+              </div>
+              <div>
+                <input type="checkbox" id="enable-user-locations" name="enable-user-locations" />
+                <label for="enable-user-locations" style="padding-left: 5px">Enable saved locations</label>
+                <i
+                  data-toggle="tooltip"
+                  data-placement="top"
+                  title="When this is checked, double-clicking or double-tapping on the map will no longer zoom in and will instead open a dialog to save a location at that point."
+                  style="cursor: pointer"
+                >
+                  <i class="fa fa-fw fa-info-circle text-muted"></i>
+                </i>
+              </div>
+            </div>
+            <span id="route-estimate" class="text-muted"></span>
+          </form>
+          <button
+            id="hide"
+            class="btn btn-outline-secondary mb-2 btn-block"
+            type="button"
+            data-toggle="collapse"
+            href=".hideable"
+            role="button"
+            aria-expanded="true"
+            aria-controls="input-elements navbar-tagline"
+            data-state="hidden"
+          >
+            &or; Search for a route
+          </button>
+        </div>
       </div>
-    </div>
-    <div class="col-12 col-md-9">
-      <div id="map"></div>
+      <div class="col-12 col-md-9">
+        <div id="map"></div>
+      </div>
     </div>
   </div>
 {% endblock %}

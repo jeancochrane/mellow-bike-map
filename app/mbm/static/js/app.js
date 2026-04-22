@@ -98,6 +98,12 @@ export default class App {
       if (this.isMobileScreen) { offsetTop += $('#controls-container')[0].offsetHeight }
       var mapHeight = windowHeight - offsetTop
       $('#map').css('height', mapHeight)
+      // Invalidate the map size so that Leaflet will re-check the container's
+      // dimensions and propagate them to all layers, including the Google
+      // layer integration. This is important because otherwise those layers
+      // may not pick up on window size changes, leading to areas of the map
+      // appearing to fail to load
+      this.map.invalidateSize()
     }).resize()
 
     // Recalculate map size when controls are toggled
