@@ -70,7 +70,7 @@ fi
 
 # Install Jinja into the virtual environment and run the render_configs.py
 # script.
-$VENV_DIR/bin/pip install Jinja2~=3.1.6
+$VENV_DIR/bin/pip install "Jinja2>=2.10,<3.2"
 $VENV_DIR/bin/python $PROJECT_DIR/scripts/render_configs.py $DEPLOYMENT_ID $DEPLOYMENT_GROUP_NAME $DOMAIN $APP_NAME
 
 # Write out the deployment ID to a Python module that can get imported by the
