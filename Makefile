@@ -16,7 +16,11 @@ db/import/chicago.table: db/raw/chicago-filtered.osm
 
 
 db/raw/chicago-filtered.osm: db/raw/chicago.osm
-	osmconvert $< --drop-author --drop-version --out-osm -o="$@"
+	osmfilter $< \
+		--keep="highway= bicycle= cycleway= route=bicycle" \
+		--drop="building= amenity= shop= tourism= leisure= landuse= natural= power= waterway=" \
+		--drop-author --drop-version \
+		-o=$@
 
 
 db/raw/chicago.osm:
