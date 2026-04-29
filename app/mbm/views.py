@@ -65,14 +65,16 @@ class Route(APIView):
         target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
+        show_bbox = request.GET.get("show_bbox", False) == "true"
 
-        return Response({
+        response_dict = {
             'source': source_coord,
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2)
-        })
+            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, show_bbox = show_bbox)
+        }
+        return Response(response_dict)
 
     def get_coord_from_request(self, request, key):
         try:
@@ -113,7 +115,48 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False):
+    def _get_route_bbox_sql(self, source_vertex_id, target_vertex_id):
+        assert isinstance(source_vertex_id, int)
+        assert isinstance(target_vertex_id, int)
+        return f"""
+            SELECT ST_Expand(
+                ST_Envelope(ST_Collect(the_geom)),
+                0.029  -- 2 miles
+            ) AS geom
+            FROM chicago_ways_vertices_pgr
+            WHERE id IN ({source_vertex_id}, {target_vertex_id})
+        """
+
+    def get_route_bbox_feature(self, source_vertex_id, target_vertex_id):
+        assert isinstance(source_vertex_id, int)
+        assert isinstance(target_vertex_id, int)
+
+        route_bbox_sql = self._get_route_bbox_sql(
+            source_vertex_id,
+            target_vertex_id
+        )
+        query_sql = f"""
+            SELECT ST_AsGeoJSON(bbox.geom) AS geometry
+            FROM (
+                {route_bbox_sql}
+            ) AS bbox
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(query_sql)
+            rows = fetchall(cursor)
+
+        bbox_geojson_str = rows[0]["geometry"] or {}
+
+        return {
+            "type": "Feature",
+            "geometry": json.loads(bbox_geojson_str),
+            "properties": {
+                "name": "Bounding box",
+                "type": "bbox"
+            }
+        }
+
+    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, show_bbox=False):
         # Make sure vertices are integers, since we need to template them
         # directly into the SQL string below to satisfy the pgRouting interface,
         # which means they are SQL injection targets
@@ -132,15 +175,8 @@ class Route(APIView):
                         SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
                         FROM mbm_mellowroute
                     ),
-                    -- Restrict input ways to a 2-mile bounding box around the
-                    -- source and target to limit the complexity of the query
                     bbox AS (
-                        SELECT ST_Expand(
-                            ST_Envelope(ST_Collect(the_geom)),
-                            0.029  -- 2 miles
-                        ) AS geom
-                        FROM chicago_ways_vertices_pgr
-                        WHERE id IN ({source_vertex_id}, {target_vertex_id})
+                        {self._get_route_bbox_sql(source_vertex_id, target_vertex_id)}
                     )
                     SELECT
                         way.gid AS id,
@@ -190,7 +226,7 @@ class Route(APIView):
         distance, time = self.format_distance(dist_in_meters)
         major_streets = self.get_major_streets(rows, dist_in_meters)
 
-        return {
+        route_geojson = {
             'type': 'FeatureCollection',
             'properties': {
                 'distance': distance,
@@ -209,6 +245,12 @@ class Route(APIView):
                 for row in rows
             ]
         }
+
+        if show_bbox:
+            bbox_feature = self.get_route_bbox_feature(source_vertex_id, target_vertex_id)
+            route_geojson["features"].append(bbox_feature)
+
+        return route_geojson
 
     def format_distance(self, dist_in_meters):
         """
