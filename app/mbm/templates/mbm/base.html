@@ -42,21 +42,12 @@
     <!-- Override this block to add extra stylesheets -->
     {% block extra_css %}{% endblock %}
 
-    <!-- Matomo -->
+    <!-- Analytics -->
+    <script async src="https://plausible.io/js/pa-Ncfk5CmyaIBlEUd89WS7k.js"></script>
     <script>
-      var _paq = window._paq = window._paq || [];
-      /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
-      _paq.push(['trackPageView']);
-      _paq.push(['enableLinkTracking']);
-      (function() {
-        var u="//analytics.jeancochrane.com/";
-        _paq.push(['setTrackerUrl', u+'matomo.php']);
-        _paq.push(['setSiteId', '1']);
-        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
-        g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
-      })();
+      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+      plausible.init()
     </script>
-    <!-- End Matomo Code -->
   </head>
 
   <body>
