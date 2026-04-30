@@ -36,6 +36,12 @@ SIDEWALK_TAG_IDS = (
     504,  # highway:footway
 )
 
+# Illinois East coordinate system.
+# Useful for geometry math since its units are in feet, as opposed to
+# EPSG 4326's units of degree.
+# See: https://epsg.io/3435
+IL_EAST_CRS = 3435
+
 
 class Home(TemplateView):
     title = 'Home'
@@ -115,14 +121,35 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def _get_route_bbox_sql(self, source_vertex_id, target_vertex_id):
+    def _get_route_bbox_sql(self, source_vertex_id, target_vertex_id, buffer_mi = 2):
         assert isinstance(source_vertex_id, int)
         assert isinstance(target_vertex_id, int)
+        assert isinstance(buffer_mi, int)
+
+        # This query includes a number of important nested PostGIS operations:
+        #
+        #   1. ST_Collect() to gather the points into a single geometry
+        #   2. ST_Transform() to cast those points from EPSG 4326 to the
+        #      Illinois East CRS, which allows us to manipulate the geometry
+        #      in units of feet
+        #   3. ST_Envelope() to compute the bounding box encompassing the points
+        #   4. ST_Expand() to expand the bounding box
+        #   5. ST_Transform() to cast the bounding box back to EPSG 4326 for
+        #      mapping and routing
         return f"""
-            SELECT ST_Expand(
-                ST_Envelope(ST_Collect(the_geom)),
-                0.029  -- 2 miles
-            ) AS geom
+            SELECT
+                ST_Transform(
+                    ST_Expand(
+                        ST_Envelope(
+                            ST_Transform(
+                                ST_Collect(the_geom),
+                                {IL_EAST_CRS}
+                            )
+                        ),
+                        {buffer_mi} * 5280
+                    ),
+                    4326
+                ) AS geom
             FROM chicago_ways_vertices_pgr
             WHERE id IN ({source_vertex_id}, {target_vertex_id})
         """
