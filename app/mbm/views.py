@@ -121,40 +121,70 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
-    def _get_route_bbox_sql(self, source_vertex_id, target_vertex_id, buffer_mi = 2):
+    def _get_route_bbox_sql(self, source_vertex_id, target_vertex_id):
+        """Get a SQL query that returns a buffered bounding box geometry
+        around two points `source_vertex_id` and `target_vertex_id`.
+
+        The size of the buffer is determined by whichever of these two values
+        is smaller:
+
+            - 1/2 the distance between source and target
+            - 2 miles
+        """
+        # Make sure vertices are integers, since we need to template them
+        # directly into the SQL string below to satisfy the pgRouting interface,
+        # which means they are SQL injection targets
         assert isinstance(source_vertex_id, int)
         assert isinstance(target_vertex_id, int)
-        assert isinstance(buffer_mi, int)
 
-        # This query includes a number of important nested PostGIS operations:
-        #
-        #   1. ST_Collect() to gather the points into a single geometry
-        #   2. ST_Transform() to cast those points from EPSG 4326 to the
-        #      Illinois East CRS, which allows us to manipulate the geometry
-        #      in units of feet
-        #   3. ST_Envelope() to compute the bounding box encompassing the points
-        #   4. ST_Expand() to expand the bounding box
-        #   5. ST_Transform() to cast the bounding box back to EPSG 4326 for
-        #      mapping and routing
         return f"""
+            -- Cast source and target vertices to IL East CRS for more
+            -- precise measurements
+            WITH source_vertex AS (
+                SELECT id, ST_Transform(the_geom, {IL_EAST_CRS}) AS the_geom
+                FROM chicago_ways_vertices_pgr
+                WHERE id = {source_vertex_id}
+            ),
+            target_vertex AS (
+                SELECT id, ST_Transform(the_geom, {IL_EAST_CRS}) AS the_geom
+                FROM chicago_ways_vertices_pgr
+                WHERE id = {target_vertex_id}
+            ),
+            combined_vertex AS (
+                SELECT * FROM source_vertex
+                UNION
+                SELECT * FROM target_vertex
+            ),
+            vertex_dist AS (
+                SELECT ST_Distance(source.the_geom, target.the_geom) AS ft
+                FROM source_vertex AS source
+                CROSS JOIN target_vertex AS target
+                LIMIT 1
+            )
+            -- Order of PostGIS operations:
+            --
+            --   1. St_Collect() to gather the points into a single geometry
+            --   2. ST_Envelope() to compute the bounding box around the points
+            --   3. ST_Expand() to add a buffer to the bounding box
+            --   4. ST_Transform() to cast back to EPSG 4326 for mapping
             SELECT
                 ST_Transform(
                     ST_Expand(
                         ST_Envelope(
-                            ST_Transform(
-                                ST_Collect(the_geom),
-                                {IL_EAST_CRS}
-                            )
+                            ST_Collect(vertex.the_geom)
                         ),
-                        {buffer_mi} * 5280
+                        LEAST(dist.ft / 2, 2 * 5280)
                     ),
                     4326
                 ) AS geom
-            FROM chicago_ways_vertices_pgr
-            WHERE id IN ({source_vertex_id}, {target_vertex_id})
+            FROM combined_vertex AS vertex
+            CROSS JOIN vertex_dist AS dist
+            GROUP BY dist.ft
         """
 
     def get_route_bbox_feature(self, source_vertex_id, target_vertex_id):
+        """Get a GeoJSON feature representing the buffered bounding geometry
+        around two points `source_vertex_id` and `target_vertex_id`."""
         assert isinstance(source_vertex_id, int)
         assert isinstance(target_vertex_id, int)
 
@@ -172,7 +202,13 @@ class Route(APIView):
             cursor.execute(query_sql)
             rows = fetchall(cursor)
 
-        bbox_geojson_str = rows[0]["geometry"] or {}
+        if not rows or not rows[0]["geometry"]:
+            raise ParseError(
+                "Could not find bounding box around vertices "
+                f"{source_vertex_id} and {target_vertex_id}"
+            )
+
+        bbox_geojson_str = rows[0]["geometry"]
 
         return {
             "type": "Feature",
@@ -184,9 +220,15 @@ class Route(APIView):
         }
 
     def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, show_bbox=False):
-        # Make sure vertices are integers, since we need to template them
-        # directly into the SQL string below to satisfy the pgRouting interface,
-        # which means they are SQL injection targets
+        """Get a GeoJSON feature collection representing a route between points
+        `source_vertex_id` and `target_vertex_id`.
+
+        Optional param behavior:
+
+        - `enable_v2` (bool): Enable V2 routing (deprecated)
+        - `show_bbox` (bool): Include the geometry of the bounding box that we
+           use to restrict the search space in the feature collection
+        """
         assert isinstance(source_vertex_id, int)
         assert isinstance(target_vertex_id, int)
 
