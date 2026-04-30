@@ -11,7 +11,9 @@ export default class App {
     this.fromAddress = fromAddress
     this.toAddress = toAddress
 
-    this.showBbox = true
+    // Turn off bounding box display by default. Use the URL param to override
+    // this behavior
+    this.showBbox = false
 
     // The layer that displays the route between the source and target locations
     this.directionsRouteLayer = null
@@ -207,6 +209,7 @@ export default class App {
 
   async applyInitialQueryParams(searchString = '') {
     const urlParams = new URLSearchParams(searchString)
+    const showBbox = urlParams.get('showBbox')
     const sourceAddressParam = urlParams.get('sourceAddress')
     const targetAddressParam = urlParams.get('targetAddress')
     const sourceCoordsParam = urlParams.get('sourceCoordinates')
@@ -215,6 +218,10 @@ export default class App {
     const targetCoordsFromUrl = this.parseCoordinateParam(targetCoordsParam)
     const sourceAddress = sourceAddressParam || this.fromAddress
     const targetAddress = targetAddressParam || this.toAddress
+
+    if (showBbox && showBbox === 'true') {
+      this.showBbox = true
+    }
 
     if (sourceAddressParam) {
       this.sourceAddressString = sourceAddressParam
