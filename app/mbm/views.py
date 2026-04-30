@@ -191,7 +191,21 @@ class Route(APIView):
         assert isinstance(target_vertex_id, int)
 
         with connection.cursor() as cursor:
-            cursor.execute(f"""
+            # Some optimization choices that we make in this query:
+            #
+            #  - Restrict the search space to a buffered bounding box around
+            #    the source and target points so as to exclude ways that the
+            #    routing algorithm is unlikely to ever return
+            #  - Exclude ways that are tagged as mellow 'paths' from the
+            #    bounding box restriction so as to allow routes to meander
+            #    along a tagged path even if it ventures outside of the
+            #    bounding box
+            #      - Perform this exclusion by unioning the set of ways that
+            #        are in the bounding box to the set of ways that are
+            #        tagged as paths; it's important to query these two sets
+            #        separately to make sure that PostGIS can use spatial
+            #        indexes for the bounding
+            query = f"""
                 SELECT
                     way.name,
                     way.length_m,
@@ -204,35 +218,59 @@ class Route(APIView):
                     ),
                     bbox AS (
                         {self._get_route_bbox_sql(source_vertex_id, target_vertex_id)}
+                    ),
+                    edge AS (
+                        SELECT
+                            way.gid AS id,
+                            way.source,
+                            way.target,
+                            way.cost,
+                            way.reverse_cost,
+                            way.oneway,
+                            way.tag_id,
+                            mellow.type
+                        FROM chicago_ways AS way
+                        JOIN bbox ON way.the_geom && bbox.geom
+                        LEFT JOIN mellow USING(osm_id)
+                        UNION
+                        SELECT
+                            way.gid AS id,
+                            way.source,
+                            way.target,
+                            way.cost,
+                            way.reverse_cost,
+                            way.oneway,
+                            way.tag_id,
+                            mellow.type
+                        FROM chicago_ways AS way
+                        JOIN mellow USING(osm_id)
+                        WHERE mellow.type = ''route''
                     )
                     SELECT
-                        way.gid AS id,
-                        way.source,
-                        way.target,
+                        id,
+                        source,
+                        target,
                         CASE
-                            WHEN mellow.type = ''path'' THEN way.cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.cost * 0.5
-                            WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.cost * 0.75
-                            ELSE way.cost
+                            WHEN type = ''path'' THEN cost * 0.1
+                            {f"WHEN tag_id in {CYCLEWAY_TAG_IDS} THEN cost * 0.1" if enable_v2 is True else ""}
+                            WHEN type = ''street'' THEN cost * 0.25
+                            {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.25" if enable_v2 is True else ""}
+                            WHEN oneway = ''YES'' THEN cost * 0.5
+                            WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
+                            WHEN type = ''route'' THEN cost * 0.75
+                            ELSE cost
                         END AS cost,
                         CASE
-                            WHEN mellow.type = ''path'' THEN way.reverse_cost * 0.1
-                            {f"WHEN way.tag_id in {CYCLEWAY_TAG_IDS} THEN way.cost * 0.1" if enable_v2 is True else ""}
-                            WHEN mellow.type = ''street'' THEN way.reverse_cost * 0.25
-                            {f"WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.25" if enable_v2 is True else ""}
-                            WHEN way.oneway = ''YES'' THEN way.reverse_cost * 0.5
-                            WHEN way.tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN way.cost * 0.5
-                            WHEN mellow.type = ''route'' THEN way.reverse_cost * 0.75
-                            ELSE way.reverse_cost
+                            WHEN type = ''path'' THEN reverse_cost * 0.1
+                            {f"WHEN tag_id in {CYCLEWAY_TAG_IDS} THEN cost * 0.1" if enable_v2 is True else ""}
+                            WHEN type = ''street'' THEN reverse_cost * 0.25
+                            {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.25" if enable_v2 is True else ""}
+                            WHEN oneway = ''YES'' THEN reverse_cost * 0.5
+                            WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
+                            WHEN type = ''route'' THEN reverse_cost * 0.75
+                            ELSE reverse_cost
                         END AS reverse_cost
-                    FROM chicago_ways AS way
-                    JOIN bbox ON way.the_geom && bbox.geom
-                    LEFT JOIN mellow
-                    USING(osm_id)
+                    FROM edge
                     ',
                     %s,
                     %s
@@ -244,7 +282,8 @@ class Route(APIView):
                     FROM mbm_mellowroute
                 ) as mellow
                 USING(osm_id)
-            """, [source_vertex_id, target_vertex_id])
+            """
+            cursor.execute(query, [source_vertex_id, target_vertex_id])
             rows = fetchall(cursor)
 
         # Calculate total distance in miles and time in minutes based on
