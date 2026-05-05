@@ -244,11 +244,10 @@ class Route(APIView):
             # want to exclude off-street "paths" from the bounding box
             # restriction. To do this, we query two sets of ways and union them:
             # one that includes all ways that intersect with the bounding box,
-            # and another that includes all off-street path ways. (The UNION
-            # operation will deduplicate off-street paths inside the bounding
-            # box.) It's important that we query these two sets of ways
-            # separately and union them, since we want to make sure that PostGIS
-            # can use spatial indexes for the bounding box intersection
+            # and another that includes all off-street path ways. It's important
+            # that we query these two sets of ways separately and union them,
+            # since we want to make sure that PostGIS can use spatial indexes
+            # for the bounding box intersection
             edges_sql = f"""
                 bbox AS (
                     {self._get_route_bbox_sql(source_vertex_id, target_vertex_id)}
@@ -266,7 +265,7 @@ class Route(APIView):
                     FROM chicago_ways AS way
                     JOIN bbox ON way.the_geom && bbox.geom
                     LEFT JOIN mellow USING(osm_id)
-                    UNION
+                    UNION ALL
                     SELECT
                         way.gid AS id,
                         way.source,
@@ -279,6 +278,7 @@ class Route(APIView):
                     FROM chicago_ways AS way
                     JOIN mellow USING(osm_id)
                     WHERE mellow.type = ''path''
+                        AND NOT (way.the_geom && (SELECT geom FROM bbox))
                 )
             """
         else:
