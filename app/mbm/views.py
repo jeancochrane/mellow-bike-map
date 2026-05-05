@@ -121,6 +121,233 @@ class Route(APIView):
         else:
             raise ParseError('No vertex found near point %s' % ','.join(coord))
 
+    def get_route(
+        self,
+        source_vertex_id,
+        target_vertex_id,
+        enable_v2=False,
+        show_bbox=False
+    ):
+        """Get a GeoJSON feature collection representing a route between points
+        `source_vertex_id` and `target_vertex_id`.
+
+        Optional param behavior:
+
+        - `enable_v2` (bool): Enable V2 routing (deprecated)
+        - `show_bbox` (bool): Include the geometry of the bounding box that we
+           use to restrict the search space in the feature collection in the
+           response, along with a used_bbox` property indicating whether the
+           bbox restriction was active for the returned route
+        """
+        assert isinstance(source_vertex_id, int)
+        assert isinstance(target_vertex_id, int)
+
+        rows = self._execute_route_query(
+            source_vertex_id,
+            target_vertex_id,
+            enable_v2,
+            use_bbox=True
+        )
+        used_bbox = True
+
+        if not rows:
+            rows = self._execute_route_query(
+                source_vertex_id,
+                target_vertex_id,
+                enable_v2,
+                use_bbox=False
+            )
+            used_bbox = False
+
+        # Calculate total distance in miles and time in minutes based on
+        # the total length of the route in meters
+        dist_in_meters = sum(row['length_m'] for row in rows)
+        distance, time = self.format_distance(dist_in_meters)
+        major_streets = self.get_major_streets(rows, dist_in_meters)
+
+        properties = {
+            'distance': distance,
+            'time': time,
+            'major_streets': major_streets,
+        }
+        if show_bbox:
+            properties['used_bbox'] = used_bbox
+
+        route_geojson = {
+            'type': 'FeatureCollection',
+            'properties': properties,
+            'features': [
+                {
+                    'type': 'Feature',
+                    'geometry': json.loads(row['geometry']),
+                    'properties': {
+                        'name': row['name'],
+                        'type': row['type']
+                    }
+                }
+                for row in rows
+            ]
+        }
+
+        if show_bbox and used_bbox:
+            bbox_feature = self._get_route_bbox_feature(
+                source_vertex_id,
+                target_vertex_id
+            )
+            route_geojson["features"].append(bbox_feature)
+
+        return route_geojson
+
+    def _execute_route_query(
+        self,
+        source_vertex_id,
+        target_vertex_id,
+        enable_v2=False,
+        use_bbox=True
+    ):
+        """Execute the routing query and return a list of rows representing
+        steps of the route.
+
+        Returns an empty list if no route was found.
+        """
+        query = self._build_route_query(
+            source_vertex_id,
+            target_vertex_id,
+            enable_v2,
+            use_bbox
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(query, [source_vertex_id, target_vertex_id])
+            return fetchall(cursor)
+
+    def _build_route_query(
+        self,
+        source_vertex_id,
+        target_vertex_id,
+        enable_v2=False,
+        use_bbox=True
+    ):
+        """Build the SQL query for routing between two vertices.
+
+        When `use_bbox` is True (default), the edge set is restricted to ways
+        that intersect a buffered bounding box around the source and target, plus
+        any tagged mellow 'path' ways (which are always included regardless of
+        bounding box, to enable meandering along off-street paths that may
+        veer outside the bounding box). When `use_bbox` is False, the routing
+        algorithm will consider all ways.
+        """
+        assert isinstance(source_vertex_id, int)
+        assert isinstance(target_vertex_id, int)
+
+        if use_bbox:
+            # One nuance to this query: When the bounding box is active, we
+            # want to exclude off-street "paths" from the bounding box
+            # restriction. To do this, we query two sets of ways and union them:
+            # one that includes all ways that intersect with the bounding box,
+            # and another that includes all off-street path ways. (The UNION
+            # operation will deduplicate off-street paths inside the bounding
+            # box.) It's important that we query these two sets of ways
+            # separately and union them, since we want to make sure that PostGIS
+            # can use spatial indexes for the bounding box intersection
+            edges_sql = f"""
+                bbox AS (
+                    {self._get_route_bbox_sql(source_vertex_id, target_vertex_id)}
+                ),
+                edge AS (
+                    SELECT
+                        way.gid AS id,
+                        way.source,
+                        way.target,
+                        way.cost,
+                        way.reverse_cost,
+                        way.oneway,
+                        way.tag_id,
+                        mellow.type
+                    FROM chicago_ways AS way
+                    JOIN bbox ON way.the_geom && bbox.geom
+                    LEFT JOIN mellow USING(osm_id)
+                    UNION
+                    SELECT
+                        way.gid AS id,
+                        way.source,
+                        way.target,
+                        way.cost,
+                        way.reverse_cost,
+                        way.oneway,
+                        way.tag_id,
+                        mellow.type
+                    FROM chicago_ways AS way
+                    JOIN mellow USING(osm_id)
+                    WHERE mellow.type = ''path''
+                )
+            """
+        else:
+            edges_sql = """
+                edge AS (
+                    SELECT
+                        way.gid AS id,
+                        way.source,
+                        way.target,
+                        way.cost,
+                        way.reverse_cost,
+                        way.oneway,
+                        way.tag_id,
+                        mellow.type
+                    FROM chicago_ways AS way
+                    LEFT JOIN mellow USING(osm_id)
+                )
+            """
+
+        return f"""
+            SELECT
+                way.name,
+                way.length_m,
+                ST_AsGeoJSON(way.the_geom) AS geometry,
+                mellow.type
+            FROM pgr_dijkstra(
+                'WITH mellow AS (
+                    SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
+                    FROM mbm_mellowroute
+                ),
+                {edges_sql}
+                SELECT
+                    id,
+                    source,
+                    target,
+                    CASE
+                        WHEN type = ''path'' THEN cost * 0.1
+                        {f"WHEN tag_id in {CYCLEWAY_TAG_IDS} THEN cost * 0.1" if enable_v2 is True else ""}
+                        WHEN type = ''street'' THEN cost * 0.25
+                        {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.25" if enable_v2 is True else ""}
+                        WHEN oneway = ''YES'' THEN cost * 0.5
+                        WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
+                        WHEN type = ''route'' THEN cost * 0.75
+                        ELSE cost
+                    END AS cost,
+                    CASE
+                        WHEN type = ''path'' THEN reverse_cost * 0.1
+                        {f"WHEN tag_id in {CYCLEWAY_TAG_IDS} THEN cost * 0.1" if enable_v2 is True else ""}
+                        WHEN type = ''street'' THEN reverse_cost * 0.25
+                        {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.25" if enable_v2 is True else ""}
+                        WHEN oneway = ''YES'' THEN reverse_cost * 0.5
+                        WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
+                        WHEN type = ''route'' THEN reverse_cost * 0.75
+                        ELSE reverse_cost
+                    END AS reverse_cost
+                FROM edge
+                ',
+                %s,
+                %s
+            ) AS path
+            JOIN chicago_ways AS way
+            ON path.edge = way.gid
+            LEFT JOIN (
+                SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
+                FROM mbm_mellowroute
+            ) as mellow
+            USING(osm_id)
+        """
+
     def _get_route_bbox_sql(self, source_vertex_id, target_vertex_id):
         """Get a SQL query that returns a buffered bounding box geometry
         around two points `source_vertex_id` and `target_vertex_id`.
@@ -182,7 +409,7 @@ class Route(APIView):
             GROUP BY dist.ft
         """
 
-    def get_route_bbox_feature(self, source_vertex_id, target_vertex_id):
+    def _get_route_bbox_feature(self, source_vertex_id, target_vertex_id):
         """Get a GeoJSON feature representing the buffered bounding geometry
         around two points `source_vertex_id` and `target_vertex_id`."""
         assert isinstance(source_vertex_id, int)
@@ -218,147 +445,6 @@ class Route(APIView):
                 "type": "bbox"
             }
         }
-
-    def get_route(self, source_vertex_id, target_vertex_id, enable_v2=False, show_bbox=False):
-        """Get a GeoJSON feature collection representing a route between points
-        `source_vertex_id` and `target_vertex_id`.
-
-        Optional param behavior:
-
-        - `enable_v2` (bool): Enable V2 routing (deprecated)
-        - `show_bbox` (bool): Include the geometry of the bounding box that we
-           use to restrict the search space in the feature collection
-        """
-        assert isinstance(source_vertex_id, int)
-        assert isinstance(target_vertex_id, int)
-
-        with connection.cursor() as cursor:
-            # Some optimization choices that we make in this query:
-            #
-            #  - Restrict the search space to a buffered bounding box around
-            #    the source and target points so as to exclude ways that the
-            #    routing algorithm is unlikely to ever return
-            #  - Exclude ways that are tagged as mellow 'paths' from the
-            #    bounding box restriction so as to allow routes to meander
-            #    along a tagged path even if it ventures outside of the
-            #    bounding box
-            #      - Perform this exclusion by unioning the set of ways that
-            #        are in the bounding box to the set of ways that are
-            #        tagged as paths; it's important to query these two sets
-            #        separately to make sure that PostGIS can use spatial
-            #        indexes for the bounding
-            query = f"""
-                SELECT
-                    way.name,
-                    way.length_m,
-                    ST_AsGeoJSON(way.the_geom) AS geometry,
-                    mellow.type
-                FROM pgr_dijkstra(
-                    'WITH mellow AS (
-                        SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
-                        FROM mbm_mellowroute
-                    ),
-                    bbox AS (
-                        {self._get_route_bbox_sql(source_vertex_id, target_vertex_id)}
-                    ),
-                    edge AS (
-                        SELECT
-                            way.gid AS id,
-                            way.source,
-                            way.target,
-                            way.cost,
-                            way.reverse_cost,
-                            way.oneway,
-                            way.tag_id,
-                            mellow.type
-                        FROM chicago_ways AS way
-                        JOIN bbox ON way.the_geom && bbox.geom
-                        LEFT JOIN mellow USING(osm_id)
-                        UNION
-                        SELECT
-                            way.gid AS id,
-                            way.source,
-                            way.target,
-                            way.cost,
-                            way.reverse_cost,
-                            way.oneway,
-                            way.tag_id,
-                            mellow.type
-                        FROM chicago_ways AS way
-                        JOIN mellow USING(osm_id)
-                        WHERE mellow.type = ''route''
-                    )
-                    SELECT
-                        id,
-                        source,
-                        target,
-                        CASE
-                            WHEN type = ''path'' THEN cost * 0.1
-                            {f"WHEN tag_id in {CYCLEWAY_TAG_IDS} THEN cost * 0.1" if enable_v2 is True else ""}
-                            WHEN type = ''street'' THEN cost * 0.25
-                            {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.25" if enable_v2 is True else ""}
-                            WHEN oneway = ''YES'' THEN cost * 0.5
-                            WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
-                            WHEN type = ''route'' THEN cost * 0.75
-                            ELSE cost
-                        END AS cost,
-                        CASE
-                            WHEN type = ''path'' THEN reverse_cost * 0.1
-                            {f"WHEN tag_id in {CYCLEWAY_TAG_IDS} THEN cost * 0.1" if enable_v2 is True else ""}
-                            WHEN type = ''street'' THEN reverse_cost * 0.25
-                            {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.25" if enable_v2 is True else ""}
-                            WHEN oneway = ''YES'' THEN reverse_cost * 0.5
-                            WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
-                            WHEN type = ''route'' THEN reverse_cost * 0.75
-                            ELSE reverse_cost
-                        END AS reverse_cost
-                    FROM edge
-                    ',
-                    %s,
-                    %s
-                ) AS path
-                JOIN chicago_ways AS way
-                ON path.edge = way.gid
-                LEFT JOIN (
-                    SELECT DISTINCT(UNNEST(ways)) AS osm_id, type
-                    FROM mbm_mellowroute
-                ) as mellow
-                USING(osm_id)
-            """
-            cursor.execute(query, [source_vertex_id, target_vertex_id])
-            rows = fetchall(cursor)
-
-        # Calculate total distance in miles and time in minutes based on
-        # the total length of the route in meters
-        dist_in_meters = sum(row['length_m'] for row in rows)
-        distance, time = self.format_distance(dist_in_meters)
-        major_streets = self.get_major_streets(rows, dist_in_meters)
-
-        route_geojson = {
-            'type': 'FeatureCollection',
-            'properties': {
-                'distance': distance,
-                'time': time,
-                'major_streets': major_streets,
-            },
-            'features': [
-                {
-                    'type': 'Feature',
-                    'geometry': json.loads(row['geometry']),
-                    'properties': {
-                        'name': row['name'],
-                        'type': row['type']
-                    }
-                }
-                for row in rows
-            ]
-        }
-
-        if show_bbox:
-            bbox_feature = self.get_route_bbox_feature(source_vertex_id, target_vertex_id)
-            route_geojson["features"].append(bbox_feature)
-
-        return route_geojson
 
     def format_distance(self, dist_in_meters):
         """
