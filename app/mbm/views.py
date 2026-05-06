@@ -139,6 +139,9 @@ class Route(APIView):
            response, along with a used_bbox` property indicating whether the
            bbox restriction was active for the returned route
         """
+        # Make sure vertices are integers, since we need to template them
+        # directly into the SQL string below to satisfy the pgRouting interface,
+        # which means they are SQL injection targets
         assert isinstance(source_vertex_id, int)
         assert isinstance(target_vertex_id, int)
 
@@ -190,7 +193,7 @@ class Route(APIView):
         }
 
         if show_bbox and used_bbox:
-            bbox_feature = self._get_route_bbox_feature(
+            bbox_feature = self._execute_bbox_query(
                 source_vertex_id,
                 target_vertex_id
             )
@@ -250,7 +253,7 @@ class Route(APIView):
             # for the bounding box intersection
             edges_sql = f"""
                 bbox AS (
-                    {self._get_route_bbox_sql(source_vertex_id, target_vertex_id)}
+                    {self._build_bbox_query(source_vertex_id, target_vertex_id)}
                 ),
                 edge AS (
                     SELECT
@@ -348,7 +351,7 @@ class Route(APIView):
             USING(osm_id)
         """
 
-    def _get_route_bbox_sql(self, source_vertex_id, target_vertex_id):
+    def _build_bbox_query(self, source_vertex_id, target_vertex_id):
         """Get a SQL query that returns a buffered bounding box geometry
         around two points `source_vertex_id` and `target_vertex_id`.
 
@@ -358,9 +361,6 @@ class Route(APIView):
             - 1/2 the distance between source and target
             - 2 miles
         """
-        # Make sure vertices are integers, since we need to template them
-        # directly into the SQL string below to satisfy the pgRouting interface,
-        # which means they are SQL injection targets
         assert isinstance(source_vertex_id, int)
         assert isinstance(target_vertex_id, int)
 
@@ -409,13 +409,13 @@ class Route(APIView):
             GROUP BY dist.ft
         """
 
-    def _get_route_bbox_feature(self, source_vertex_id, target_vertex_id):
+    def _execute_bbox_query(self, source_vertex_id, target_vertex_id):
         """Get a GeoJSON feature representing the buffered bounding geometry
         around two points `source_vertex_id` and `target_vertex_id`."""
         assert isinstance(source_vertex_id, int)
         assert isinstance(target_vertex_id, int)
 
-        route_bbox_sql = self._get_route_bbox_sql(
+        route_bbox_sql = self._build_bbox_query(
             source_vertex_id,
             target_vertex_id
         )

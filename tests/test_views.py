@@ -101,7 +101,7 @@ STUB_ROWS = [
 def test_get_route_uses_bbox_when_route_found():
     route = views.Route()
     with patch.object(route, '_execute_route_query', return_value=STUB_ROWS) as mock_exec, \
-         patch.object(route, '_get_route_bbox_feature', return_value={}):
+         patch.object(route, '_execute_bbox_query', return_value={}):
         result = route.get_route(1, 2)
 
     mock_exec.assert_called_once_with(1, 2, False, use_bbox=True)
@@ -126,7 +126,7 @@ def test_get_route_show_bbox_true_used_bbox_true_when_route_found_in_bbox():
     route = views.Route()
     bbox_feature = {'type': 'Feature', 'geometry': {}, 'properties': {'type': 'bbox'}}
     with patch.object(route, '_execute_route_query', return_value=STUB_ROWS), \
-         patch.object(route, '_get_route_bbox_feature', return_value=bbox_feature):
+         patch.object(route, '_execute_bbox_query', return_value=bbox_feature):
         result = route.get_route(1, 2, show_bbox=True)
 
     assert result['properties']['used_bbox'] is True
@@ -136,7 +136,7 @@ def test_get_route_show_bbox_true_used_bbox_true_when_route_found_in_bbox():
 def test_get_route_show_bbox_true_used_bbox_false_when_fallback_fires():
     route = views.Route()
     with patch.object(route, '_execute_route_query', side_effect=[[], STUB_ROWS]), \
-         patch.object(route, '_get_route_bbox_feature') as mock_bbox_feature:
+         patch.object(route, '_execute_bbox_query') as mock_bbox_feature:
         result = route.get_route(1, 2, show_bbox=True)
 
     assert result['properties']['used_bbox'] is False
