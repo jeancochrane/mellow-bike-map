@@ -314,3 +314,61 @@ test('manual coordinate search removes existing address params', () => {
   assert.equal(params.get('targetCoordinates'), '42.1,-87.8')
   assert.equal(params.get('utm_source'), 'duckduckgo.com')
 })
+
+test('search sends show_bbox=true to backend when showBbox URL param is present', async () => {
+  const { app } = createApp()
+  const getJSONUrls = []
+  $.getJSON = (url) => {
+    getJSONUrls.push(url)
+    return mockAjax()
+  }
+  global.window.history.pushState = (_state, _title, url) => {
+    const queryIndex = url.indexOf('?')
+    global.window.location.search = queryIndex >= 0 ? url.slice(queryIndex) : ''
+  }
+
+  await app.applyInitialQueryParams('?showBbox=true')
+
+  app.map = { spin: noop, removeLayer: noop, fitBounds: noop }
+  app.allRoutesLayer = { setStyle: noop }
+  app.showRouteEstimate = noop
+  app.sourceLocation = '41.8,-87.6'
+  app.targetLocation = '41.9,-87.7'
+  app.sourceAddressString = 'Start'
+  app.targetAddressString = 'End'
+
+  app.search({ preventDefault: noop })
+
+  assert.equal(getJSONUrls.length, 1)
+  const params = new URLSearchParams(getJSONUrls[0].split('?')[1])
+  assert.equal(params.get('show_bbox'), 'true')
+})
+
+test('search sends show_bbox=false to backend when showBbox URL param is absent', async () => {
+  const { app } = createApp()
+  const getJSONUrls = []
+  $.getJSON = (url) => {
+    getJSONUrls.push(url)
+    return mockAjax()
+  }
+  global.window.history.pushState = (_state, _title, url) => {
+    const queryIndex = url.indexOf('?')
+    global.window.location.search = queryIndex >= 0 ? url.slice(queryIndex) : ''
+  }
+
+  await app.applyInitialQueryParams('')
+
+  app.map = { spin: noop, removeLayer: noop, fitBounds: noop }
+  app.allRoutesLayer = { setStyle: noop }
+  app.showRouteEstimate = noop
+  app.sourceLocation = '41.8,-87.6'
+  app.targetLocation = '41.9,-87.7'
+  app.sourceAddressString = 'Start'
+  app.targetAddressString = 'End'
+
+  app.search({ preventDefault: noop })
+
+  assert.equal(getJSONUrls.length, 1)
+  const params = new URLSearchParams(getJSONUrls[0].split('?')[1])
+  assert.equal(params.get('show_bbox'), 'false')
+})
