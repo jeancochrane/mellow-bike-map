@@ -282,7 +282,7 @@ class Route(APIView):
                         mellow.type
                     FROM mellow
                     JOIN chicago_ways AS way USING(osm_id)
-                    WHERE mellow.type = 'path'
+                    WHERE mellow.type = ''path''
                 )
             """
         else:
