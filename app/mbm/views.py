@@ -244,13 +244,15 @@ class Route(APIView):
 
         if use_bbox:
             # One nuance to this query: When the bounding box is active, we
-            # want to exclude off-street "paths" from the bounding box
-            # restriction. To do this, we query two sets of ways and union them:
-            # one that includes all ways that intersect with the bounding box,
-            # and another that includes all off-street path ways. It's important
-            # that we query these two sets of ways separately and union them,
-            # since we want to make sure that PostGIS can use spatial indexes
-            # for the bounding box intersection
+            # want to always include off-street "paths" regardless of whether
+            # they are within the bounding box. To do this, we query two sets
+            # of ways and union them: one that includes all ways that intersect
+            # with the bounding box, and another that includes all off-street
+            # path ways. It's important that we query these two sets of ways
+            # separately and union them, since we want to make sure that PostGIS
+            # can use the spatial index on `chicago_ways` for the bounding box
+            # intersection, rather than performing a full table scan on
+            # `chicago_ways` (which has 1m+ rows)
             edges_sql = f"""
                 bbox AS (
                     {self._build_bbox_query(source_vertex_id, target_vertex_id)}
@@ -268,7 +270,7 @@ class Route(APIView):
                     FROM chicago_ways AS way
                     JOIN bbox ON way.the_geom && bbox.geom
                     LEFT JOIN mellow USING(osm_id)
-                    UNION ALL
+                    UNION
                     SELECT
                         way.gid AS id,
                         way.source,
@@ -278,10 +280,9 @@ class Route(APIView):
                         way.oneway,
                         way.tag_id,
                         mellow.type
-                    FROM chicago_ways AS way
-                    JOIN mellow USING(osm_id)
-                    WHERE mellow.type = ''path''
-                        AND NOT (way.the_geom && (SELECT geom FROM bbox))
+                    FROM mellow
+                    JOIN chicago_ways AS way USING(osm_id)
+                    WHERE mellow.type = 'path'
                 )
             """
         else:
