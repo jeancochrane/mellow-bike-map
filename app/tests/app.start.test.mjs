@@ -47,9 +47,6 @@ test.beforeEach(() => {
     history: { pushState: noop }
   }
   const dollar = (selector) => {
-    if (selector === '#enable-v2') {
-      return { is: () => false }
-    }
     if (selector === '#input-elements') {
       return { submit: noop }
     }

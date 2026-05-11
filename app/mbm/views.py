@@ -70,7 +70,6 @@ class Route(APIView):
         target_coord = self.get_coord_from_request(request, 'target')
         target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
-        enable_v2 = request.GET.get("enable_v2", False) == "true"
         show_bbox = request.GET.get("show_bbox", False) == "true"
 
         response_dict = {
@@ -78,7 +77,7 @@ class Route(APIView):
             'target': target_coord,
             'source_vertex_id': source_vertex_id,
             'target_vertex_id': target_vertex_id,
-            'route': self.get_route(source_vertex_id, target_vertex_id, enable_v2, show_bbox = show_bbox)
+            'route': self.get_route(source_vertex_id, target_vertex_id, show_bbox=show_bbox)
         }
         return Response(response_dict)
 
@@ -125,7 +124,6 @@ class Route(APIView):
         self,
         source_vertex_id,
         target_vertex_id,
-        enable_v2=False,
         show_bbox=False
     ):
         """Get a GeoJSON feature collection representing a route between points
@@ -133,7 +131,6 @@ class Route(APIView):
 
         Optional param behavior:
 
-        - `enable_v2` (bool): Enable V2 routing (deprecated)
         - `show_bbox` (bool): Include the geometry of the bounding box that we
            use to restrict the search space in the feature collection in the
            response, along with a used_bbox` property indicating whether the
@@ -148,7 +145,6 @@ class Route(APIView):
         rows = self._execute_route_query(
             source_vertex_id,
             target_vertex_id,
-            enable_v2,
             use_bbox=True
         )
         used_bbox = True
@@ -157,7 +153,6 @@ class Route(APIView):
             rows = self._execute_route_query(
                 source_vertex_id,
                 target_vertex_id,
-                enable_v2,
                 use_bbox=False
             )
             used_bbox = False
@@ -205,7 +200,6 @@ class Route(APIView):
         self,
         source_vertex_id,
         target_vertex_id,
-        enable_v2=False,
         use_bbox=True
     ):
         """Execute the routing query and return a list of rows representing
@@ -216,7 +210,6 @@ class Route(APIView):
         query = self._build_route_query(
             source_vertex_id,
             target_vertex_id,
-            enable_v2,
             use_bbox
         )
         with connection.cursor() as cursor:
@@ -227,7 +220,6 @@ class Route(APIView):
         self,
         source_vertex_id,
         target_vertex_id,
-        enable_v2=False,
         use_bbox=True
     ):
         """Build the SQL query for routing between two vertices.
@@ -320,22 +312,16 @@ class Route(APIView):
                     target,
                     CASE
                         WHEN type = ''path'' THEN cost * 0.1
-                        {f"WHEN tag_id in {CYCLEWAY_TAG_IDS} THEN cost * 0.1" if enable_v2 is True else ""}
                         WHEN type = ''street'' THEN cost * 0.25
-                        {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.25" if enable_v2 is True else ""}
-                        WHEN oneway = ''YES'' THEN cost * 0.5
-                        WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
-                        WHEN type = ''route'' THEN cost * 0.75
+                        WHEN tag_id in {CYCLEWAY_TAG_IDS} OR tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
+                        WHEN oneway = ''YES'' THEN cost * 0.75
                         ELSE cost
                     END AS cost,
                     CASE
                         WHEN type = ''path'' THEN reverse_cost * 0.1
-                        {f"WHEN tag_id in {CYCLEWAY_TAG_IDS} THEN reverse_cost * 0.1" if enable_v2 is True else ""}
                         WHEN type = ''street'' THEN reverse_cost * 0.25
-                        {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN reverse_cost * 0.25" if enable_v2 is True else ""}
-                        WHEN oneway = ''YES'' THEN reverse_cost * 0.5
-                        WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN reverse_cost * 0.5
-                        WHEN type = ''route'' THEN reverse_cost * 0.75
+                        WHEN tag_id in {CYCLEWAY_TAG_IDS} OR tag_id IN {RESIDENTIAL_STREET_TAG_IDS} THEN reverse_cost * 0.5
+                        WHEN oneway = ''YES'' THEN reverse_cost * 0.75
                         ELSE reverse_cost
                     END AS reverse_cost
                 FROM edge
