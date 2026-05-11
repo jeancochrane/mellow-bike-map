@@ -324,6 +324,7 @@ class Route(APIView):
                         WHEN type = ''street'' THEN cost * 0.25
                         {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.25" if enable_v2 is True else ""}
                         WHEN oneway = ''YES'' THEN cost * 0.5
+                        WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN cost * 0.5
                         WHEN type = ''route'' THEN cost * 0.75
                         ELSE cost
                     END AS cost,
@@ -333,6 +334,7 @@ class Route(APIView):
                         WHEN type = ''street'' THEN reverse_cost * 0.25
                         {f"WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN reverse_cost * 0.25" if enable_v2 is True else ""}
                         WHEN oneway = ''YES'' THEN reverse_cost * 0.5
+                        WHEN tag_id in {RESIDENTIAL_STREET_TAG_IDS} THEN reverse_cost * 0.5
                         WHEN type = ''route'' THEN reverse_cost * 0.75
                         ELSE reverse_cost
                     END AS reverse_cost
