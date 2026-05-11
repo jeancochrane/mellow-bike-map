@@ -11,6 +11,10 @@ export default class App {
     this.fromAddress = fromAddress
     this.toAddress = toAddress
 
+    // Turn off bounding box display by default. Use the URL param to override
+    // this behavior
+    this.showBbox = false
+
     // The layer that displays the route between the source and target locations
     this.directionsRouteLayer = null
 
@@ -24,17 +28,26 @@ export default class App {
       'path': {
         color: '#e17fa8',
         description: 'Off-street bike paths (very calm)',
-        visible: true
+        visible: true,
+        legend: true
       },
       'street': {
         color: '#77b7a2',
         description: 'Mellow streets (calm)',
-        visible: true
+        visible: true,
+        legend: true
       },
       'route': {
         color: '#e18a7e',
         description: 'Main streets, often with bike lanes (less calm)',
-        visible: true
+        visible: true,
+        legend: true
+      },
+      'bbox': {
+        color: 'blue',
+        description: 'Bounding box',
+        visible: false,
+        legend: false
       }
     }
 
@@ -196,6 +209,7 @@ export default class App {
 
   async applyInitialQueryParams(searchString = '') {
     const urlParams = new URLSearchParams(searchString)
+    const showBbox = urlParams.get('showBbox')
     const sourceAddressParam = urlParams.get('sourceAddress')
     const targetAddressParam = urlParams.get('targetAddress')
     const sourceCoordsParam = urlParams.get('sourceCoordinates')
@@ -204,6 +218,10 @@ export default class App {
     const targetCoordsFromUrl = this.parseCoordinateParam(targetCoordsParam)
     const sourceAddress = sourceAddressParam || this.fromAddress
     const targetAddress = targetAddressParam || this.toAddress
+
+    if (showBbox && showBbox === 'true') {
+      this.showBbox = true
+    }
 
     if (sourceAddressParam) {
       this.sourceAddressString = sourceAddressParam
@@ -337,7 +355,9 @@ export default class App {
       })
 
       const routeEntries = Object.entries(this.routeTypes)
-      for (const [type, { color, description, visible }] of routeEntries) {
+      for (const [type, { color, description, visible, legend }] of routeEntries) {
+        // Skip anything that isn't configured for the legend
+        if (!legend) { continue }
         const lineColor = color || '#7ea4e1'
         
         // Create a container for each legend item
@@ -575,7 +595,7 @@ export default class App {
       }
 
       this.map.spin(true)
-      $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2 })).done((data) => {
+      $.getJSON(this.routeUrl + '?' + $.param({ source, target, enable_v2: enableV2, show_bbox: this.showBbox })).done((data) => {
         if (this.directionsRouteLayer) {
           this.map.removeLayer(this.directionsRouteLayer)
         }
