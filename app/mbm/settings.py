@@ -31,10 +31,11 @@ DEBUG = False if os.getenv('DJANGO_DEBUG', True) == 'False' else True
 allowed_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', [])
 ALLOWED_HOSTS = allowed_hosts.split(',') if allowed_hosts else []
 
-
 # Configure Sentry for error logging
+SENTRY_RELEASE=os.path.basename(os.getcwd())
 if os.getenv('SENTRY_DSN'):
     sentry_sdk.init(
+        release=SENTRY_RELEASE,
         dsn=os.environ['SENTRY_DSN'],
         before_send=before_send,
         integrations=[DjangoIntegration()],
@@ -79,6 +80,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'mbm.context_processors.sentry_release'
             ],
         },
     },
