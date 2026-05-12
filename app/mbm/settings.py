@@ -39,6 +39,9 @@ if os.getenv('SENTRY_DSN'):
         dsn=os.environ['SENTRY_DSN'],
         before_send=before_send,
         integrations=[DjangoIntegration()],
+        send_default_pii=False,
+        enable_logs=True,
+        traces_sample_rate=1.0,
     )
 
 LOGGING = {
