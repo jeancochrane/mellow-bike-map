@@ -71,7 +71,7 @@ class Route(APIView):
         target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
         enable_v2 = request.GET.get("enable_v2", False) == "true"
-        show_bbox = request.GET.get("show_bbox", False) == "true"
+        show_bbox = request.GET.get("showBbox", False) == "true"
 
         response_dict = {
             'source': source_coord,
