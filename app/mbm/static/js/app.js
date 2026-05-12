@@ -325,10 +325,11 @@ export default class App {
       this.map.removeLayer(this.calmRoutesLayer)
       this.calmRoutesLayer = null
     }
+    const opacity = this.directionsRouteLayer ? 0.3 : 0.6
 
     this.calmRoutesLayer = L.geoJSON(data, {
       style: (feature) => {
-        return { color: this.getLineColor(feature.properties.type), opacity: 0.6 }
+        return { color: this.getLineColor(feature.properties.type), opacity }
       },
       interactive: false,
       filter: (feature) => {
