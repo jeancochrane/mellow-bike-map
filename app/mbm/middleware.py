@@ -19,7 +19,7 @@ class RequestLoggingMiddleware():
         extra = {"duration": duration, "method": request.method,
                  "path": request.path, "status": response.status_code}
 
-        logged_query_params = ["source", "target", "bbox"]
+        logged_query_params = ["source", "target", "showBbox"]
         for key in logged_query_params:
             value = request.GET.get(key)
             if value:
