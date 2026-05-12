@@ -32,8 +32,9 @@ allowed_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', [])
 ALLOWED_HOSTS = allowed_hosts.split(',') if allowed_hosts else []
 
 # Configure Sentry for error logging
-SENTRY_RELEASE=os.path.basename(os.getcwd())
-if os.getenv('SENTRY_DSN'):
+SENTRY_RELEASE = os.path.basename(os.getcwd())
+ENABLE_SENTRY = True if os.getenv('SENTRY_DSN') else False
+if ENABLE_SENTRY:
     sentry_sdk.init(
         release=SENTRY_RELEASE,
         dsn=os.environ['SENTRY_DSN'],
@@ -60,7 +61,7 @@ LOGGING = {
     },
     "loggers": {
         "django": {
-            "level": "ERROR", # Suppress logs from django itself with levels below ERROR
+            "level": "ERROR",  # Suppress logs from django itself with levels below ERROR
             "handlers": ["stdout"],
             "propagate": False,
         },
@@ -113,7 +114,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'mbm.context_processors.sentry_release'
+                'mbm.context_processors.sentry_config'
             ],
         },
     },

@@ -80,14 +80,14 @@
     </div>
 
     <!-- Load external scripts -->
+    {% if enable_sentry %}
     <script
-      src="https://js.sentry-cdn.com/645eb0997182fec70a09cf251bb57d47.min.js"
+      src="https://js.sentry-cdn.com/611811e9bba3c86de0da65b84f82727e.min.js"
       crossorigin="anonymous"
     ></script>
     <script>
       window.sentryOnLoad = function () {
         Sentry.init({
-          dsn: "https://645eb0997182fec70a09cf251bb57d47@o4511287429103616.ingest.us.sentry.io/4511287443914752",
           // Adds request headers and IP for users, for more info visit:
           // https://docs.sentry.io/platforms/javascript/configuration/options/#sendDefaultPii
           sendDefaultPii: false,
@@ -99,7 +99,7 @@
             Sentry.replayIntegration(),
           ],
           // Enable logs to be sent to Sentry
-          enableLogs: true,
+          enableLogs: false,
           // Set tracesSampleRate to 1.0 to capture 100%
           // of transactions for tracing.
           // We recommend adjusting this value in production
@@ -119,6 +119,7 @@
         });
       };
     </script>
+    {% endif %}
     <script src="{% static 'js/jquery.min.js' %}"></script>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/fontawesome.min.js' %}"></script>

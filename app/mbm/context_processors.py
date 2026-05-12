@@ -1,7 +1,8 @@
-from mbm.settings import SENTRY_RELEASE
+from mbm.settings import SENTRY_RELEASE, ENABLE_SENTRY
 
 
-def sentry_release(request):
+def sentry_config(request):
     return {
-        sentry_release: SENTRY_RELEASE
+        "enable_sentry": ENABLE_SENTRY,
+        "sentry_release": SENTRY_RELEASE
     }
