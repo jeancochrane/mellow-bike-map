@@ -34,6 +34,28 @@ sudo -H -u mbm $VENV_DIR/bin/pip install --upgrade "setuptools<50.0"
 # environment.
 sudo -H -u mbm $VENV_DIR/bin/pip install -r $PROJECT_DIR/app/requirements.txt --upgrade
 
+# Install Node.js using nvm.
+# We use node to download js packages from the registry and to compile our frontend.
+# Node doesn't recommend installing via apt, and instead recommends nvm on https://nodejs.org/en/download
+
+# Download and install nvm:
+
+if commmand -v nvm; then
+    echo "nvm already installed"
+else
+    echo "Installing nvm"
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+    # in lieu of restarting the shell
+    \. "$HOME/.nvm/nvm.sh"
+fi
+
+# Download and install Node.js:
+nvm install 24
+
+# Install and bundle js packages
+npm install
+npm run build
+
 # OPTIONAL If you're using PostgreSQL, check to see if the database that you
 # need is present and, if not, create it setting the mbm user as it's
 # owner.
