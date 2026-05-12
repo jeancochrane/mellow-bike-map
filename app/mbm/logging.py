@@ -1,3 +1,6 @@
+import json_log_formatter
+
+
 def before_send(event, hint):
     """
     Log 400 Bad Request errors with the same custom fingerprint so that we can
@@ -9,3 +12,10 @@ def before_send(event, hint):
         if log_record.name == 'django.security.DisallowedHost':
             event['fingerprint'] = ['disallowed-host']
     return event
+
+# For future logging customizations
+
+
+class JSONFormatter(json_log_formatter.JSONFormatter):
+    def json_record(self, message, extra, record):
+        return super().json_record(message, extra, record)

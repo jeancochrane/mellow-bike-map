@@ -41,6 +41,35 @@ if os.getenv('SENTRY_DSN'):
         integrations=[DjangoIntegration()],
     )
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "mbm.logging.JSONFormatter",
+        },
+    },
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "formatter": "json"
+        },
+    },
+    "loggers": {
+        "django": {
+            "level": "ERROR", # Suppress logs from django itself with levels below ERROR
+            "handlers": ["stdout"],
+            "propagate": False,
+        },
+        "": {
+            "level": "INFO",
+            "handlers": ["stdout"],
+            "propagate": False,
+        }
+    }
+}
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -65,6 +94,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'mbm.middleware.RequestLoggingMiddleware'
 ]
 
 ROOT_URLCONF = 'mbm.urls'

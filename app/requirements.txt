@@ -9,3 +9,4 @@ djangorestframework==3.11.1
 django-geomultiplechoice==0.0.5
 django-leaflet==0.27.1
 six==1.16.0
+json-log-formatter==0.5.1
