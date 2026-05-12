@@ -65,28 +65,28 @@ def test_get_major_streets_does_not_return_unnamed_streets():
 
 def test_build_route_query_with_bbox_includes_bbox_cte():
     route = views.Route()
-    sql = route._build_route_query(1, 2, enable_v2=False, use_bbox=True)
+    sql = route._build_route_query(1, 2, use_bbox=True)
     assert 'bbox AS' in sql
     assert 'JOIN bbox ON' in sql
 
 
 def test_build_route_query_without_bbox_excludes_bbox_cte():
     route = views.Route()
-    sql = route._build_route_query(1, 2, enable_v2=False, use_bbox=False)
+    sql = route._build_route_query(1, 2, use_bbox=False)
     assert 'bbox AS' not in sql
     assert 'JOIN bbox ON' not in sql
 
 
 def test_build_route_query_without_bbox_queries_all_ways():
     route = views.Route()
-    sql = route._build_route_query(1, 2, enable_v2=False, use_bbox=False)
+    sql = route._build_route_query(1, 2, use_bbox=False)
     assert 'LEFT JOIN mellow USING(osm_id)' in sql
 
 
 def test_build_route_query_both_modes_include_cost_logic():
     route = views.Route()
     for use_bbox in (True, False):
-        sql = route._build_route_query(1, 2, enable_v2=False, use_bbox=use_bbox)
+        sql = route._build_route_query(1, 2, use_bbox=use_bbox)
         assert 'pgr_dijkstra' in sql
         assert 'reverse_cost' in sql
 
@@ -104,7 +104,7 @@ def test_get_route_uses_bbox_when_route_found():
          patch.object(route, '_execute_bbox_query', return_value={}):
         result = route.get_route(1, 2)
 
-    mock_exec.assert_called_once_with(1, 2, False, use_bbox=True)
+    mock_exec.assert_called_once_with(1, 2, use_bbox=True)
     assert result['properties'].get('used_bbox') is None  # not set when show_bbox=False
 
 
@@ -116,8 +116,8 @@ def test_get_route_falls_back_when_bbox_returns_no_rows():
 
     assert mock_exec.call_count == 2
     assert mock_exec.call_args_list == [
-        call(1, 2, False, use_bbox=True),
-        call(1, 2, False, use_bbox=False),
+        call(1, 2, use_bbox=True),
+        call(1, 2, use_bbox=False),
     ]
     assert len(result['features']) == 1
 
