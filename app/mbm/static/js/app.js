@@ -518,7 +518,7 @@ export default class App {
     if (this.directionsRouteLayer) { this.map.removeLayer(this.directionsRouteLayer) }
     if (this.markers['source']) { this.map.removeLayer(this.markers['source']) }
     if (this.markers['target']) { this.map.removeLayer(this.markers['target']) }
-    this.calmRoutesLayer.setStyle({ opacity: 0.6 })
+    this.calmRoutesLayer?.setStyle({ opacity: 0.6 })
     this.hideRouteEstimate()
     this.sourceAddressString = ''
     this.targetAddressString = ''
@@ -611,7 +611,7 @@ export default class App {
           }
         }).addTo(this.map)
         // Lower opacity on non-route street colors
-        this.calmRoutesLayer.setStyle({ opacity: 0.3 })
+        this.calmRoutesLayer?.setStyle({ opacity: 0.3 })
         this.map.fitBounds(this.directionsRouteLayer.getBounds())
         this.showRouteEstimate(
           data.route.properties.distance,
