@@ -88,23 +88,22 @@
     <script>
       window.sentryOnLoad = function () {
         Sentry.init({
-          // Adds request headers and IP for users, for more info visit:
+          // Don't log sensitive user info like IP addresses. For more info visit:
           // https://docs.sentry.io/platforms/javascript/configuration/options/#sendDefaultPii
           sendDefaultPii: false,
-          // Alternatively, use `process.env.npm_package_version` for a dynamic release version
-          // if your build tool supports it.
           release: "{{ sentry_release }}",
           integrations: [
             Sentry.browserTracingIntegration(),
             Sentry.replayIntegration(),
           ],
-          // Enable logs to be sent to Sentry
+          // Don't send logs to Sentry. Our frontend logs are not yet
+		  // structured enough for it to be useful to capture them
           enableLogs: false,
           // Set tracesSampleRate to 1.0 to capture 100%
           // of transactions for tracing.
           // We recommend adjusting this value in production
           // Learn more at
-          // https://docs.sentry.io/platforms/javascript/configuration/options/#traces-sample-rate
+          // https://docs.sentry.io/platforms/javascript/configuration/options/#tracesSampleRate
           tracesSampleRate: 1.0,
           // Set `tracePropagationTargets` to control for which URLs trace propagation should be enabled
           tracePropagationTargets: [
