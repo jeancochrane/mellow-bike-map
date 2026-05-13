@@ -13,9 +13,10 @@ def before_send(event, hint):
             event['fingerprint'] = ['disallowed-host']
     return event
 
-# For future logging customizations
-
-
 class JSONFormatter(json_log_formatter.JSONFormatter):
+    """Custom JSON log formatter. Currently passes through directly to the
+	parent class, but we define a custom class anyway to make it easy to extend
+	functionality in the future."""
+
     def json_record(self, message, extra, record):
         return super().json_record(message, extra, record)
