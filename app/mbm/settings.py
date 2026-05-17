@@ -31,12 +31,20 @@ DEBUG = False if os.getenv('DJANGO_DEBUG', True) == 'False' else True
 allowed_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', [])
 ALLOWED_HOSTS = allowed_hosts.split(',') if allowed_hosts else []
 
+# Read the deployment id from our templated module if we're not in dev
+try:
+    from .deployment import DEPLOYMENT_ID
+except ImportError as e:
+    if (os.getenv('ENVIRONMENT') == 'dev'):
+        DEPLOYMENT_ID = ''
+    else:
+        raise RuntimeError("Bad deployment") from e
+
 # Configure Sentry for error logging
-SENTRY_RELEASE = os.path.basename(os.getcwd())
 ENABLE_SENTRY = True if os.getenv('SENTRY_DSN') else False
 if ENABLE_SENTRY:
     sentry_sdk.init(
-        release=SENTRY_RELEASE,
+        release=DEPLOYMENT_ID,
         dsn=os.environ['SENTRY_DSN'],
         before_send=before_send,
         integrations=[DjangoIntegration()],
