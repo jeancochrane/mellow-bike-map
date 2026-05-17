@@ -35,7 +35,7 @@ ALLOWED_HOSTS = allowed_hosts.split(',') if allowed_hosts else []
 try:
     from .deployment import DEPLOYMENT_ID
 except ImportError as e:
-    if (os.getenv('ENVIRONMENT') == 'dev'):
+    if (os.getenv('ENVIRONMENT') in ('dev', 'test')):
         DEPLOYMENT_ID = ''
     else:
         raise RuntimeError("Bad deployment") from e
