@@ -27,6 +27,6 @@ class RequestLoggingMiddleware():
             if value:
                 extra[key] = value
 
-        logger.info("response sent", extra=extra)
+        logger.info("mbm.response_sent", extra=extra)
 
         return response
