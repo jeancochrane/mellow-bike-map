@@ -41,22 +41,6 @@
 
     <!-- Override this block to add extra stylesheets -->
     {% block extra_css %}{% endblock %}
-
-    <!-- Matomo -->
-    <script>
-      var _paq = window._paq = window._paq || [];
-      /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
-      _paq.push(['trackPageView']);
-      _paq.push(['enableLinkTracking']);
-      (function() {
-        var u="//analytics.jeancochrane.com/";
-        _paq.push(['setTrackerUrl', u+'matomo.php']);
-        _paq.push(['setSiteId', '1']);
-        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
-        g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
-      })();
-    </script>
-    <!-- End Matomo Code -->
   </head>
 
   <body>
@@ -96,6 +80,45 @@
     </div>
 
     <!-- Load external scripts -->
+    {% if enable_sentry %}
+    <script
+      src="https://js.sentry-cdn.com/611811e9bba3c86de0da65b84f82727e.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      window.sentryOnLoad = function () {
+        Sentry.init({
+          // Don't log sensitive user info like IP addresses. For more info visit:
+          // https://docs.sentry.io/platforms/javascript/configuration/options/#sendDefaultPii
+          sendDefaultPii: false,
+          release: "{{ sentry_release }}",
+          integrations: [
+            Sentry.browserTracingIntegration(),
+            Sentry.replayIntegration(),
+          ],
+          // Don't send logs to Sentry. Our frontend logs are not yet
+		  // structured enough for it to be useful to capture them
+          enableLogs: false,
+          // Set tracesSampleRate to 1.0 to capture 100%
+          // of transactions for tracing.
+          // We recommend adjusting this value in production
+          // Learn more at
+          // https://docs.sentry.io/platforms/javascript/configuration/options/#tracesSampleRate
+          tracesSampleRate: 1.0,
+          // Set `tracePropagationTargets` to control for which URLs trace propagation should be enabled
+          tracePropagationTargets: [
+            /^https:\/\/(staging\.)?mellowbikemap\.com/,
+            ],
+          // Capture Replay for 10% of all sessions,
+          // plus for 100% of sessions with an error
+          // Learn more at
+          // https://docs.sentry.io/platforms/javascript/session-replay/configuration/#general-integration-configuration
+          replaysSessionSampleRate: 0.1,
+          replaysOnErrorSampleRate: 1.0,
+        });
+      };
+    </script>
+    {% endif %}
     <script src="{% static 'js/jquery.min.js' %}"></script>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/fontawesome.min.js' %}"></script>

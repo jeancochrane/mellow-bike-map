@@ -31,14 +31,56 @@ DEBUG = False if os.getenv('DJANGO_DEBUG', True) == 'False' else True
 allowed_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', [])
 ALLOWED_HOSTS = allowed_hosts.split(',') if allowed_hosts else []
 
+# Read the deployment id from our templated module if we're not in dev
+try:
+    from .deployment import DEPLOYMENT_ID
+except ImportError as e:
+    if (os.getenv('ENVIRONMENT') in ('dev', 'test')):
+        DEPLOYMENT_ID = ''
+    else:
+        raise RuntimeError("Bad deployment") from e
 
 # Configure Sentry for error logging
-if os.getenv('SENTRY_DSN'):
+ENABLE_SENTRY = True if os.getenv('SENTRY_DSN') else False
+if ENABLE_SENTRY:
     sentry_sdk.init(
+        release=DEPLOYMENT_ID,
         dsn=os.environ['SENTRY_DSN'],
         before_send=before_send,
         integrations=[DjangoIntegration()],
+        send_default_pii=False,
+        enable_logs=True,
+        traces_sample_rate=1.0,
     )
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "mbm.logging.JSONFormatter",
+        },
+    },
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "formatter": "json"
+        },
+    },
+    "loggers": {
+        "django": {
+            "level": "ERROR",  # Suppress logs from django itself with levels below ERROR
+            "handlers": ["stdout"],
+            "propagate": False,
+        },
+        "": {
+            "level": "INFO",
+            "handlers": ["stdout"],
+            "propagate": False,
+        }
+    }
+}
+
 
 # Application definition
 
@@ -64,6 +106,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'mbm.middleware.RequestLoggingMiddleware'
 ]
 
 ROOT_URLCONF = 'mbm.urls'
@@ -79,6 +122,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'mbm.context_processors.sentry_config'
             ],
         },
     },

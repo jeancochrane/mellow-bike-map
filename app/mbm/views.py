@@ -70,7 +70,7 @@ class Route(APIView):
         target_coord = self.get_coord_from_request(request, 'target')
         target_vertex_id = self.get_nearest_vertex_id(target_coord)
 
-        show_bbox = request.GET.get("show_bbox", False) == "true"
+        show_bbox = request.GET.get("showBbox", False) == "true"
 
         response_dict = {
             'source': source_coord,
@@ -583,14 +583,8 @@ def server_error(request, template_name='mbm/500.html'):
     return render(request, template_name, status=500)
 
 
-def pong(request):
-    from django.http import HttpResponse
-
-    try:
-        from .deployment import DEPLOYMENT_ID
-    except ImportError as e:
-        return HttpResponse('Bad deployment: {}'.format(e), status=401)
-
+def pong():
+    from settings import DEPLOYMENT_ID
     return HttpResponse(DEPLOYMENT_ID)
 
 
