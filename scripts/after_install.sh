@@ -42,6 +42,11 @@ psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'mbm'" | grep -q
 # OPTIONAL Create any extensions within your database that your project needs.
 psql -U postgres -d mbm -f $PROJECT_DIR/db/create-extensions.sql
 
+# Write out the deployment ID to a Python module that can get imported by the
+# app. This needs to happen before the app starts up, including any management
+# commands, since the settings file expects it to exist in the prod environment
+echo "DEPLOYMENT_ID='$DEPLOYMENT_ID'" > $PROJECT_DIR/app/mbm/deployment.py
+
 # OPTIONAL Run migrations and other management commands that should be run with
 # every deployment
 export DJANGO_SECRET_KEY=temporarykey DATABASE_URL=postgres:///mbm DJANGO_DEBUG=False
@@ -72,7 +77,3 @@ fi
 # script.
 $VENV_DIR/bin/pip install "Jinja2>=2.10,<3.2"
 $VENV_DIR/bin/python $PROJECT_DIR/scripts/render_configs.py $DEPLOYMENT_ID $DEPLOYMENT_GROUP_NAME $DOMAIN $APP_NAME
-
-# Write out the deployment ID to a Python module that can get imported by the
-# app and returned by the /pong/ route (see above).
-echo "DEPLOYMENT_ID='$DEPLOYMENT_ID'" > $PROJECT_DIR/app/mbm/deployment.py
