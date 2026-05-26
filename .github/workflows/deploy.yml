@@ -17,6 +17,7 @@ jobs:
       DB_HOST: localhost
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
+      ENVIRONMENT: test
     services:
       postgres:
         image: postgres:11
