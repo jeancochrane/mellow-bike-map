@@ -583,8 +583,8 @@ def server_error(request, template_name='mbm/500.html'):
     return render(request, template_name, status=500)
 
 
-def pong():
-    from settings import DEPLOYMENT_ID
+def pong(request):
+    from mbm.settings import DEPLOYMENT_ID
     return HttpResponse(DEPLOYMENT_ID)
 
 
