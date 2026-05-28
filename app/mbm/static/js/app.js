@@ -50,9 +50,6 @@ export default class App {
         legend: false
       }
     }
-
-    // Start the app once the DOM is ready
-    document.addEventListener('DOMContentLoaded', this.start.bind(this))
     this.sourceLocation = ''
     this.targetLocation = ''
     this.sourceAddressString = ''
@@ -68,6 +65,14 @@ export default class App {
         autocomplete: null
       }
     }
+
+    if (document.readyState === "loading") {
+      // Start the app once the DOM is ready
+      document.addEventListener('DOMContentLoaded', this.start.bind(this))
+    } else {
+      this.start()
+    }
+
   }
 
   start() {
