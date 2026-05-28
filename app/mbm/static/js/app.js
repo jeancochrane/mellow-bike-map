@@ -177,14 +177,6 @@ export default class App {
       $(elem).data('state', state)
     }
 
-    const toggleControlElement = (elem, controlSelector) => {
-      if (isHidden(elem)) {
-        $(controlSelector).show()
-      } else {
-        $(controlSelector).hide()
-      }
-    }
-
     this.$hideSearch = $('#hide')
     // Toggle text on Show/Hide button
     this.$hideSearch.click(function (e) {
