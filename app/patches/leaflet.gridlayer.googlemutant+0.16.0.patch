@@ -1,0 +1,13 @@
+diff --git a/node_modules/leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant.js b/node_modules/leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant.js
+index b6fb014..9579a6e 100644
+--- a/node_modules/leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant.js
++++ b/node_modules/leaflet.gridlayer.googlemutant/dist/Leaflet.GoogleMutant.js
+@@ -778,7 +778,7 @@ this.L.GridLayer.GoogleMutant = (function (leaflet) {
+ 	// Returns a new `GridLayer.GoogleMutant` given its options
+ 	if (L && L.gridLayer) {
+ 		L.gridLayer.googleMutant = function (options) {
+-			return new L.GridLayer.GoogleMutant(options);
++			return new GoogleMutant(options);
+ 		};
+ 	}
+ 

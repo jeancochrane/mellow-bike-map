@@ -144,5 +144,5 @@ db/import/*.fixture
 
 # JS
 node_modules
-app/mbm/static/js/app.min.js
+app/mbm/static/js/dist
 *.map

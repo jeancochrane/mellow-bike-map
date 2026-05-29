@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Node requirements
 COPY ./package.json ./package-lock.json ./
+COPY ./patches ./patches
 RUN npm install
 
 # Copy all source code
@@ -25,4 +26,4 @@ RUN npm run build
 # Add a bogus env var for the Django secret key in order to allow us to run
 # the 'collectstatic' management command
 # Build static files into the container
-RUN DJANGO_SECRET_KEY='foobar' python manage.py collectstatic --noinput
+RUN DJANGO_SECRET_KEY='foobar' ENVIRONMENT='dev' python manage.py collectstatic --noinput

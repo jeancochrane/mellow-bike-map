@@ -4,15 +4,19 @@
   "description": "JavaScript development setup for mellow-bike-map",
   "scripts": {
     "test": "node --test tests/app.start.test.mjs",
-    "build": "esbuild mbm/static/js/app.js --bundle --sourcemap --minify --outfile=mbm/static/js/app.min.js"
+    "build": "esbuild mbm/static/js/index.js --asset-names='[name]' --bundle --loader:.png=file --sourcemap --minify --outfile=mbm/static/js/dist/index.min.js",
+    "dev": "npm run build -- --watch",
+    "postinstall": "patch-package --patch-dir patches"
   },
   "dependencies": {
     "jquery": "^3.7.1",
     "leaflet": "^1.9.4",
     "leaflet.gridlayer.googlemutant": "^0.16.0",
-    "spin.js": "^1.3.2"
+    "spin.js": "^4.1.2"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0"
+    "@types/leaflet": "^1.9.21",
+    "esbuild": "^0.28.0",
+    "patch-package": "^8.0.1"
   }
 }
