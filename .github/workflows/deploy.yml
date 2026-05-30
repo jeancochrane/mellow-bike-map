@@ -47,9 +47,10 @@ jobs:
         run: |
           cp -R tests app/tests
           cd app && pytest
-      - name: Run JavaScript tests
-        run: |
-          cd app && npm test
+      # Disabled until we configure an e2e test runner
+      # - name: Run JavaScript tests
+      #   run: |
+      #     cd app && npm test
 
   set-deploy-target:
     needs: test
