@@ -75,7 +75,7 @@ export default class App {
 
     // Override the default marker icon with a fontawesome based icon
     const iconHeight = 36
-    const iconWidth = 27
+    const iconWidth = 36
     L.Marker.prototype.options.icon = L.divIcon({
       html: `<span class="fa-layers fa-3x">
                <i class="fas fa-circle"
