@@ -77,7 +77,12 @@ export default class App {
     const iconHeight = 36
     const iconWidth = 27
     L.Marker.prototype.options.icon = L.divIcon({
-      html: '<i class="fas fa-map-marker-alt fa-3x" style="color: rgb(40, 132, 205);"></i>',
+      html: `<span class="fa-layers fa-3x">
+               <i class="fas fa-circle"
+                  style="color: white; font-size: 12px; transform: translate(0, -4px)"></i>
+               <i class="fas fa-map-marker-alt"
+                  style="color: rgb(40, 132, 205);"></i>
+             </span>`,
       iconSize: [iconWidth, iconHeight],
       iconAnchor: [iconWidth/2, iconHeight],
       popupAnchor: [0, -iconHeight],
