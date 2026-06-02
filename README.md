@@ -46,9 +46,9 @@ npm install
 npm run dev
 ```
 
-If you'd prefer to run the bundler in docker, you can do so inside the app container. From the project root directory:
+If you'd prefer to run the bundler in docker, you can do so inside the app container.
 ```
-docker compose exec app npm run dev
+docker compose exec app npm install && npm run dev
 ```
 
 
