@@ -141,3 +141,8 @@ db/import/*.fixture
 /.blackbox/pubring.kbx~
 /.blackbox/secring.gpg
 /configs/mellow-bike-map-production.conf.supervisor
+
+# JS
+node_modules
+app/mbm/static/js/dist
+*.map

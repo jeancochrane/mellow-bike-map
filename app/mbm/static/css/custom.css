@@ -102,6 +102,11 @@ a {
   border: var(--dark-green-color);
 }
 
+.defaultMarker {
+  text-align: center;
+  line-height: 20px;
+}
+
 
 /* Pulsing dot to be used as GPS location marker
  * CSS approach taken from https://codeconvey.com/pulsating-circle-animation-css/

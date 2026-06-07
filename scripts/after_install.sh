@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
 
 # Make sure the deployment group specific variables are available to this
 # script.
@@ -33,6 +33,30 @@ sudo -H -u mbm $VENV_DIR/bin/pip install --upgrade "setuptools<50.0"
 # Install the project requirements into the deployment specific virtual
 # environment.
 sudo -H -u mbm $VENV_DIR/bin/pip install -r $PROJECT_DIR/app/requirements.txt --upgrade
+
+# Install Node.js using nvm.
+# We use node to download js packages from the registry and to compile our frontend.
+# Node doesn't recommend installing via apt, and instead recommends nvm on https://nodejs.org/en/download
+pushd "$PROJECT_DIR/app"
+sudo -H -E -u mbm bash <<'EOF'
+# Download and install nvm:
+if commmand -v nvm; then
+    echo "nvm already installed"
+else
+    echo "Installing nvm"
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash
+    # in lieu of restarting the shell
+    \. "$HOME/.nvm/nvm.sh"
+fi
+
+# Download and install Node.js:
+nvm install 24
+
+# Install and bundle js packages
+npm install
+npm run build
+EOF
+popd
 
 # OPTIONAL If you're using PostgreSQL, check to see if the database that you
 # need is present and, if not, create it setting the mbm user as it's

@@ -37,6 +37,21 @@ docker-compose up
 
 The app will be available on http://localhost:8000.
 
+If you're modifying the frontend at all you'll want to run our bundler. To do that on your host machine, first [install nodejs](https://nodejs.org/en/download).
+
+Then (in a separate terminal) make sure you're in the `app` directory, install the dependencies, and start the bundler in watch mode:
+```
+cd app
+npm install
+npm run dev
+```
+
+If you'd prefer to run the bundler in docker, you can do so inside the app container.
+```
+docker compose exec app bash -c "npm install && npm run dev"
+```
+
+
 ### Testing
 
 To run backend tests:

@@ -1,7 +1,13 @@
-import UserLocations from './userlocations.js'
-import autocomplete from './autocomplete.js'
-import Geolocation from './geolocation.js'
-import { getUserPreferences, saveUserPreferences } from './storage.js'
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.gridlayer.googlemutant';
+import { Spinner } from 'spin.js';
+import 'spin.js/spin.css';
+
+import UserLocations from './userlocations.js';
+import autocomplete from './autocomplete.js';
+import Geolocation from './geolocation.js';
+import { getUserPreferences, saveUserPreferences } from './storage.js';
 // The App class holds top level state and map related methods that other modules
 // need to call, for example to update the position of markers.
 export default class App {
@@ -50,9 +56,6 @@ export default class App {
         legend: false
       }
     }
-
-    // Start the app once the DOM is ready
-    document.addEventListener('DOMContentLoaded', this.start.bind(this))
     this.sourceLocation = ''
     this.targetLocation = ''
     this.sourceAddressString = ''
@@ -68,6 +71,31 @@ export default class App {
         autocomplete: null
       }
     }
+    this.spinner = new Spinner();
+
+    // Override the default marker icon with a fontawesome based icon
+    const iconHeight = 36
+    const iconWidth = 36
+    L.Marker.prototype.options.icon = L.divIcon({
+      html: `<span class="fa-layers fa-3x">
+               <i class="fas fa-circle"
+                  style="color: white; font-size: 12px; transform: translate(0, -4px)"></i>
+               <i class="fas fa-map-marker-alt"
+                  style="color: rgb(40, 132, 205);"></i>
+             </span>`,
+      iconSize: [iconWidth, iconHeight],
+      iconAnchor: [iconWidth/2, iconHeight],
+      popupAnchor: [0, -iconHeight],
+      className: 'defaultMarker'
+    });
+
+    if (document.readyState === "loading") {
+      // Start the app once the DOM is ready
+      document.addEventListener('DOMContentLoaded', this.start.bind(this))
+    } else {
+      this.start()
+    }
+
   }
 
   start() {
@@ -170,14 +198,6 @@ export default class App {
       }
       $(elem).html(innerHTML)
       $(elem).data('state', state)
-    }
-
-    const toggleControlElement = (elem, controlSelector) => {
-      if (isHidden(elem)) {
-        $(controlSelector).show()
-      } else {
-        $(controlSelector).hide()
-      }
     }
 
     this.$hideSearch = $('#hide')
@@ -309,14 +329,14 @@ export default class App {
     }
 
     // Start spinner while we retrieve initial route map
-    this.map.spin(true)
+    this.spin(true)
     $.getJSON(this.routeListUrl).done((data) => {
       this.calmRoutesData = data
       this.renderCalmRoutesLayer(data)
     }).fail(function (jqxhr, textStatus, error) {
       console.log(textStatus + ': ' + error)
     }).always(() => {
-      this.map.spin(false)
+      this.spin(false)
     })
   }
 
@@ -526,9 +546,24 @@ export default class App {
     this.clearRouteQueryParams()
   }
 
+  // Start or stop the spinner
+  spin(shouldSpin) {
+    if (!this.mapContainer) {
+      return
+    }
+
+    if (!this.spinner) {
+      this.spinner = new Spinner()
+    }
+
+    shouldSpin ? this.spinner.spin(this.mapContainer) : this.spinner.stop()
+  }
+
   // Set up the base leaflet map and styles
   createMap() {
-    const map = L.map('map')
+
+    this.mapContainer = document.getElementById('map')
+    const map = L.map(this.mapContainer)
 
     const googleStyles = [
       {
@@ -560,7 +595,7 @@ export default class App {
     ]
 
     // Load basemap
-    const streets = new L.Google('ROADMAP', { mapOptions: { styles: googleStyles } })
+    const streets = L.gridLayer.googleMutant({type: 'roadmap', styles: googleStyles })
     map.addLayer(streets).setView([41.87, -87.62], 11)
 
     map.attributionControl.setPrefix('')
@@ -594,7 +629,7 @@ export default class App {
         this.$hideSearch.click()
       }
 
-      this.map.spin(true)
+      this.spin(true)
       $.getJSON(this.routeUrl + '?' + $.param({ source, target, showBbox: this.showBbox })).done((data) => {
         if (this.directionsRouteLayer) {
           this.map.removeLayer(this.directionsRouteLayer)
@@ -622,7 +657,7 @@ export default class App {
         const err = textStatus + ': ' + error
         alert('Request failed: ' + err)
       }).always(() => {
-        this.map.spin(false)
+        this.spin(false)
       })
     }
   }
