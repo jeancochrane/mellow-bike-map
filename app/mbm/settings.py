@@ -108,7 +108,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'mbm.middleware.MapEditorReferrerPolicyMiddleware',
     'mbm.middleware.RequestLoggingMiddleware'
 ]
 
@@ -194,3 +193,15 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+LEAFLET_CONFIG = {
+    'TILES': [
+        (
+            'OSM', '//tile.openstreetmap.org/{z}/{x}/{y}.png',
+            {
+                'attribution': '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                'referrerPolicy': 'strict-origin',
+            }
+        )
+    ]
+}
