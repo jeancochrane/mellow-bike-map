@@ -24,5 +24,7 @@ db/raw/chicago-filtered.osm: db/raw/chicago.osm
 		-o=$@
 
 
-db/raw/chicago.osm:
-	wget --no-use-server-timestamps -O $@ https://overpass-api.de/api/map?bbox=-87.8558,41.6229,-87.5085,42.0488
+db/raw/chicago.osm: db/chicago.overpassql
+	curl -f -A mellow-bike-map -o $@ \
+		--data-urlencode data@$< \
+		https://overpass-api.de/api/interpreter
