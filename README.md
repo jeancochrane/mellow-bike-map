@@ -20,19 +20,25 @@ Run migrations:
 docker compose run --rm app ./manage.py migrate
 ```
 
+Start the database service:
+
+```
+docker compose up -d postgres
+```
+
 Import the data (note that the full data import can take quite a bit of memory,
 so make sure to adjust your Docker preferences to allow Docker at least 6GB of
 RAM):
 
 ```
-docker compose run --rm -w /app postgres make db/import/chicago.table
+docker compose exec -w /app postgres make db/import/chicago.table
 docker compose run --rm -w /app app make db/import/mellowroute.fixture
 ```
 
 Start the app service:
 
 ```
-docker-compose up
+docker-compose up --no-deps app
 ```
 
 The app will be available on http://localhost:8000.
