@@ -16,15 +16,19 @@ db/import/chicago.table: db/raw/chicago-filtered.osm
 	touch $@
 
 
-db/raw/chicago-filtered.osm: db/raw/chicago.osm
-	osmfilter $< \
+# Bounding box: west,south,east,north
+CHICAGO_BBOX = -87.8558,41.6229,-87.5085,42.0488
+
+db/raw/chicago-filtered.osm: db/raw/illinois-latest.osm.pbf
+	osmconvert $< -b=$(CHICAGO_BBOX) --drop-broken-refs -o=db/raw/chicago.o5m && \
+	osmfilter db/raw/chicago.o5m \
 		--keep="highway= bicycle= cycleway= route=bicycle" \
 		--drop="building= amenity= shop= tourism= leisure= landuse= natural= power= waterway=" \
 		--drop-author --drop-version \
-		-o=$@
+		-o=$@ && \
+	rm db/raw/chicago.o5m
 
 
-db/raw/chicago.osm: db/chicago.overpassql
-	curl -f -A mellow-bike-map -o $@ \
-		--data-urlencode data@$< \
-		https://overpass-api.de/api/interpreter
+db/raw/illinois-latest.osm.pbf:
+	curl -fL --retry 5 -A mellow-bike-map -o $@ \
+		https://download.geofabrik.de/north-america/us/illinois-latest.osm.pbf

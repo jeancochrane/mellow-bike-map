@@ -130,6 +130,9 @@ dmypy.json
 
 # Data
 db/raw/*.osm
+db/raw/*.osm.gz
+db/raw/*.pbf
+db/raw/*.o5m
 db/import/*.table
 db/import/*.fixture
 
