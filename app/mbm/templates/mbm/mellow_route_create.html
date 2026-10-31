@@ -4,6 +4,11 @@
 
 {% block title %}{{ view.title }}{% endblock %}
 
+{% block extra_meta %}
+  {# OSM requires a Referer header for tile requests #}
+  <meta name="referrer" content="strict-origin">
+{% endblock %}
+
 {% block extra_css %}{% leaflet_css plugins="forms,draw" %}{% endblock %}
 
 {% block body %}
