@@ -4,11 +4,13 @@ FROM python:3.8
 # (see: https://github.com/nodesource/distributions/blob/master/README.md)
 RUN curl -sL https://deb.nodesource.com/setup_22.x | bash -
 
-RUN apt-get update && apt-get install -y --no-install-recommends nodejs gdal-bin
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  nodejs gdal-bin ca-certificates
 
 WORKDIR /app/app
 
 # Install Python requirements
+RUN pip install --upgrade pip
 COPY ./requirements.txt /app/app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
